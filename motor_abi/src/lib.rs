@@ -88,8 +88,7 @@ pub extern "C" fn motor_controller_free(controller: *mut MotorController) {
     if controller.is_null() {
         return;
     }
-    let boxed = unsafe { Box::from_raw(controller) };
-    let _ = boxed.inner.shutdown();
+    let _ = unsafe { Box::from_raw(controller) };
 }
 
 #[unsafe(no_mangle)]
@@ -148,6 +147,22 @@ pub extern "C" fn motor_controller_shutdown(controller: *mut MotorController) ->
     }
     let controller = unsafe { &mut *controller };
     match controller.inner.shutdown() {
+        Ok(()) => 0,
+        Err(e) => {
+            set_last_error(e.to_string());
+            -1
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn motor_controller_close_bus(controller: *mut MotorController) -> i32 {
+    if controller.is_null() {
+        set_last_error("controller is null");
+        return -1;
+    }
+    let controller = unsafe { &mut *controller };
+    match controller.inner.close_bus() {
         Ok(()) => 0,
         Err(e) => {
             set_last_error(e.to_string());

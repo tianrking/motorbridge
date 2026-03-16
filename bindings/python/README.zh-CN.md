@@ -2,14 +2,14 @@
 
 用于调用 `motorbridge` Rust ABI 的 Python 包。
 
-> English: [README.md](README.md)
+> English version: [README.md](README.md)
 
 ## 安装
 
-### A) 从 Release wheel 安装（推荐给使用者）
+### A) 安装发行版 wheel（推荐）
 
 ```bash
-pip install motorbridge-0.1.0-<python_tag>-linux_x86_64.whl
+pip install motorbridge-0.1.0-<python_tag>-<platform>.whl
 ```
 
 示例：
@@ -18,18 +18,11 @@ pip install motorbridge-0.1.0-<python_tag>-linux_x86_64.whl
 pip install motorbridge-0.1.0-cp310-cp310-linux_x86_64.whl
 ```
 
-### B) 本地可编辑安装（推荐给开发者）
-
-在仓库根目录执行：
+### B) 本地可编辑安装（开发）
 
 ```bash
 cd bindings/python
 pip install -e .
-```
-
-运行前先构建一次 Rust ABI（本地开发路径）：
-
-```bash
 cd ../../
 cargo build -p motor_abi --release
 ```
@@ -48,13 +41,26 @@ with Controller("can0") as ctrl:
     m.close()
 ```
 
-## 命令行
+## CLI 总览
+
+`motorbridge-cli` 现在支持子命令：
+
+- `run`：控制循环（默认命令；兼容旧版平铺参数）
+- `id-dump`：读取关键寄存器（默认 `7,8,9,10,21,22,23`）
+- `id-set`：设置 `ESC_ID`/`MST_ID`（寄存器 `8`/`7`）并可选回读校验
+- `scan`：按 ID 范围探测在线电机
+
+查看帮助：
 
 ```bash
 motorbridge-cli --help
+motorbridge-cli run --help
+motorbridge-cli id-dump --help
+motorbridge-cli id-set --help
+motorbridge-cli scan --help
 ```
 
-## CLI 参数说明
+## `run` 命令参数
 
 通用参数：
 
@@ -66,7 +72,7 @@ motorbridge-cli --help
 - `--loop`（默认 `100`）
 - `--dt-ms`（默认 `20`）
 - `--print-state`（`1/0`，默认 `1`）
-- `--ensure-mode`（`1/0`，默认 `1`，仅非 enable/disable）
+- `--ensure-mode`（`1/0`，默认 `1`，仅对非 enable/disable 生效）
 - `--ensure-timeout-ms`（默认 `1000`）
 - `--ensure-strict`（`1/0`，默认 `0`）
 
@@ -77,65 +83,70 @@ motorbridge-cli --help
 - VEL：`--vel`
 - FORCE_POS：`--pos --vlim --ratio`
 
-## 完整 CLI 命令
-
-使能：
+示例：
 
 ```bash
-motorbridge-cli \
+# 单独使能
+motorbridge-cli run \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode enable --loop 20 --dt-ms 100 --print-state 1
-```
 
-失能：
-
-```bash
-motorbridge-cli \
+# 单独失能
+motorbridge-cli run \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode disable --loop 20 --dt-ms 100 --print-state 1
-```
 
-MIT：
-
-```bash
-motorbridge-cli \
+# MIT
+motorbridge-cli run \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 \
   --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
   --loop 200 --dt-ms 20 --print-state 1
-```
 
-POS_VEL：
-
-```bash
-motorbridge-cli \
+# POS_VEL（目标位置）
+motorbridge-cli run \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode pos-vel --pos 3.10 --vlim 1.50 \
   --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
   --loop 300 --dt-ms 20 --print-state 1
 ```
 
-VEL：
+旧命令兼容（仍可用）：
 
 ```bash
-motorbridge-cli \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode vel --vel 0.5 \
-  --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
-  --loop 100 --dt-ms 20 --print-state 1
+motorbridge-cli --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode mit
 ```
 
-FORCE_POS：
+## ID/扫描命令
+
+读取关键寄存器：
 
 ```bash
-motorbridge-cli \
+motorbridge-cli id-dump \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode force-pos --pos 0.8 --vlim 2.0 --ratio 0.3 \
-  --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
-  --loop 100 --dt-ms 20 --print-state 1
+  --timeout-ms 500
+```
+
+修改 ID（写 `ESC_ID`/`MST_ID`）：
+
+```bash
+motorbridge-cli id-set \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --new-motor-id 0x02 --new-feedback-id 0x12 \
+  --store 1 --verify 1 --timeout-ms 800
+```
+
+扫描 ID 范围：
+
+```bash
+motorbridge-cli scan \
+  --channel can0 --model 4340P \
+  --start-id 0x01 --end-id 0x10 --feedback-base 0x10 --timeout-ms 80
 ```
 
 ## 动态库加载顺序
+
+优先级：
 
 1. 环境变量 `MOTORBRIDGE_LIB`
 2. 包内 `motorbridge/lib/*`
@@ -145,9 +156,9 @@ motorbridge-cli \
 ## 常见问题
 
 - `Failed to load motor_abi shared library`：
-  - 确认 wheel 包含 `motorbridge/lib/libmotor_abi.so`
+  - 确认 wheel 内含 `motorbridge/lib/libmotor_abi.so`（或对应平台动态库）
   - 或设置 `MOTORBRIDGE_LIB=/path/to/libmotor_abi.so`
 - `socketcan write failed: Network is down`：
-  - 先确认并启用 `can0`（`ip link show can0`）
+  - 先确保 CAN 网口已启用（`ip link show can0`）
 - 持续 `no feedback yet`：
-  - 检查 `feedback-id`、总线接线和供电
+  - 检查 model、`motor-id`、`feedback-id`、接线和供电

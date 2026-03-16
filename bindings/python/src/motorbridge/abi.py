@@ -97,6 +97,8 @@ class Abi:
         lib.motor_controller_disable_all.restype = c_int32
         lib.motor_controller_shutdown.argtypes = [c_void_p]
         lib.motor_controller_shutdown.restype = c_int32
+        lib.motor_controller_close_bus.argtypes = [c_void_p]
+        lib.motor_controller_close_bus.restype = c_int32
 
         lib.motor_controller_add_damiao_motor.argtypes = [c_void_p, c_uint16, c_uint16, c_char_p]
         lib.motor_controller_add_damiao_motor.restype = c_void_p

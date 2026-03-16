@@ -4,6 +4,7 @@ This directory helps you quickly find:
 
 - Full parameter sets per control mode
 - Method mapping by language (CLI / Python / C / C++)
+- Python SDK subcommands for ID tooling (`id-dump` / `id-set` / `scan`)
 - Direct command examples, including standalone `enable/disable`
 
 > Chinese version: [README.zh-CN.md](README.zh-CN.md)
@@ -150,6 +151,9 @@ cargo run -p motor_cli --release -- \
 | VEL send | `--mode vel ...` | `motor_handle_send_vel(...)` |
 | FORCE_POS send | `--mode force-pos ...` | `motor_handle_send_force_pos(...)` |
 | Ensure mode | `--ensure-mode 1` | `motor_handle_ensure_mode(...)` |
+| Dump IDs/mode/limits | `motorbridge-cli id-dump ...` | `motor_handle_get_register_u32/f32(...)` |
+| Set IDs | `motorbridge-cli id-set ...` | `motor_handle_write_register_u32(...)` + `motor_handle_store_parameters(...)` |
+| Scan IDs | `motorbridge-cli scan ...` | register probe loop with ABI reads |
 
 Mode values for ABI:
 
@@ -190,6 +194,7 @@ LD_LIBRARY_PATH=target/release ./cpp_abi_demo can0 4340P 0x01 0x11
 - `motor_handle_set_zero_position(...)`
 - `motor_handle_store_parameters(...)`
 - `motor_handle_set_can_timeout_ms(...)`
+- `motor_controller_close_bus(...)` (close session without implicit shutdown)
 
 ## Important Behavior Notes
 

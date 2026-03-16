@@ -154,6 +154,7 @@ cargo run -p motor_cli --release -- \
 - C++ 示例：[examples/cpp/cpp_abi_demo.cpp](examples/cpp/cpp_abi_demo.cpp)
 - Python ctypes 示例：[examples/python/python_ctypes_demo.py](examples/python/python_ctypes_demo.py)
 - Python SDK 包：[bindings/python](bindings/python)
+- Python SDK CLI 子命令：`run` / `id-dump` / `id-set` / `scan`
 - 示例总览（英文）：[examples/README.md](examples/README.md)
 - 示例总览（中文）：[examples/README.zh-CN.md](examples/README.zh-CN.md)
 

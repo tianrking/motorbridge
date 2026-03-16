@@ -5,6 +5,7 @@
 - 每种控制模式的完整参数
 - 不同语言（CLI / Python / C / C++）的方法映射
 - 可直接运行的命令（包含单独使能/失能）
+- Python SDK 的 ID 工具子命令（`id-dump` / `id-set` / `scan`）
 
 > English version: [README.md](README.md)
 
@@ -150,6 +151,9 @@ cargo run -p motor_cli --release -- \
 | VEL 发送 | `--mode vel ...` | `motor_handle_send_vel(...)` |
 | FORCE_POS 发送 | `--mode force-pos ...` | `motor_handle_send_force_pos(...)` |
 | 确保模式 | `--ensure-mode 1` | `motor_handle_ensure_mode(...)` |
+| 读取 ID/模式/限制 | `motorbridge-cli id-dump ...` | `motor_handle_get_register_u32/f32(...)` |
+| 设置 ID | `motorbridge-cli id-set ...` | `motor_handle_write_register_u32(...)` + `motor_handle_store_parameters(...)` |
+| 扫描 ID | `motorbridge-cli scan ...` | 基于 ABI 寄存器读的探测循环 |
 
 ABI 模式值：
 
@@ -190,6 +194,7 @@ LD_LIBRARY_PATH=target/release ./cpp_abi_demo can0 4340P 0x01 0x11
 - `motor_handle_set_zero_position(...)`
 - `motor_handle_store_parameters(...)`
 - `motor_handle_set_can_timeout_ms(...)`
+- `motor_controller_close_bus(...)`（仅关闭会话，不触发隐式 shutdown）
 
 ## 重要行为说明
 

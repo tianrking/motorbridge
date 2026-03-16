@@ -10,6 +10,7 @@
   - `motor_controller_enable_all`
   - `motor_controller_disable_all`
   - `motor_controller_shutdown`
+  - `motor_controller_close_bus`
   - `motor_controller_free`
 - 电机句柄
   - 生命周期: `motor_controller_add_damiao_motor` / `motor_handle_free`
@@ -64,6 +65,10 @@ cargo build -p motor_abi --release
 
 - `motor_controller_add_damiao_motor(controller, motor_id, feedback_id, model)` 的 `model` 是可配置字符串，
   不限制为 `4340`。例如可传：`"4340P"`, `"4310"`, `"8006"` 等（需在支持型号列表内）。
+- 生命周期建议：
+  - 控制结束需要明确失能时：调用 `motor_controller_shutdown`
+  - 仅用于扫描/寄存器查询，不想触发失能时：调用 `motor_controller_close_bus` 后 `motor_controller_free`
+  - `motor_controller_free` 现在只释放对象，不再隐式调用 `shutdown`
 
 ## 5. Python ctypes 调用
 

@@ -1,12 +1,20 @@
-# Python ctypes Examples
+# Python Examples
 
 This directory contains Python demos that call Rust `motor_abi` via `ctypes`.
 
 > Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
+## Purpose of This Directory
+
+- Show direct ABI calls from Python (`ctypes`)
+- Provide full control-mode command examples (`enable/disable/mit/pos-vel/vel/force-pos`)
+- Provide a minimal baseline for debugging ABI issues independent from SDK packaging
+
+If you prefer higher-level usage, see Python SDK CLI in `bindings/python` (`motorbridge-cli`).
+
 ## Files
 
-- `python_ctypes_demo.py`: unified multi-mode Python demo (`enable/disable/mit/pos-vel/vel/force-pos`)
+- `python_ctypes_demo.py`: unified multi-mode ctypes demo (`enable/disable/mit/pos-vel/vel/force-pos`)
 
 ## Prerequisites
 
@@ -16,7 +24,7 @@ From project root (`rust_dm`):
 cargo build -p motor_abi --release
 ```
 
-Run Python demo from project root so relative `.so` path resolves:
+Run from project root so relative `.so` path resolves:
 
 ```bash
 python3 examples/python/python_ctypes_demo.py --help
@@ -32,7 +40,7 @@ python3 examples/python/python_ctypes_demo.py --help
 - `--loop`: send cycles
 - `--dt-ms`: interval per cycle (ms)
 - `--print-state`: `1/0`, print feedback state
-- `--ensure-mode`: `1/0`, ensure control mode before sending for non-enable/disable modes
+- `--ensure-mode`: `1/0`, ensure control mode before non-enable/disable sends
 - `--ensure-timeout-ms`: ensure mode timeout (ms)
 
 Control params:
@@ -100,6 +108,16 @@ python3 examples/python/python_ctypes_demo.py \
   --loop 100 --dt-ms 20 --print-state 1
 ```
 
+## Related SDK CLI (ID/Scan Tools)
+
+For `id-dump` / `id-set` / `scan`, use `motorbridge-cli` from `bindings/python`:
+
+```bash
+motorbridge-cli id-dump --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11
+motorbridge-cli id-set --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --new-motor-id 0x02 --new-feedback-id 0x12 --store 1 --verify 1
+motorbridge-cli scan --channel can0 --model 4340P --start-id 0x01 --end-id 0x10
+```
+
 ## Troubleshooting
 
 - `OSError: cannot open shared object file`:
@@ -108,5 +126,4 @@ python3 examples/python/python_ctypes_demo.py \
 - `socketcan write failed: Network is down`:
   - bring CAN interface up first (`ip link show can0`)
 - repeated `no feedback yet`:
-  - verify `feedback-id` and wiring
-  - check with `candump can0`
+  - verify model, IDs, wiring and power

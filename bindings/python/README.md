@@ -6,10 +6,10 @@ Python package for calling `motorbridge` Rust ABI.
 
 ## Install
 
-### A) Install from release wheel (recommended for users)
+### A) Install from release wheel (recommended)
 
 ```bash
-pip install motorbridge-0.1.0-<python_tag>-linux_x86_64.whl
+pip install motorbridge-0.1.0-<python_tag>-<platform>.whl
 ```
 
 Example:
@@ -18,18 +18,11 @@ Example:
 pip install motorbridge-0.1.0-cp310-cp310-linux_x86_64.whl
 ```
 
-### B) Local editable install (for development)
-
-From repo root:
+### B) Local editable install (development)
 
 ```bash
 cd bindings/python
 pip install -e .
-```
-
-Before runtime, build Rust ABI once (for local dev path):
-
-```bash
 cd ../../
 cargo build -p motor_abi --release
 ```
@@ -48,13 +41,26 @@ with Controller("can0") as ctrl:
     m.close()
 ```
 
-## CLI
+## CLI Overview
+
+`motorbridge-cli` now supports subcommands:
+
+- `run`: control loop (default; legacy flat flags still work)
+- `id-dump`: read key registers (`7,8,9,10,21,22,23` by default)
+- `id-set`: set `ESC_ID`/`MST_ID` (register `8`/`7`) and optional verify
+- `scan`: probe a CAN ID range by register read
+
+Help:
 
 ```bash
 motorbridge-cli --help
+motorbridge-cli run --help
+motorbridge-cli id-dump --help
+motorbridge-cli id-set --help
+motorbridge-cli scan --help
 ```
 
-## CLI Parameters
+## `run` Command Parameters
 
 Common:
 
@@ -77,62 +83,65 @@ Mode params:
 - VEL: `--vel`
 - FORCE_POS: `--pos --vlim --ratio`
 
-## Full CLI Commands
-
-Enable:
+Examples:
 
 ```bash
-motorbridge-cli \
+# standalone enable
+motorbridge-cli run \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode enable --loop 20 --dt-ms 100 --print-state 1
-```
 
-Disable:
-
-```bash
-motorbridge-cli \
+# standalone disable
+motorbridge-cli run \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode disable --loop 20 --dt-ms 100 --print-state 1
-```
 
-MIT:
-
-```bash
-motorbridge-cli \
+# MIT
+motorbridge-cli run \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 \
   --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
   --loop 200 --dt-ms 20 --print-state 1
-```
 
-POS_VEL:
-
-```bash
-motorbridge-cli \
+# POS_VEL (target position)
+motorbridge-cli run \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode pos-vel --pos 3.10 --vlim 1.50 \
   --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
   --loop 300 --dt-ms 20 --print-state 1
 ```
 
-VEL:
+Legacy compatibility (still supported):
 
 ```bash
-motorbridge-cli \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode vel --vel 0.5 \
-  --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
-  --loop 100 --dt-ms 20 --print-state 1
+motorbridge-cli --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode mit
 ```
 
-FORCE_POS:
+## ID/Scan Commands
+
+Dump key registers:
 
 ```bash
-motorbridge-cli \
+motorbridge-cli id-dump \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode force-pos --pos 0.8 --vlim 2.0 --ratio 0.3 \
-  --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
-  --loop 100 --dt-ms 20 --print-state 1
+  --timeout-ms 500
+```
+
+Set IDs (write `ESC_ID`/`MST_ID`):
+
+```bash
+motorbridge-cli id-set \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --new-motor-id 0x02 --new-feedback-id 0x12 \
+  --store 1 --verify 1 --timeout-ms 800
+```
+
+Scan ID range:
+
+```bash
+motorbridge-cli scan \
+  --channel can0 --model 4340P \
+  --start-id 0x01 --end-id 0x10 --feedback-base 0x10 --timeout-ms 80
 ```
 
 ## Shared Library Resolution
@@ -147,9 +156,9 @@ Priority order:
 ## Troubleshooting
 
 - `Failed to load motor_abi shared library`:
-  - ensure wheel includes `motorbridge/lib/libmotor_abi.so`
+  - ensure wheel includes `motorbridge/lib/libmotor_abi.so` (or platform equivalent)
   - or export `MOTORBRIDGE_LIB=/path/to/libmotor_abi.so`
 - `socketcan write failed: Network is down`:
-  - bring up CAN interface first (`ip link show can0`)
+  - bring CAN interface up first (`ip link show can0`)
 - repeated `no feedback yet`:
-  - verify `feedback-id`, CAN wiring and power
+  - verify model, `motor-id`, `feedback-id`, CAN wiring and power

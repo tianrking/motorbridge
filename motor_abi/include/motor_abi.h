@@ -30,6 +30,7 @@ int32_t motor_controller_poll_feedback_once(MotorController* controller);
 int32_t motor_controller_enable_all(MotorController* controller);
 int32_t motor_controller_disable_all(MotorController* controller);
 int32_t motor_controller_shutdown(MotorController* controller);
+int32_t motor_controller_close_bus(MotorController* controller);
 
 MotorHandle* motor_controller_add_damiao_motor(MotorController* controller, uint16_t motor_id, uint16_t feedback_id, const char* model);
 void motor_handle_free(MotorHandle* motor);

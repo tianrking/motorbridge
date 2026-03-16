@@ -33,6 +33,9 @@ class Controller:
     def shutdown(self) -> None:
         _ok(self._abi.lib.motor_controller_shutdown(self._ptr), "controller_shutdown")
 
+    def close_bus(self) -> None:
+        _ok(self._abi.lib.motor_controller_close_bus(self._ptr), "controller_close_bus")
+
     def enable_all(self) -> None:
         _ok(self._abi.lib.motor_controller_enable_all(self._ptr), "enable_all")
 

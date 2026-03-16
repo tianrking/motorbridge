@@ -77,6 +77,14 @@ cargo run -p motor_cli --release -- \
   --mode pos-vel --pos 1.2 --vlim 2.0 --loop 100 --dt-ms 20
 ```
 
+目标位置测试（以速度限制到达 `3.10 rad`）：
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode pos-vel --pos 3.10 --vlim 1.50 --loop 300 --dt-ms 20
+```
+
 ### 5) VEL 模式
 
 - 模式：`--mode vel`
@@ -150,3 +158,8 @@ LD_LIBRARY_PATH=target/release ./cpp_abi_demo can0 4340P 0x01 0x11
 - `motor_handle_set_zero_position(...)`
 - `motor_handle_store_parameters(...)`
 - `motor_handle_set_can_timeout_ms(...)`
+
+## 重要行为说明
+
+- `motor_cli` 的 `--mode enable` / `--mode disable` 现在在退出时仅关闭本地总线会话。
+- 不会再通过 `shutdown` 隐式自动 `disable` 电机。

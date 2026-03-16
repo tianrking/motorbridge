@@ -111,6 +111,14 @@ cargo run -p motor_cli --release -- \
   --mode pos-vel --pos 1.2 --vlim 2.0 --loop 100 --dt-ms 20
 ```
 
+POS_VEL 到目标位置示例（让电机到达并保持在目标位置附近）：
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode pos-vel --pos 3.10 --vlim 1.50 --loop 300 --dt-ms 20
+```
+
 ## ABI 与跨语言调用
 
 - ABI 说明：[docs/ABI_USAGE.md](docs/ABI_USAGE.md)
@@ -130,6 +138,7 @@ cargo run -p motor_cli --release -- \
 
 - 当前实现的是 Linux SocketCAN 后端。
 - 对具体型号/固件版本，仍建议做实机回归验证。
+- `motor_cli` 的 `enable/disable` 模式现在在退出时只关闭本地总线会话，不会隐式自动 `disable` 电机。
 
 ## 社区与协作
 

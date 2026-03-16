@@ -112,6 +112,14 @@ cargo run -p motor_cli --release -- \
   --mode pos-vel --pos 1.2 --vlim 2.0 --loop 100 --dt-ms 20
 ```
 
+POS_VEL target-position command (reach and hold near a target position):
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode pos-vel --pos 3.10 --vlim 1.50 --loop 300 --dt-ms 20
+```
+
 ## ABI and Cross-language Usage
 
 - ABI guide: [docs/ABI_USAGE.md](docs/ABI_USAGE.md)
@@ -131,6 +139,7 @@ Detailed guide: [docs/EXTENDING.md](docs/EXTENDING.md)
 
 - Linux SocketCAN backend is currently implemented.
 - For each specific motor model/firmware, hardware regression is still recommended.
+- `motor_cli` `enable/disable` mode now exits by closing only the local bus session (no implicit auto-disable on exit).
 
 ## Community
 

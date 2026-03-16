@@ -1,0 +1,356 @@
+use crate::protocol::{
+    decode_register_value, decode_sensor_feedback, encode_clear_error_cmd, encode_disable_cmd,
+    encode_enable_cmd, encode_feedback_request_cmd, encode_force_pos_cmd, encode_mit_cmd,
+    encode_pos_vel_cmd, encode_register_read_cmd, encode_register_write_cmd, encode_set_zero_cmd,
+    encode_store_params_cmd, encode_vel_cmd, is_register_reply, status_name, Limits,
+};
+use crate::registers::{register_info, RegisterAccess, RegisterDataType};
+use motor_core::bus::{CanBus, CanFrame};
+use motor_core::device::MotorDevice;
+use motor_core::error::{MotorError, Result};
+use motor_core::model::{ModelCatalog, MotorModelSpec, PvTLimits, StaticModelCatalog};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+const DAMIAO_MODELS: &[MotorModelSpec] = &[
+    MotorModelSpec { vendor: "damiao", model: "3507", pmax: 12.566, vmax: 50.0, tmax: 5.0 },
+    MotorModelSpec { vendor: "damiao", model: "4310", pmax: 12.5, vmax: 30.0, tmax: 10.0 },
+    MotorModelSpec { vendor: "damiao", model: "4310P", pmax: 12.5, vmax: 50.0, tmax: 10.0 },
+    MotorModelSpec { vendor: "damiao", model: "4340", pmax: 12.5, vmax: 10.0, tmax: 28.0 },
+    MotorModelSpec { vendor: "damiao", model: "4340P", pmax: 12.5, vmax: 10.0, tmax: 28.0 },
+    MotorModelSpec { vendor: "damiao", model: "6006", pmax: 12.5, vmax: 45.0, tmax: 20.0 },
+    MotorModelSpec { vendor: "damiao", model: "8006", pmax: 12.5, vmax: 45.0, tmax: 40.0 },
+    MotorModelSpec { vendor: "damiao", model: "8009", pmax: 12.5, vmax: 45.0, tmax: 54.0 },
+    MotorModelSpec { vendor: "damiao", model: "10010L", pmax: 12.5, vmax: 25.0, tmax: 200.0 },
+    MotorModelSpec { vendor: "damiao", model: "10010", pmax: 12.5, vmax: 20.0, tmax: 200.0 },
+    MotorModelSpec { vendor: "damiao", model: "H3510", pmax: 12.5, vmax: 280.0, tmax: 1.0 },
+    MotorModelSpec { vendor: "damiao", model: "G6215", pmax: 12.5, vmax: 45.0, tmax: 10.0 },
+    MotorModelSpec { vendor: "damiao", model: "H6220", pmax: 12.5, vmax: 45.0, tmax: 10.0 },
+    MotorModelSpec { vendor: "damiao", model: "JH11", pmax: 12.5, vmax: 10.0, tmax: 12.0 },
+    MotorModelSpec { vendor: "damiao", model: "6248P", pmax: 12.566, vmax: 20.0, tmax: 120.0 },
+];
+
+const DAMIAO_CATALOG: StaticModelCatalog = StaticModelCatalog {
+    vendor_name: "damiao",
+    models: DAMIAO_MODELS,
+};
+
+#[derive(Debug, Clone, Copy)]
+pub enum ControlMode {
+    Mit = 1,
+    PosVel = 2,
+    Vel = 3,
+    ForcePos = 4,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum RegisterValue {
+    Float(f32),
+    UInt32(u32),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct MotorFeedbackState {
+    pub can_id: u8,
+    pub arbitration_id: u16,
+    pub status_code: u8,
+    pub status_name: &'static str,
+    pub pos: f32,
+    pub vel: f32,
+    pub torq: f32,
+    pub t_mos: f32,
+    pub t_rotor: f32,
+}
+
+pub struct DamiaoMotor {
+    pub motor_id: u16,
+    pub feedback_id: u16,
+    pub model: String,
+    bus: Arc<dyn CanBus>,
+    limits: PvTLimits,
+    state: Mutex<Option<MotorFeedbackState>>,
+    registers: Mutex<HashMap<u8, RegisterValue>>,
+    register_reply_time: Mutex<HashMap<u8, Instant>>,
+}
+
+impl DamiaoMotor {
+    pub fn new(motor_id: u16, feedback_id: u16, model: &str, bus: Arc<dyn CanBus>) -> Result<Self> {
+        let spec = DAMIAO_CATALOG
+            .get(model)
+            .ok_or_else(|| MotorError::InvalidArgument(format!("unknown Damiao model: {model}")))?;
+
+        Ok(Self {
+            motor_id,
+            feedback_id,
+            model: model.to_string(),
+            bus,
+            limits: PvTLimits::from_spec(spec),
+            state: Mutex::new(None),
+            registers: Mutex::new(HashMap::new()),
+            register_reply_time: Mutex::new(HashMap::new()),
+        })
+    }
+
+    fn send_raw(&self, arbitration_id: u16, data: [u8; 8]) -> Result<()> {
+        self.bus.send(CanFrame {
+            arbitration_id,
+            data,
+            is_rx: false,
+        })
+    }
+
+    pub fn enable(&self) -> Result<()> {
+        self.send_raw(self.motor_id, encode_enable_cmd())
+    }
+
+    pub fn disable(&self) -> Result<()> {
+        self.send_raw(self.motor_id, encode_disable_cmd())
+    }
+
+    pub fn clear_error(&self) -> Result<()> {
+        self.send_raw(self.motor_id, encode_clear_error_cmd())
+    }
+
+    pub fn set_zero_position(&self) -> Result<()> {
+        self.send_raw(self.motor_id, encode_set_zero_cmd())
+    }
+
+    pub fn send_cmd_mit(
+        &self,
+        target_position: f32,
+        target_velocity: f32,
+        stiffness: f32,
+        damping: f32,
+        feedforward_torque: f32,
+    ) -> Result<()> {
+        let data = encode_mit_cmd(
+            target_position,
+            target_velocity,
+            feedforward_torque,
+            stiffness,
+            damping,
+            Limits {
+                p_min: self.limits.p_min,
+                p_max: self.limits.p_max,
+                v_min: self.limits.v_min,
+                v_max: self.limits.v_max,
+                t_min: self.limits.t_min,
+                t_max: self.limits.t_max,
+            },
+        );
+        self.send_raw(self.motor_id, data)
+    }
+
+    pub fn send_cmd_pos_vel(&self, target_position: f32, velocity_limit: f32) -> Result<()> {
+        self.send_raw(0x100u16 + self.motor_id, encode_pos_vel_cmd(target_position, velocity_limit))
+    }
+
+    pub fn send_cmd_vel(&self, target_velocity: f32) -> Result<()> {
+        self.send_raw(0x200u16 + self.motor_id, encode_vel_cmd(target_velocity))
+    }
+
+    pub fn send_cmd_force_pos(&self, target_position: f32, velocity_limit: f32, torque_limit_ratio: f32) -> Result<()> {
+        self.send_raw(
+            0x300u16 + self.motor_id,
+            encode_force_pos_cmd(target_position, velocity_limit, torque_limit_ratio),
+        )
+    }
+
+    pub fn ensure_control_mode(&self, mode: ControlMode, timeout: Duration) -> Result<()> {
+        let desired = mode as u32;
+        let current = self.get_register_u32(10, timeout)?;
+        if current != desired {
+            self.write_register_u32(10, desired)?;
+            let verify = self.get_register_u32(10, timeout)?;
+            if verify != desired {
+                return Err(MotorError::Protocol(format!(
+                    "control mode verify failed: expected {desired}, got {verify}"
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn request_register_reading(&self, rid: u8) -> Result<()> {
+        if register_info(rid).is_none() {
+            return Err(MotorError::InvalidArgument(format!("unknown register rid {rid}")));
+        }
+        self.send_raw(0x7FF, encode_register_read_cmd(self.motor_id, rid))
+    }
+
+    pub fn write_register_f32(&self, rid: u8, value: f32) -> Result<()> {
+        let info = register_info(rid)
+            .ok_or_else(|| MotorError::InvalidArgument(format!("unknown register rid {rid}")))?;
+        if info.access != RegisterAccess::ReadWrite {
+            return Err(MotorError::InvalidArgument(format!("register {rid} is read-only")));
+        }
+        if info.data_type != RegisterDataType::Float {
+            return Err(MotorError::InvalidArgument(format!("register {rid} expects uint32")));
+        }
+        self.send_raw(0x7FF, encode_register_write_cmd(self.motor_id, rid, value.to_le_bytes()))
+    }
+
+    pub fn write_register_u32(&self, rid: u8, value: u32) -> Result<()> {
+        let info = register_info(rid)
+            .ok_or_else(|| MotorError::InvalidArgument(format!("unknown register rid {rid}")))?;
+        if info.access != RegisterAccess::ReadWrite {
+            return Err(MotorError::InvalidArgument(format!("register {rid} is read-only")));
+        }
+        if info.data_type != RegisterDataType::UInt32 {
+            return Err(MotorError::InvalidArgument(format!("register {rid} expects float")));
+        }
+        self.send_raw(0x7FF, encode_register_write_cmd(self.motor_id, rid, value.to_le_bytes()))
+    }
+
+    pub fn store_parameters(&self) -> Result<()> {
+        self.send_raw(0x7FF, encode_store_params_cmd(self.motor_id))
+    }
+
+    pub fn request_motor_feedback(&self) -> Result<()> {
+        self.send_raw(0x7FF, encode_feedback_request_cmd(self.motor_id))
+    }
+
+    pub fn get_register_u32(&self, rid: u8, timeout: Duration) -> Result<u32> {
+        self.request_register_reading(rid)?;
+        let deadline = Instant::now() + timeout;
+        loop {
+            if let Some(value) = self
+                .registers
+                .lock()
+                .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
+                .get(&rid)
+                .copied()
+            {
+                return match value {
+                    RegisterValue::UInt32(v) => Ok(v),
+                    RegisterValue::Float(_) => Err(MotorError::Protocol(format!(
+                        "register {rid} holds float, not u32"
+                    ))),
+                };
+            }
+            if Instant::now() >= deadline {
+                return Err(MotorError::Timeout(format!(
+                    "register {rid} not received within {:?}",
+                    timeout
+                )));
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    pub fn get_register_f32(&self, rid: u8, timeout: Duration) -> Result<f32> {
+        self.request_register_reading(rid)?;
+        let deadline = Instant::now() + timeout;
+        loop {
+            if let Some(value) = self
+                .registers
+                .lock()
+                .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
+                .get(&rid)
+                .copied()
+            {
+                return match value {
+                    RegisterValue::Float(v) => Ok(v),
+                    RegisterValue::UInt32(_) => Err(MotorError::Protocol(format!(
+                        "register {rid} holds u32, not float"
+                    ))),
+                };
+            }
+            if Instant::now() >= deadline {
+                return Err(MotorError::Timeout(format!(
+                    "register {rid} not received within {:?}",
+                    timeout
+                )));
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    pub fn latest_state(&self) -> Option<MotorFeedbackState> {
+        self.state.lock().ok().and_then(|s| *s)
+    }
+
+    fn process_feedback_frame_impl(&self, frame: CanFrame) -> Result<()> {
+        if is_register_reply(&frame.data) {
+            let (rid, raw) = decode_register_value(frame.data)?;
+            let info = register_info(rid)
+                .ok_or_else(|| MotorError::Protocol(format!("unknown register in reply: {rid}")))?;
+            let value = match info.data_type {
+                RegisterDataType::Float => RegisterValue::Float(f32::from_le_bytes(raw)),
+                RegisterDataType::UInt32 => RegisterValue::UInt32(u32::from_le_bytes(raw)),
+            };
+            self.registers
+                .lock()
+                .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
+                .insert(rid, value);
+            self.register_reply_time
+                .lock()
+                .map_err(|_| MotorError::Io("reply time lock poisoned".to_string()))?
+                .insert(rid, Instant::now());
+            return Ok(());
+        }
+
+        let decoded = decode_sensor_feedback(
+            frame.data,
+            Limits {
+                p_min: self.limits.p_min,
+                p_max: self.limits.p_max,
+                v_min: self.limits.v_min,
+                v_max: self.limits.v_max,
+                t_min: self.limits.t_min,
+                t_max: self.limits.t_max,
+            },
+        );
+        let state = MotorFeedbackState {
+            can_id: decoded.can_id,
+            arbitration_id: frame.arbitration_id,
+            status_code: decoded.status_code,
+            status_name: status_name(decoded.status_code),
+            pos: decoded.pos,
+            vel: decoded.vel,
+            torq: decoded.torq,
+            t_mos: decoded.t_mos,
+            t_rotor: decoded.t_rotor,
+        };
+        self.state
+            .lock()
+            .map_err(|_| MotorError::Io("state lock poisoned".to_string()))?
+            .replace(state);
+        Ok(())
+    }
+}
+
+impl MotorDevice for DamiaoMotor {
+    fn vendor(&self) -> &'static str {
+        "damiao"
+    }
+
+    fn model(&self) -> &str {
+        &self.model
+    }
+
+    fn motor_id(&self) -> u16 {
+        self.motor_id
+    }
+
+    fn feedback_id(&self) -> u16 {
+        self.feedback_id
+    }
+
+    fn feedback_logical_id(&self) -> u8 {
+        (self.motor_id & 0x0F) as u8
+    }
+
+    fn enable(&self) -> Result<()> {
+        DamiaoMotor::enable(self)
+    }
+
+    fn disable(&self) -> Result<()> {
+        DamiaoMotor::disable(self)
+    }
+
+    fn process_feedback_frame(&self, frame: CanFrame) -> Result<()> {
+        self.process_feedback_frame_impl(frame)
+    }
+}

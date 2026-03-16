@@ -1,0 +1,63 @@
+#ifndef MOTOR_ABI_H
+#define MOTOR_ABI_H
+
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct MotorController MotorController;
+typedef struct MotorHandle MotorHandle;
+
+typedef struct MotorState {
+  int32_t has_value;
+  uint8_t can_id;
+  uint16_t arbitration_id;
+  uint8_t status_code;
+  float pos;
+  float vel;
+  float torq;
+  float t_mos;
+  float t_rotor;
+} MotorState;
+
+const char* motor_last_error_message(void);
+
+MotorController* motor_controller_new_socketcan(const char* channel);
+void motor_controller_free(MotorController* controller);
+int32_t motor_controller_poll_feedback_once(MotorController* controller);
+int32_t motor_controller_enable_all(MotorController* controller);
+int32_t motor_controller_disable_all(MotorController* controller);
+int32_t motor_controller_shutdown(MotorController* controller);
+
+MotorHandle* motor_controller_add_damiao_motor(MotorController* controller, uint16_t motor_id, uint16_t feedback_id, const char* model);
+void motor_handle_free(MotorHandle* motor);
+
+int32_t motor_handle_enable(MotorHandle* motor);
+int32_t motor_handle_disable(MotorHandle* motor);
+int32_t motor_handle_clear_error(MotorHandle* motor);
+int32_t motor_handle_set_zero_position(MotorHandle* motor);
+int32_t motor_handle_ensure_mode(MotorHandle* motor, uint32_t mode, uint32_t timeout_ms);
+
+int32_t motor_handle_send_mit(MotorHandle* motor, float target_position, float target_velocity, float stiffness, float damping, float feedforward_torque);
+int32_t motor_handle_send_pos_vel(MotorHandle* motor, float target_position, float velocity_limit);
+int32_t motor_handle_send_vel(MotorHandle* motor, float target_velocity);
+int32_t motor_handle_send_force_pos(MotorHandle* motor, float target_position, float velocity_limit, float torque_limit_ratio);
+
+int32_t motor_handle_store_parameters(MotorHandle* motor);
+int32_t motor_handle_request_feedback(MotorHandle* motor);
+int32_t motor_handle_set_can_timeout_ms(MotorHandle* motor, uint32_t timeout_ms);
+
+int32_t motor_handle_write_register_f32(MotorHandle* motor, uint8_t rid, float value);
+int32_t motor_handle_write_register_u32(MotorHandle* motor, uint8_t rid, uint32_t value);
+int32_t motor_handle_get_register_f32(MotorHandle* motor, uint8_t rid, uint32_t timeout_ms, float* out_value);
+int32_t motor_handle_get_register_u32(MotorHandle* motor, uint8_t rid, uint32_t timeout_ms, uint32_t* out_value);
+
+int32_t motor_handle_get_state(MotorHandle* motor, MotorState* out_state);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

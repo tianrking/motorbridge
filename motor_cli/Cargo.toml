@@ -1,0 +1,13 @@
+[package]
+name = "motor_cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "motor_cli"
+path = "src/main.rs"
+
+[dependencies]
+motor_vendor_damiao = { path = "../motor_vendor_damiao" }

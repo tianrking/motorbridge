@@ -1,0 +1,10 @@
+/target
+*.o
+*.a
+*.so
+*.out
+*.exe
+c_abi_demo
+cpp_abi_demo
+__pycache__/
+*.pyc

@@ -1,0 +1,22 @@
+[workspace]
+members = [
+  "motor_core",
+  "motor_vendor_damiao",
+  "motor_vendor_template",
+  "motor_cli",
+  "motor_abi",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["tianrking"]
+license = "MIT"
+repository = "https://github.com/tianrking/motorbridge.git"
+homepage = "https://github.com/tianrking/motorbridge"
+description = "Unified CAN motor control stack with pluggable vendor drivers and C ABI"
+
+[workspace.lints.clippy]
+all = "warn"
+pedantic = "warn"

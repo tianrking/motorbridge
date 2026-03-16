@@ -5,6 +5,7 @@ members = [
   "motor_vendors/template",
   "motor_cli",
   "motor_abi",
+  "integrations/ws_gateway",
   "tools/motor_calib",
 ]
 resolver = "2"

@@ -1,31 +1,31 @@
 # ws_gateway
 
-High-performance Rust WebSocket gateway (V1: JSON over WS).
+高性能 Rust WebSocket 网关（V1：JSON over WS）。
 
-## Status
+## 状态
 
-Implemented.
+已实现。
 
-## Transport
+## 传输
 
-- Protocol: WebSocket
-- V1 payload: JSON text frames
-- Periodic state push on each `--dt-ms` tick
+- 协议：WebSocket
+- V1 载荷：JSON 文本帧
+- 按 `--dt-ms` 周期推送状态
 
-## Build
+## 构建
 
 ```bash
 cargo build -p ws_gateway --release
 ```
 
-## Run
+## 运行
 
 ```bash
 cargo run -p ws_gateway --release -- \
   --bind 0.0.0.0:9002 --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 ```
 
-## Inbound command examples
+## 入站命令示例
 
 ```json
 {"op":"ping"}
@@ -43,29 +43,29 @@ cargo run -p ws_gateway --release -- \
 {"op":"verify","motor_id":5,"feedback_id":21,"timeout_ms":1000}
 ```
 
-## Outbound frames
+## 出站帧
 
-Success response:
+成功响应：
 
 ```json
 {"ok":true,"op":"vel","data":{"op":"vel","continuous":true}}
 ```
 
-Error response:
+失败响应：
 
 ```json
 {"ok":false,"op":"set_id","error":"..."}
 ```
 
-State stream frame:
+状态流：
 
 ```json
 {"type":"state","data":{"has_value":true,"pos":0.12,"vel":0.01,"torq":0.0,"status_code":1}}
 ```
 
-## Notes
+## 说明
 
-- `continuous=true` keeps sending that control command every tick.
-- `stop` clears continuous control.
-- `set_id` uses robust order: write `MST_ID` first, then `ESC_ID`.
-- V2 plan can switch to binary frames while preserving operation semantics.
+- `continuous=true` 会在每个 tick 持续发送该控制命令。
+- `stop` 用于清除持续控制。
+- `set_id` 使用稳定顺序：先写 `MST_ID`，再写 `ESC_ID`。
+- 后续 V2 可升级为二进制帧，同时保留同一语义。

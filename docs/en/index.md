@@ -12,6 +12,7 @@ This documentation set is aligned with the current `main` branch implementation.
 - Vendor Extension Guide: [extending.md](extending.md)
 - Calibration Tool: [`tools/motor_calib/README.md`](../../tools/motor_calib/README.md)
 - Integrations: [`integrations/README.md`](../../integrations/README.md)
+- WS Gateway: [`integrations/ws_gateway/README.md`](../../integrations/ws_gateway/README.md)
 
 ## What motorbridge Provides
 

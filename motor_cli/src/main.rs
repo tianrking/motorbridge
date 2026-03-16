@@ -74,6 +74,21 @@ fn get_u16_hex_or_dec(
     }
 }
 
+fn get_opt_u16_hex_or_dec(args: &HashMap<String, String>, key: &str) -> Result<Option<u16>, String> {
+    match args.get(key) {
+        Some(v) => {
+            let parsed = if let Some(hex) = v.strip_prefix("0x") {
+                u16::from_str_radix(hex, 16).map_err(|e| format!("invalid --{key}: {e}"))?
+            } else {
+                v.parse::<u16>()
+                    .map_err(|e| format!("invalid --{key}: {e}"))?
+            };
+            Ok(Some(parsed))
+        }
+        None => Ok(None),
+    }
+}
+
 fn print_help() {
     println!(
         "motor_cli\n\
@@ -104,7 +119,17 @@ POS_VEL args:\n\
 VEL args:\n\
   --vel\n\n\
 FORCE_POS args:\n\
-  --pos --vlim --ratio\n"
+  --pos --vlim --ratio\n\n\
+ID tools (pure Rust CLI):\n\
+  --set-motor-id <id>      write ESC_ID (rid=8)\n\
+  --set-feedback-id <id>   write MST_ID (rid=7)\n\
+  --store 1/0              store parameters after id write, default 1\n\
+  --verify-id 1/0          verify by reconnecting and reading rid=8/7, default 1\n\
+\n\
+Example (change 0x07/0x17 -> 0x02/0x12):\n\
+  cargo run -p motor_cli --release -- \\\n\
+    --channel can0 --model 4310 --motor-id 0x07 --feedback-id 0x17 \\\n\
+    --set-motor-id 0x02 --set-feedback-id 0x12 --store 1 --verify-id 1\n"
     );
 }
 
@@ -165,6 +190,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let loop_n = get_u64(&args, "loop", 1)?;
     let dt_ms = get_u64(&args, "dt-ms", 20)?;
     let ensure_mode = get_u64(&args, "ensure-mode", 1)? != 0;
+    let set_motor_id = get_opt_u16_hex_or_dec(&args, "set-motor-id")?;
+    let set_feedback_id = get_opt_u16_hex_or_dec(&args, "set-feedback-id")?;
+    let store_after_set = get_u64(&args, "store", 1)? != 0;
+    let verify_id = get_u64(&args, "verify-id", 1)? != 0;
     let verify_model = get_u64(&args, "verify-model", 1)? != 0;
     let verify_timeout_ms = get_u64(&args, "verify-timeout-ms", 500)?;
     let verify_tol = get_f32(&args, "verify-tol", 0.2)?;
@@ -179,6 +208,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let controller = DamiaoController::new_socketcan(&channel)?;
     let motor = controller.add_motor(motor_id, feedback_id, &model)?;
+
+    if set_motor_id.is_some() || set_feedback_id.is_some() {
+        let new_motor_id = set_motor_id.unwrap_or(motor_id);
+        let new_feedback_id = set_feedback_id.unwrap_or(feedback_id);
+        println!(
+            "[id-set] old motor_id=0x{:X} feedback_id=0x{:X} -> new motor_id=0x{:X} feedback_id=0x{:X}",
+            motor_id, feedback_id, new_motor_id, new_feedback_id
+        );
+
+        if let Some(v) = set_feedback_id {
+            motor.write_register_u32(7, v as u32)?;
+            println!("[id-set] write rid=7 (MST_ID) = 0x{:X}", v);
+        }
+        if let Some(v) = set_motor_id {
+            motor.write_register_u32(8, v as u32)?;
+            println!("[id-set] write rid=8 (ESC_ID) = 0x{:X}", v);
+        }
+        if store_after_set {
+            motor.store_parameters()?;
+            println!("[id-set] store parameters sent");
+        }
+        controller.close_bus()?;
+
+        if verify_id {
+            std::thread::sleep(Duration::from_millis(120));
+            let verify_ctrl = DamiaoController::new_socketcan(&channel)?;
+            let verify_motor = verify_ctrl.add_motor(new_motor_id, new_feedback_id, &model)?;
+            let esc = verify_motor.get_register_u32(8, Duration::from_millis(1000))?;
+            let mst = verify_motor.get_register_u32(7, Duration::from_millis(1000))?;
+            println!("[id-set] verify rid=8 (ESC_ID)=0x{:X}", esc);
+            println!("[id-set] verify rid=7 (MST_ID)=0x{:X}", mst);
+            verify_ctrl.close_bus()?;
+            if esc != new_motor_id as u32 || mst != new_feedback_id as u32 {
+                return Err(format!(
+                    "id verify failed: expected ESC_ID=0x{:X}, MST_ID=0x{:X}, got ESC_ID=0x{:X}, MST_ID=0x{:X}",
+                    new_motor_id, new_feedback_id, esc, mst
+                )
+                .into());
+            }
+            println!("[id-set] verify ok");
+        }
+        return Ok(());
+    }
+
     if verify_model {
         verify_declared_model(
             &motor,

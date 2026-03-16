@@ -1,0 +1,3 @@
+[console_scripts]
+motorbridge-cli = motorbridge.cli:main
+

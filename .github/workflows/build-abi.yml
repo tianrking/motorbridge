@@ -87,10 +87,82 @@ jobs:
             dist/*.zip
           if-no-files-found: error
 
+  build-python-wheel:
+    name: build-python-wheel-py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Python build tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build ABI for Linux wheel
+        run: cargo build -p motor_abi --release
+
+      - name: Inject shared library into Python package
+        shell: bash
+        run: |
+          mkdir -p bindings/python/src/motorbridge/lib
+          cp -v target/release/libmotor_abi.so bindings/python/src/motorbridge/lib/
+
+      - name: Build wheel
+        shell: bash
+        run: |
+          rm -rf bindings/python/dist bindings/python/build bindings/python/src/motorbridge.egg-info
+          python -m pip wheel --no-build-isolation bindings/python -w bindings/python/dist
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-wheel-py${{ matrix.python-version }}
+          path: bindings/python/dist/*.whl
+          if-no-files-found: error
+
+  build-python-sdist:
+    name: build-python-sdist
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python build tools
+        run: python -m pip install --upgrade pip build setuptools wheel
+
+      - name: Build source distribution
+        shell: bash
+        run: |
+          rm -rf bindings/python/dist
+          python -m build --sdist bindings/python -o bindings/python/dist
+
+      - name: Upload sdist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-sdist
+          path: bindings/python/dist/*.tar.gz
+          if-no-files-found: error
+
   release:
     name: publish-release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, build-python-wheel, build-python-sdist]
     runs-on: ubuntu-latest
     steps:
       - name: Download all packages
@@ -101,7 +173,7 @@ jobs:
       - name: Generate SHA256SUMS
         shell: bash
         run: |
-          find release-assets -type f \( -name "*.tar.gz" -o -name "*.zip" \) -print0 | sort -z | xargs -0 sha256sum > release-assets/SHA256SUMS.txt
+          find release-assets -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.whl" \) -print0 | sort -z | xargs -0 sha256sum > release-assets/SHA256SUMS.txt
           cat release-assets/SHA256SUMS.txt
 
       - name: Publish GitHub Release
@@ -111,4 +183,5 @@ jobs:
           files: |
             release-assets/**/*.tar.gz
             release-assets/**/*.zip
+            release-assets/**/*.whl
             release-assets/SHA256SUMS.txt

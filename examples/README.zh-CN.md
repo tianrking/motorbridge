@@ -23,6 +23,7 @@
 - Python ctypes 示例：`examples/python/python_ctypes_demo.py`
 - Python 示例说明（英文）：`examples/python/README.md`
 - Python 示例说明（中文）：`examples/python/README.zh-CN.md`
+- Python SDK 包（推荐正式集成）：`bindings/python`
 - ABI 头文件：`motor_abi/include/motor_abi.h`
 
 ## 通用设备参数

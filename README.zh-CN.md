@@ -40,6 +40,8 @@ motorbridge/
 │   └── template/            # 新增品牌模板
 ├── motor_cli/               # 统一 CLI（模式/参数控制）
 ├── motor_abi/               # C ABI（cdylib/staticlib）
+├── bindings/
+│   └── python/              # Python SDK 包（pip / motorbridge-cli）
 ├── docs/
 │   ├── SUPPORTED_DEVICES.md
 │   ├── ABI_USAGE.md
@@ -151,6 +153,7 @@ cargo run -p motor_cli --release -- \
 - C 示例：[examples/c/c_abi_demo.c](examples/c/c_abi_demo.c)
 - C++ 示例：[examples/cpp/cpp_abi_demo.cpp](examples/cpp/cpp_abi_demo.cpp)
 - Python ctypes 示例：[examples/python/python_ctypes_demo.py](examples/python/python_ctypes_demo.py)
+- Python SDK 包：[bindings/python](bindings/python)
 - 示例总览（英文）：[examples/README.md](examples/README.md)
 - 示例总览（中文）：[examples/README.zh-CN.md](examples/README.zh-CN.md)
 

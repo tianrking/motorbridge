@@ -41,6 +41,8 @@ motorbridge/
 │   └── template/            # Template for adding new vendors
 ├── motor_cli/               # Unified CLI for mode/parameter control
 ├── motor_abi/               # C ABI (cdylib/staticlib)
+├── bindings/
+│   └── python/              # Python SDK package (pip / motorbridge-cli)
 ├── docs/
 │   ├── SUPPORTED_DEVICES.md
 │   ├── ABI_USAGE.md
@@ -152,6 +154,7 @@ cargo run -p motor_cli --release -- \
 - C example: [examples/c/c_abi_demo.c](examples/c/c_abi_demo.c)
 - C++ example: [examples/cpp/cpp_abi_demo.cpp](examples/cpp/cpp_abi_demo.cpp)
 - Python ctypes example: [examples/python/python_ctypes_demo.py](examples/python/python_ctypes_demo.py)
+- Python SDK package: [bindings/python](bindings/python)
 - Full examples index (EN): [examples/README.md](examples/README.md)
 - Full examples index (ZH): [examples/README.zh-CN.md](examples/README.zh-CN.md)
 

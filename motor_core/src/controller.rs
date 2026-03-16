@@ -144,6 +144,14 @@ impl CoreController {
     }
 
     pub fn shutdown(&self) -> Result<()> {
+        self.close_inner(true)
+    }
+
+    pub fn close_bus(&self) -> Result<()> {
+        self.close_inner(false)
+    }
+
+    fn close_inner(&self, disable_devices: bool) -> Result<()> {
         self.polling_active.store(false, Ordering::Release);
         if let Some(handle) = self
             .polling_thread
@@ -153,7 +161,9 @@ impl CoreController {
         {
             let _ = handle.join();
         }
-        let _ = self.disable_all();
+        if disable_devices {
+            let _ = self.disable_all();
+        }
         self.bus.shutdown()
     }
 }

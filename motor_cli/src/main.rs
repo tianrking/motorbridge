@@ -111,19 +111,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "channel={} model={} motor_id=0x{:X} feedback_id=0x{:X} mode={}",
         channel, model, motor_id, feedback_id, mode
     );
+    if mode == "enable" || mode == "disable" {
+        eprintln!("[info] enable/disable status feedback can be delayed; use larger --loop/--dt-ms to observe transitions.");
+    }
 
     let controller = DamiaoController::new_socketcan(&channel)?;
     let motor = controller.add_motor(motor_id, feedback_id, &model)?;
-    controller.enable_all()?;
-    std::thread::sleep(Duration::from_millis(200));
+    if mode != "enable" && mode != "disable" {
+        controller.enable_all()?;
+        std::thread::sleep(Duration::from_millis(200));
+    }
 
-    if ensure_mode {
+    if ensure_mode && mode != "enable" && mode != "disable" {
         let cm = match mode.as_str() {
             "mit" => ControlMode::Mit,
             "pos-vel" => ControlMode::PosVel,
             "vel" => ControlMode::Vel,
             "force-pos" => ControlMode::ForcePos,
-            "enable" | "disable" => ControlMode::Mit,
             _ => return Err(format!("unknown mode: {mode}").into()),
         };
         if let Err(e) = motor.ensure_control_mode(cm, Duration::from_millis(1000)) {
@@ -135,9 +139,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match mode.as_str() {
             "enable" => {
                 motor.enable()?;
+                let _ = motor.request_motor_feedback();
             }
             "disable" => {
                 motor.disable()?;
+                let _ = motor.request_motor_feedback();
             }
             "mit" => {
                 let pos = get_f32(&args, "pos", 0.0)?;
@@ -174,6 +180,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::thread::sleep(Duration::from_millis(dt_ms));
     }
 
-    controller.shutdown()?;
+    if mode == "enable" || mode == "disable" {
+        // Keep commanded state; only close local bus/session.
+        controller.close_bus()?;
+    } else {
+        controller.shutdown()?;
+    }
     Ok(())
 }

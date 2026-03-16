@@ -61,4 +61,8 @@ impl DamiaoController {
     pub fn shutdown(&self) -> Result<()> {
         self.core.shutdown()
     }
+
+    pub fn close_bus(&self) -> Result<()> {
+        self.core.close_bus()
+    }
 }

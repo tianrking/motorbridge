@@ -11,6 +11,7 @@
 - 支持设备：[devices.md](devices.md)
 - 扩展开发：[extending.md](extending.md)
 - 标定工具：[`tools/motor_calib/README.zh-CN.md`](../../tools/motor_calib/README.zh-CN.md)
+- 集成目录：[`integrations/README.md`](../../integrations/README.md)
 
 ## motorbridge 提供什么
 

@@ -1,0 +1,5 @@
+channel: can0
+model: 4340P
+motor_id: 0x01
+feedback_id: 0x11
+dt_ms: 20

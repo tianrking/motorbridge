@@ -41,6 +41,9 @@ motorbridge/
 │   └── template/            # Template for adding new vendors
 ├── motor_cli/               # Unified CLI for mode/parameter control
 ├── motor_abi/               # C ABI (cdylib/staticlib)
+├── integrations/
+│   ├── ros2_bridge/         # ROS2 bridge (implemented)
+│   └── ws_gateway/          # WebSocket gateway scaffold
 ├── tools/
 │   └── motor_calib/         # Calibration tool (scan / set-id / verify)
 ├── bindings/
@@ -186,6 +189,8 @@ cargo run -p motor_cli --release -- \
 - Docs index (ZH): [docs/zh/index.md](docs/zh/index.md)
 - ABI guide (EN): [docs/en/abi.md](docs/en/abi.md)
 - CLI guide (EN): [docs/en/cli.md](docs/en/cli.md)
+- Integrations index: [integrations/README.md](integrations/README.md)
+- ROS2 bridge (EN): [integrations/ros2_bridge/README.md](integrations/ros2_bridge/README.md)
 - Calibration tool (EN): [tools/motor_calib/README.md](tools/motor_calib/README.md)
 - C example: [examples/c/c_abi_demo.c](examples/c/c_abi_demo.c)
 - C++ example: [examples/cpp/cpp_abi_demo.cpp](examples/cpp/cpp_abi_demo.cpp)

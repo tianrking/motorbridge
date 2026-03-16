@@ -40,6 +40,9 @@ motorbridge/
 │   └── template/            # 新增品牌模板
 ├── motor_cli/               # 统一 CLI（模式/参数控制）
 ├── motor_abi/               # C ABI（cdylib/staticlib）
+├── integrations/
+│   ├── ros2_bridge/         # ROS2 桥接（已实现）
+│   └── ws_gateway/          # WebSocket 网关骨架
 ├── tools/
 │   └── motor_calib/         # 标定工具（scan / set-id / verify）
 ├── bindings/
@@ -185,6 +188,8 @@ cargo run -p motor_cli --release -- \
 - 文档总览（中文）：[docs/zh/index.md](docs/zh/index.md)
 - ABI 文档（中文）：[docs/zh/abi.md](docs/zh/abi.md)
 - CLI 文档（中文）：[docs/zh/cli.md](docs/zh/cli.md)
+- 集成入口：[integrations/README.md](integrations/README.md)
+- ROS2 桥接（中文）：[integrations/ros2_bridge/README.zh-CN.md](integrations/ros2_bridge/README.zh-CN.md)
 - 标定工具（中文）：[tools/motor_calib/README.zh-CN.md](tools/motor_calib/README.zh-CN.md)
 - C 示例：[examples/c/c_abi_demo.c](examples/c/c_abi_demo.c)
 - C++ 示例：[examples/cpp/cpp_abi_demo.cpp](examples/cpp/cpp_abi_demo.cpp)

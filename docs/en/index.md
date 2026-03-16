@@ -11,6 +11,7 @@ This documentation set is aligned with the current `main` branch implementation.
 - Supported Devices: [devices.md](devices.md)
 - Vendor Extension Guide: [extending.md](extending.md)
 - Calibration Tool: [`tools/motor_calib/README.md`](../../tools/motor_calib/README.md)
+- Integrations: [`integrations/README.md`](../../integrations/README.md)
 
 ## What motorbridge Provides
 

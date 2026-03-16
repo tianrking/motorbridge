@@ -43,10 +43,8 @@ motorbridge/
 ├── bindings/
 │   └── python/              # Python SDK 包（pip / motorbridge-cli）
 ├── docs/
-│   ├── SUPPORTED_DEVICES.md
-│   ├── ABI_USAGE.md
-│   ├── EXTENDING.md
-│   └── DAMIAO_PARITY.md
+│   ├── en/                    # 英文文档
+│   └── zh/                    # 中文文档
 └── examples/
     └── README.md            # 多语言示例索引
 ```
@@ -56,7 +54,7 @@ motorbridge/
 
 ## 当前支持
 
-详见 [docs/SUPPORTED_DEVICES.md](docs/SUPPORTED_DEVICES.md)。
+详见 [docs/zh/devices.md](docs/zh/devices.md)。
 
 当前正式支持：
 
@@ -149,7 +147,10 @@ cargo run -p motor_cli --release -- \
 
 ## ABI 与跨语言调用
 
-- ABI 说明：[docs/ABI_USAGE.md](docs/ABI_USAGE.md)
+- 文档总览（英文）：[docs/en/index.md](docs/en/index.md)
+- 文档总览（中文）：[docs/zh/index.md](docs/zh/index.md)
+- ABI 文档（中文）：[docs/zh/abi.md](docs/zh/abi.md)
+- CLI 文档（中文）：[docs/zh/cli.md](docs/zh/cli.md)
 - C 示例：[examples/c/c_abi_demo.c](examples/c/c_abi_demo.c)
 - C++ 示例：[examples/cpp/cpp_abi_demo.cpp](examples/cpp/cpp_abi_demo.cpp)
 - Python ctypes 示例：[examples/python/python_ctypes_demo.py](examples/python/python_ctypes_demo.py)
@@ -162,7 +163,7 @@ cargo run -p motor_cli --release -- \
 
 可直接从 [motor_vendors/template](motor_vendors/template) 复制改造。
 
-详细流程见 [docs/EXTENDING.md](docs/EXTENDING.md)。
+详细流程见 [docs/zh/extending.md](docs/zh/extending.md)。
 
 ## 说明
 

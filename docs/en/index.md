@@ -1,0 +1,29 @@
+# motorbridge Docs (English)
+
+This documentation set is aligned with the current `main` branch implementation.
+
+## Quick Links
+
+- Architecture: [architecture.md](architecture.md)
+- CLI Guide: [cli.md](cli.md)
+- ABI Guide: [abi.md](abi.md)
+- Cross-language Examples: [examples.md](examples.md)
+- Supported Devices: [devices.md](devices.md)
+- Vendor Extension Guide: [extending.md](extending.md)
+
+## What motorbridge Provides
+
+- Vendor-agnostic core runtime (`motor_core`)
+- Vendor protocol plugins (`motor_vendors/*`)
+- Rust CLI (`motor_cli`)
+- Stable C ABI (`motor_abi`) for C/C++/Python/others
+- Python SDK package (`bindings/python`)
+
+## Recommended Reading Order
+
+1. [architecture.md](architecture.md)
+2. [devices.md](devices.md)
+3. [cli.md](cli.md)
+4. [abi.md](abi.md)
+5. [examples.md](examples.md)
+6. [extending.md](extending.md)

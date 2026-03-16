@@ -44,10 +44,8 @@ motorbridge/
 ├── bindings/
 │   └── python/              # Python SDK package (pip / motorbridge-cli)
 ├── docs/
-│   ├── SUPPORTED_DEVICES.md
-│   ├── ABI_USAGE.md
-│   ├── EXTENDING.md
-│   └── DAMIAO_PARITY.md
+│   ├── en/                    # English docs
+│   └── zh/                    # Chinese docs
 └── examples/
     └── README.md            # Cross-language examples index
 ```
@@ -57,7 +55,7 @@ Each subdirectory represents one vendor implementation (for example `damiao`) or
 
 ## Current Support
 
-See [docs/SUPPORTED_DEVICES.md](docs/SUPPORTED_DEVICES.md).
+See [docs/en/devices.md](docs/en/devices.md).
 
 Production support today:
 
@@ -150,7 +148,10 @@ cargo run -p motor_cli --release -- \
 
 ## ABI and Cross-language Usage
 
-- ABI guide: [docs/ABI_USAGE.md](docs/ABI_USAGE.md)
+- Docs index (EN): [docs/en/index.md](docs/en/index.md)
+- Docs index (ZH): [docs/zh/index.md](docs/zh/index.md)
+- ABI guide (EN): [docs/en/abi.md](docs/en/abi.md)
+- CLI guide (EN): [docs/en/cli.md](docs/en/cli.md)
 - C example: [examples/c/c_abi_demo.c](examples/c/c_abi_demo.c)
 - C++ example: [examples/cpp/cpp_abi_demo.cpp](examples/cpp/cpp_abi_demo.cpp)
 - Python ctypes example: [examples/python/python_ctypes_demo.py](examples/python/python_ctypes_demo.py)
@@ -163,7 +164,7 @@ cargo run -p motor_cli --release -- \
 
 Use [motor_vendors/template](motor_vendors/template) as the scaffold.
 
-Detailed guide: [docs/EXTENDING.md](docs/EXTENDING.md)
+Detailed guide: [docs/en/extending.md](docs/en/extending.md)
 
 ## Notes
 

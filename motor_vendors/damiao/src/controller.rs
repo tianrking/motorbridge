@@ -24,12 +24,21 @@ impl DamiaoController {
         Ok(Self::new(bus))
     }
 
-    pub fn add_motor(&self, motor_id: u16, feedback_id: u16, model: &str) -> Result<Arc<DamiaoMotor>> {
-        let motor = Arc::new(DamiaoMotor::new(motor_id, feedback_id, model, self.core.bus())?);
+    pub fn add_motor(
+        &self,
+        motor_id: u16,
+        feedback_id: u16,
+        model: &str,
+    ) -> Result<Arc<DamiaoMotor>> {
+        let motor = Arc::new(DamiaoMotor::new(
+            motor_id,
+            feedback_id,
+            model,
+            self.core.bus(),
+        )?);
         let device: Arc<dyn motor_core::device::MotorDevice> = motor.clone();
         self.core.add_device(device)?;
-        self
-            .motors
+        self.motors
             .lock()
             .map_err(|_| MotorError::Io("motors lock poisoned".to_string()))?
             .insert(motor_id, Arc::clone(&motor));
@@ -37,8 +46,7 @@ impl DamiaoController {
     }
 
     pub fn get_motor(&self, motor_id: u16) -> Result<Arc<DamiaoMotor>> {
-        self
-            .motors
+        self.motors
             .lock()
             .map_err(|_| MotorError::Io("motors lock poisoned".to_string()))?
             .get(&motor_id)

@@ -84,7 +84,11 @@ pub fn encode_vel_cmd(target_velocity: f32) -> [u8; 8] {
     out
 }
 
-pub fn encode_force_pos_cmd(target_position: f32, velocity_limit: f32, torque_limit_ratio: f32) -> [u8; 8] {
+pub fn encode_force_pos_cmd(
+    target_position: f32,
+    velocity_limit: f32,
+    torque_limit_ratio: f32,
+) -> [u8; 8] {
     let v_des = (velocity_limit.clamp(0.0, 100.0) * 100.0) as u16;
     let i_des = (torque_limit_ratio.clamp(0.0, 1.0) * 10_000.0) as u16;
     let mut out = [0u8; 8];
@@ -119,7 +123,9 @@ pub fn decode_sensor_feedback(data: [u8; 8], limits: Limits) -> SensorFeedback {
 
 pub fn decode_register_value(data: [u8; 8]) -> Result<(u8, [u8; 4])> {
     if !is_register_reply(&data) {
-        return Err(MotorError::Protocol("not a register reply frame".to_string()));
+        return Err(MotorError::Protocol(
+            "not a register reply frame".to_string(),
+        ));
     }
     Ok((data[3], [data[4], data[5], data[6], data[7]]))
 }
@@ -145,11 +151,29 @@ pub fn encode_register_read_cmd(motor_id: u16, rid: u8) -> [u8; 8] {
 }
 
 pub fn encode_register_write_cmd(motor_id: u16, rid: u8, data: [u8; 4]) -> [u8; 8] {
-    [motor_id as u8, (motor_id >> 8) as u8, 0x55, rid, data[0], data[1], data[2], data[3]]
+    [
+        motor_id as u8,
+        (motor_id >> 8) as u8,
+        0x55,
+        rid,
+        data[0],
+        data[1],
+        data[2],
+        data[3],
+    ]
 }
 
 pub fn encode_store_params_cmd(motor_id: u16) -> [u8; 8] {
-    [motor_id as u8, (motor_id >> 8) as u8, 0xAA, 0x01, 0, 0, 0, 0]
+    [
+        motor_id as u8,
+        (motor_id >> 8) as u8,
+        0xAA,
+        0x01,
+        0,
+        0,
+        0,
+        0,
+    ]
 }
 
 pub fn encode_feedback_request_cmd(motor_id: u16) -> [u8; 8] {

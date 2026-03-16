@@ -44,18 +44,60 @@ macro_rules! reg {
 }
 
 pub static REGISTER_TABLE: &[RegisterInfo] = &[
-    reg!(0, "UV_Value", "Under-voltage protection value", RW, "(10.0, 3.4E38]", Float),
-    reg!(1, "KT_Value", "Torque coefficient", RW, "[0.0, 3.4E38]", Float),
-    reg!(2, "OT_Value", "Over-temperature protection value", RW, "[80.0, 200)", Float),
-    reg!(3, "OC_Value", "Over-current protection value", RW, "(0.0, 1.0)", Float),
+    reg!(
+        0,
+        "UV_Value",
+        "Under-voltage protection value",
+        RW,
+        "(10.0, 3.4E38]",
+        Float
+    ),
+    reg!(
+        1,
+        "KT_Value",
+        "Torque coefficient",
+        RW,
+        "[0.0, 3.4E38]",
+        Float
+    ),
+    reg!(
+        2,
+        "OT_Value",
+        "Over-temperature protection value",
+        RW,
+        "[80.0, 200)",
+        Float
+    ),
+    reg!(
+        3,
+        "OC_Value",
+        "Over-current protection value",
+        RW,
+        "(0.0, 1.0)",
+        Float
+    ),
     reg!(4, "ACC", "Acceleration", RW, "(0.0, 3.4E38)", Float),
     reg!(5, "DEC", "Deceleration", RW, "[-3.4E38, 0.0)", Float),
     reg!(6, "MAX_SPD", "Maximum speed", RW, "(0.0, 3.4E38]", Float),
     reg!(7, "MST_ID", "Feedback ID", RW, "[0, 0x7FF]", UInt32),
     reg!(8, "ESC_ID", "Receive ID", RW, "[0, 0x7FF]", UInt32),
-    reg!(9, "TIMEOUT", "Timeout alarm time", RW, "[0, 2^32-1]", UInt32),
+    reg!(
+        9,
+        "TIMEOUT",
+        "Timeout alarm time",
+        RW,
+        "[0, 2^32-1]",
+        UInt32
+    ),
     reg!(10, "CTRL_MODE", "Control mode", RW, "[1, 4]", UInt32),
-    reg!(11, "Damp", "Motor viscous damping coefficient", RO, "/", Float),
+    reg!(
+        11,
+        "Damp",
+        "Motor viscous damping coefficient",
+        RO,
+        "/",
+        Float
+    ),
     reg!(12, "Inertia", "Motor moment of inertia", RO, "/", Float),
     reg!(13, "hw_ver", "Reserved", RO, "/", UInt32),
     reg!(14, "sw_ver", "Software version number", RO, "/", UInt32),
@@ -65,20 +107,90 @@ pub static REGISTER_TABLE: &[RegisterInfo] = &[
     reg!(18, "Ls", "Motor phase inductance", RO, "/", Float),
     reg!(19, "Flux", "Motor flux linkage value", RO, "/", Float),
     reg!(20, "Gr", "Gear reduction ratio", RO, "/", Float),
-    reg!(21, "PMAX", "Position mapping range", RW, "(0.0, 3.4E38]", Float),
-    reg!(22, "VMAX", "Speed mapping range", RW, "(0.0, 3.4E38]", Float),
-    reg!(23, "TMAX", "Torque mapping range", RW, "(0.0, 3.4E38]", Float),
-    reg!(24, "I_BW", "Current loop control bandwidth", RW, "[100.0, 10000.0]", Float),
+    reg!(
+        21,
+        "PMAX",
+        "Position mapping range",
+        RW,
+        "(0.0, 3.4E38]",
+        Float
+    ),
+    reg!(
+        22,
+        "VMAX",
+        "Speed mapping range",
+        RW,
+        "(0.0, 3.4E38]",
+        Float
+    ),
+    reg!(
+        23,
+        "TMAX",
+        "Torque mapping range",
+        RW,
+        "(0.0, 3.4E38]",
+        Float
+    ),
+    reg!(
+        24,
+        "I_BW",
+        "Current loop control bandwidth",
+        RW,
+        "[100.0, 10000.0]",
+        Float
+    ),
     reg!(25, "KP_ASR", "Speed loop Kp", RW, "[0.0, 3.4E38]", Float),
     reg!(26, "KI_ASR", "Speed loop Ki", RW, "[0.0, 3.4E38]", Float),
     reg!(27, "KP_APR", "Position loop Kp", RW, "[0.0, 3.4E38]", Float),
     reg!(28, "KI_APR", "Position loop Ki", RW, "[0.0, 3.4E38]", Float),
-    reg!(29, "OV_Value", "Overvoltage protection value", RW, "TBD", Float),
-    reg!(30, "GREF", "Gear torque efficiency", RW, "(0.0, 1.0]", Float),
-    reg!(31, "Deta", "Speed loop damping coefficient", RW, "[1.0, 30.0]", Float),
-    reg!(32, "V_BW", "Speed loop filter bandwidth", RW, "(0.0, 500.0)", Float),
-    reg!(33, "IQ_c1", "Current loop enhancement coefficient", RW, "[100.0, 10000.0]", Float),
-    reg!(34, "VL_c1", "Speed loop enhancement coefficient", RW, "(0.0, 10000.0]", Float),
+    reg!(
+        29,
+        "OV_Value",
+        "Overvoltage protection value",
+        RW,
+        "TBD",
+        Float
+    ),
+    reg!(
+        30,
+        "GREF",
+        "Gear torque efficiency",
+        RW,
+        "(0.0, 1.0]",
+        Float
+    ),
+    reg!(
+        31,
+        "Deta",
+        "Speed loop damping coefficient",
+        RW,
+        "[1.0, 30.0]",
+        Float
+    ),
+    reg!(
+        32,
+        "V_BW",
+        "Speed loop filter bandwidth",
+        RW,
+        "(0.0, 500.0)",
+        Float
+    ),
+    reg!(
+        33,
+        "IQ_c1",
+        "Current loop enhancement coefficient",
+        RW,
+        "[100.0, 10000.0]",
+        Float
+    ),
+    reg!(
+        34,
+        "VL_c1",
+        "Speed loop enhancement coefficient",
+        RW,
+        "(0.0, 10000.0]",
+        Float
+    ),
     reg!(35, "can_br", "CAN baud rate code", RW, "[0, 4]", UInt32),
     reg!(36, "sub_ver", "Sub-version number", RO, "/", UInt32),
     reg!(50, "u_off", "U-phase offset", RO, "", Float),

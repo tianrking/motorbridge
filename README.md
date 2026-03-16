@@ -126,6 +126,26 @@ cargo run -p motor_cli --release -- \
   --mode pos-vel --pos 3.10 --vlim 1.50 --loop 300 --dt-ms 20
 ```
 
+Model handshake verification (enabled by default):
+
+- CLI reads `PMAX/VMAX/TMAX` (`rid=21/22/23`) on startup.
+- If `--model` does not match device limits, CLI exits with mismatch error and suggested models.
+- Disable only when intentionally bypassing: `--verify-model 0`.
+
+Quick verification tests:
+
+```bash
+# 1) Expected pass (correct model)
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode enable --loop 5 --dt-ms 100
+
+# 2) Expected fail (intentional wrong model, should show suggestions)
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4310 --motor-id 0x01 --feedback-id 0x11 \
+  --mode enable --loop 5 --dt-ms 100
+```
+
 ## ABI and Cross-language Usage
 
 - ABI guide: [docs/ABI_USAGE.md](docs/ABI_USAGE.md)

@@ -15,8 +15,14 @@
   - `motor_vendors/damiao/examples/test_4340.rs`
   - `motor_vendors/damiao/examples/test_4340p.rs`
 - C ABI 示例：`examples/c/c_abi_demo.c`
+- C 示例说明（英文）：`examples/c/README.md`
+- C 示例说明（中文）：`examples/c/README.zh-CN.md`
 - C++ ABI 示例：`examples/cpp/cpp_abi_demo.cpp`
+- C++ 示例说明（英文）：`examples/cpp/README.md`
+- C++ 示例说明（中文）：`examples/cpp/README.zh-CN.md`
 - Python ctypes 示例：`examples/python/python_ctypes_demo.py`
+- Python 示例说明（英文）：`examples/python/README.md`
+- Python 示例说明（中文）：`examples/python/README.zh-CN.md`
 - ABI 头文件：`motor_abi/include/motor_abi.h`
 
 ## 通用设备参数
@@ -30,6 +36,9 @@
 | `loop` | 发送循环次数 | `1` |
 | `dt-ms` | 发送周期（毫秒） | `20` |
 | `ensure-mode` | 发送前是否确保控制模式（`1/0`） | `1` |
+| `verify-model` | 通过读取 `PMAX/VMAX/TMAX` 校验 `--model`（`1/0`） | `1` |
+| `verify-timeout-ms` | 型号校验寄存器读取超时（毫秒） | `500` |
+| `verify-tol` | `PMAX/VMAX/TMAX` 比较绝对容差 | `0.2` |
 
 ## 各模式完整参数（CLI）
 
@@ -53,6 +62,28 @@ cargo run -p motor_cli --release -- \
 cargo run -p motor_cli --release -- \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode disable --loop 1
+```
+
+### 型号握手校验（推荐）
+
+- 默认开启：`--verify-model 1`
+- 读取寄存器：`rid=21/22/23`（`PMAX/VMAX/TMAX`）
+- 不匹配时：CLI 直接退出并给出建议型号
+
+通过示例（型号正确）：
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode enable --loop 5 --dt-ms 100
+```
+
+失败示例（故意写错型号）：
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4310 --motor-id 0x01 --feedback-id 0x11 \
+  --mode enable --loop 5 --dt-ms 100
 ```
 
 ### 3) MIT 模式

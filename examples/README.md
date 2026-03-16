@@ -15,8 +15,14 @@ This directory helps you quickly find:
   - `motor_vendors/damiao/examples/test_4340.rs`
   - `motor_vendors/damiao/examples/test_4340p.rs`
 - C ABI demo: `examples/c/c_abi_demo.c`
+- C examples README (EN): `examples/c/README.md`
+- C examples README (ZH): `examples/c/README.zh-CN.md`
 - C++ ABI demo: `examples/cpp/cpp_abi_demo.cpp`
+- C++ examples README (EN): `examples/cpp/README.md`
+- C++ examples README (ZH): `examples/cpp/README.zh-CN.md`
 - Python ctypes demo: `examples/python/python_ctypes_demo.py`
+- Python examples README (EN): `examples/python/README.md`
+- Python examples README (ZH): `examples/python/README.zh-CN.md`
 - ABI header: `motor_abi/include/motor_abi.h`
 
 ## Common Device Parameters
@@ -30,6 +36,9 @@ This directory helps you quickly find:
 | `loop` | Send cycles | `1` |
 | `dt-ms` | Send period in ms | `20` |
 | `ensure-mode` | Ensure control mode before sending (`1/0`) | `1` |
+| `verify-model` | Verify `--model` by reading `PMAX/VMAX/TMAX` (`1/0`) | `1` |
+| `verify-timeout-ms` | Register read timeout for model verification | `500` |
+| `verify-tol` | Absolute tolerance for `PMAX/VMAX/TMAX` comparison | `0.2` |
 
 ## Full Parameters per Mode (CLI)
 
@@ -53,6 +62,28 @@ cargo run -p motor_cli --release -- \
 cargo run -p motor_cli --release -- \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode disable --loop 1
+```
+
+### Model Handshake Verification (recommended)
+
+- Default behavior: enabled (`--verify-model 1`)
+- Read registers: `rid=21/22/23` (`PMAX/VMAX/TMAX`)
+- If mismatch: CLI exits and prints suggested models
+
+Pass case (correct model):
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode enable --loop 5 --dt-ms 100
+```
+
+Mismatch case (intentional wrong model):
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4310 --motor-id 0x01 --feedback-id 0x11 \
+  --mode enable --loop 5 --dt-ms 100
 ```
 
 ### 3) MIT Mode

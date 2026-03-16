@@ -14,27 +14,158 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 const DAMIAO_MODELS: &[MotorModelSpec] = &[
-    MotorModelSpec { vendor: "damiao", model: "3507", pmax: 12.566, vmax: 50.0, tmax: 5.0 },
-    MotorModelSpec { vendor: "damiao", model: "4310", pmax: 12.5, vmax: 30.0, tmax: 10.0 },
-    MotorModelSpec { vendor: "damiao", model: "4310P", pmax: 12.5, vmax: 50.0, tmax: 10.0 },
-    MotorModelSpec { vendor: "damiao", model: "4340", pmax: 12.5, vmax: 10.0, tmax: 28.0 },
-    MotorModelSpec { vendor: "damiao", model: "4340P", pmax: 12.5, vmax: 10.0, tmax: 28.0 },
-    MotorModelSpec { vendor: "damiao", model: "6006", pmax: 12.5, vmax: 45.0, tmax: 20.0 },
-    MotorModelSpec { vendor: "damiao", model: "8006", pmax: 12.5, vmax: 45.0, tmax: 40.0 },
-    MotorModelSpec { vendor: "damiao", model: "8009", pmax: 12.5, vmax: 45.0, tmax: 54.0 },
-    MotorModelSpec { vendor: "damiao", model: "10010L", pmax: 12.5, vmax: 25.0, tmax: 200.0 },
-    MotorModelSpec { vendor: "damiao", model: "10010", pmax: 12.5, vmax: 20.0, tmax: 200.0 },
-    MotorModelSpec { vendor: "damiao", model: "H3510", pmax: 12.5, vmax: 280.0, tmax: 1.0 },
-    MotorModelSpec { vendor: "damiao", model: "G6215", pmax: 12.5, vmax: 45.0, tmax: 10.0 },
-    MotorModelSpec { vendor: "damiao", model: "H6220", pmax: 12.5, vmax: 45.0, tmax: 10.0 },
-    MotorModelSpec { vendor: "damiao", model: "JH11", pmax: 12.5, vmax: 10.0, tmax: 12.0 },
-    MotorModelSpec { vendor: "damiao", model: "6248P", pmax: 12.566, vmax: 20.0, tmax: 120.0 },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "3507",
+        pmax: 12.566,
+        vmax: 50.0,
+        tmax: 5.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "4310",
+        pmax: 12.5,
+        vmax: 30.0,
+        tmax: 10.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "4310P",
+        pmax: 12.5,
+        vmax: 50.0,
+        tmax: 10.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "4340",
+        pmax: 12.5,
+        vmax: 10.0,
+        tmax: 28.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "4340P",
+        pmax: 12.5,
+        vmax: 10.0,
+        tmax: 28.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "6006",
+        pmax: 12.5,
+        vmax: 45.0,
+        tmax: 20.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "8006",
+        pmax: 12.5,
+        vmax: 45.0,
+        tmax: 40.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "8009",
+        pmax: 12.5,
+        vmax: 45.0,
+        tmax: 54.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "10010L",
+        pmax: 12.5,
+        vmax: 25.0,
+        tmax: 200.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "10010",
+        pmax: 12.5,
+        vmax: 20.0,
+        tmax: 200.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "H3510",
+        pmax: 12.5,
+        vmax: 280.0,
+        tmax: 1.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "G6215",
+        pmax: 12.5,
+        vmax: 45.0,
+        tmax: 10.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "H6220",
+        pmax: 12.5,
+        vmax: 45.0,
+        tmax: 10.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "JH11",
+        pmax: 12.5,
+        vmax: 10.0,
+        tmax: 12.0,
+    },
+    MotorModelSpec {
+        vendor: "damiao",
+        model: "6248P",
+        pmax: 12.566,
+        vmax: 20.0,
+        tmax: 120.0,
+    },
 ];
 
 const DAMIAO_CATALOG: StaticModelCatalog = StaticModelCatalog {
     vendor_name: "damiao",
     models: DAMIAO_MODELS,
 };
+
+pub fn model_limits(model: &str) -> Option<(f32, f32, f32)> {
+    DAMIAO_CATALOG
+        .get(model)
+        .map(|spec| (spec.pmax, spec.vmax, spec.tmax))
+}
+
+pub fn match_models_by_limits(pmax: f32, vmax: f32, tmax: f32, tol: f32) -> Vec<&'static str> {
+    DAMIAO_MODELS
+        .iter()
+        .filter(|spec| {
+            (spec.pmax - pmax).abs() <= tol
+                && (spec.vmax - vmax).abs() <= tol
+                && (spec.tmax - tmax).abs() <= tol
+        })
+        .map(|spec| spec.model)
+        .collect()
+}
+
+pub fn suggest_models_by_limits(
+    pmax: f32,
+    vmax: f32,
+    tmax: f32,
+    top_n: usize,
+) -> Vec<&'static str> {
+    let mut scored: Vec<(&'static str, f32)> = DAMIAO_MODELS
+        .iter()
+        .map(|spec| {
+            let d = (spec.pmax - pmax).powi(2)
+                + (spec.vmax - vmax).powi(2)
+                + (spec.tmax - tmax).powi(2);
+            (spec.model, d.sqrt())
+        })
+        .collect();
+    scored.sort_by(|a, b| a.1.total_cmp(&b.1));
+    scored
+        .into_iter()
+        .take(top_n)
+        .map(|(name, _)| name)
+        .collect()
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum ControlMode {
@@ -143,14 +274,22 @@ impl DamiaoMotor {
     }
 
     pub fn send_cmd_pos_vel(&self, target_position: f32, velocity_limit: f32) -> Result<()> {
-        self.send_raw(0x100u16 + self.motor_id, encode_pos_vel_cmd(target_position, velocity_limit))
+        self.send_raw(
+            0x100u16 + self.motor_id,
+            encode_pos_vel_cmd(target_position, velocity_limit),
+        )
     }
 
     pub fn send_cmd_vel(&self, target_velocity: f32) -> Result<()> {
         self.send_raw(0x200u16 + self.motor_id, encode_vel_cmd(target_velocity))
     }
 
-    pub fn send_cmd_force_pos(&self, target_position: f32, velocity_limit: f32, torque_limit_ratio: f32) -> Result<()> {
+    pub fn send_cmd_force_pos(
+        &self,
+        target_position: f32,
+        velocity_limit: f32,
+        torque_limit_ratio: f32,
+    ) -> Result<()> {
         self.send_raw(
             0x300u16 + self.motor_id,
             encode_force_pos_cmd(target_position, velocity_limit, torque_limit_ratio),
@@ -174,7 +313,9 @@ impl DamiaoMotor {
 
     pub fn request_register_reading(&self, rid: u8) -> Result<()> {
         if register_info(rid).is_none() {
-            return Err(MotorError::InvalidArgument(format!("unknown register rid {rid}")));
+            return Err(MotorError::InvalidArgument(format!(
+                "unknown register rid {rid}"
+            )));
         }
         self.send_raw(0x7FF, encode_register_read_cmd(self.motor_id, rid))
     }
@@ -183,24 +324,38 @@ impl DamiaoMotor {
         let info = register_info(rid)
             .ok_or_else(|| MotorError::InvalidArgument(format!("unknown register rid {rid}")))?;
         if info.access != RegisterAccess::ReadWrite {
-            return Err(MotorError::InvalidArgument(format!("register {rid} is read-only")));
+            return Err(MotorError::InvalidArgument(format!(
+                "register {rid} is read-only"
+            )));
         }
         if info.data_type != RegisterDataType::Float {
-            return Err(MotorError::InvalidArgument(format!("register {rid} expects uint32")));
+            return Err(MotorError::InvalidArgument(format!(
+                "register {rid} expects uint32"
+            )));
         }
-        self.send_raw(0x7FF, encode_register_write_cmd(self.motor_id, rid, value.to_le_bytes()))
+        self.send_raw(
+            0x7FF,
+            encode_register_write_cmd(self.motor_id, rid, value.to_le_bytes()),
+        )
     }
 
     pub fn write_register_u32(&self, rid: u8, value: u32) -> Result<()> {
         let info = register_info(rid)
             .ok_or_else(|| MotorError::InvalidArgument(format!("unknown register rid {rid}")))?;
         if info.access != RegisterAccess::ReadWrite {
-            return Err(MotorError::InvalidArgument(format!("register {rid} is read-only")));
+            return Err(MotorError::InvalidArgument(format!(
+                "register {rid} is read-only"
+            )));
         }
         if info.data_type != RegisterDataType::UInt32 {
-            return Err(MotorError::InvalidArgument(format!("register {rid} expects float")));
+            return Err(MotorError::InvalidArgument(format!(
+                "register {rid} expects float"
+            )));
         }
-        self.send_raw(0x7FF, encode_register_write_cmd(self.motor_id, rid, value.to_le_bytes()))
+        self.send_raw(
+            0x7FF,
+            encode_register_write_cmd(self.motor_id, rid, value.to_le_bytes()),
+        )
     }
 
     pub fn store_parameters(&self) -> Result<()> {

@@ -125,6 +125,26 @@ cargo run -p motor_cli --release -- \
   --mode pos-vel --pos 3.10 --vlim 1.50 --loop 300 --dt-ms 20
 ```
 
+型号握手校验（默认开启）：
+
+- CLI 启动时会读取 `PMAX/VMAX/TMAX`（`rid=21/22/23`）。
+- 若 `--model` 与设备参数不匹配，会直接报错并给出建议型号。
+- 仅在你明确要跳过时使用：`--verify-model 0`。
+
+快速测试命令：
+
+```bash
+# 1) 预期通过（型号正确）
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode enable --loop 5 --dt-ms 100
+
+# 2) 预期失败（故意写错型号，应提示建议型号）
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4310 --motor-id 0x01 --feedback-id 0x11 \
+  --mode enable --loop 5 --dt-ms 100
+```
+
 ## ABI 与跨语言调用
 
 - ABI 说明：[docs/ABI_USAGE.md](docs/ABI_USAGE.md)

@@ -23,7 +23,8 @@ Repository: https://github.com/tianrking/motorbridge.git
 - Core language: **Rust** (edition 2021)
 - Low-level bus backend: **Linux SocketCAN** (FFI/system calls)
 - Cross-language integration: **C ABI** (`cdylib` + `staticlib`)
-- Runtime consumers: Rust / C / C++ / Python (`ctypes`)
+- Runtime consumers (examples included): Rust / C / C++ / Python (`ctypes`)
+- Runtime consumers (via C ABI extension): Go / C# / Java (JNI/JNA) / Node.js (`ffi-napi`) / others
 
 ## Architecture
 
@@ -117,7 +118,8 @@ cargo run -p motor_cli --release -- \
 - C example: [examples/c/c_abi_demo.c](examples/c/c_abi_demo.c)
 - C++ example: [examples/cpp/cpp_abi_demo.cpp](examples/cpp/cpp_abi_demo.cpp)
 - Python ctypes example: [examples/python/python_ctypes_demo.py](examples/python/python_ctypes_demo.py)
-- Full examples index: [examples/README.md](examples/README.md)
+- Full examples index (EN): [examples/README.md](examples/README.md)
+- Full examples index (ZH): [examples/README.zh-CN.md](examples/README.zh-CN.md)
 
 ## Adding New Vendors
 

@@ -117,7 +117,8 @@ cargo run -p motor_cli --release -- \
 - C 示例：[examples/c/c_abi_demo.c](examples/c/c_abi_demo.c)
 - C++ 示例：[examples/cpp/cpp_abi_demo.cpp](examples/cpp/cpp_abi_demo.cpp)
 - Python ctypes 示例：[examples/python/python_ctypes_demo.py](examples/python/python_ctypes_demo.py)
-- 示例总览：[examples/README.md](examples/README.md)
+- 示例总览（英文）：[examples/README.md](examples/README.md)
+- 示例总览（中文）：[examples/README.zh-CN.md](examples/README.zh-CN.md)
 
 ## 新增品牌
 

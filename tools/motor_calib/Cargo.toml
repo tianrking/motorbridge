@@ -1,0 +1,13 @@
+[package]
+name = "motor_calib"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "motor_calib"
+path = "src/main.rs"
+
+[dependencies]
+motor_vendor_damiao = { path = "../../motor_vendors/damiao" }

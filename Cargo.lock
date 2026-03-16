@@ -10,6 +10,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "motor_calib"
+version = "0.1.0"
+dependencies = [
+ "motor_vendor_damiao",
+]
+
+[[package]]
 name = "motor_cli"
 version = "0.1.0"
 dependencies = [

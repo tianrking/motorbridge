@@ -10,6 +10,7 @@
 - 多语言示例：[examples.md](examples.md)
 - 支持设备：[devices.md](devices.md)
 - 扩展开发：[extending.md](extending.md)
+- 标定工具：[`tools/motor_calib/README.zh-CN.md`](../../tools/motor_calib/README.zh-CN.md)
 
 ## motorbridge 提供什么
 

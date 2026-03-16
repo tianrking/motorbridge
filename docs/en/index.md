@@ -10,6 +10,7 @@ This documentation set is aligned with the current `main` branch implementation.
 - Cross-language Examples: [examples.md](examples.md)
 - Supported Devices: [devices.md](devices.md)
 - Vendor Extension Guide: [extending.md](extending.md)
+- Calibration Tool: [`tools/motor_calib/README.md`](../../tools/motor_calib/README.md)
 
 ## What motorbridge Provides
 

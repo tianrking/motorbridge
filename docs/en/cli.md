@@ -89,6 +89,13 @@ cargo run -p motor_cli --release -- \
   --set-motor-id 0x02 --set-feedback-id 0x12 --store 1 --verify-id 1
 ```
 
+## Recommended Calibration Tool
+
+For repetitive scan/readdress workflows, use `tools/motor_calib`:
+
+- EN doc: `tools/motor_calib/README.md`
+- Commands: `scan`, `set-id`, `verify`
+
 ## ID Scan (Rust-only workflow)
 
 There is no dedicated `scan` subcommand in `motor_cli` yet.

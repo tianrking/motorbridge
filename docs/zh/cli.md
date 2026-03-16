@@ -89,6 +89,13 @@ cargo run -p motor_cli --release -- \
   --set-motor-id 0x02 --set-feedback-id 0x12 --store 1 --verify-id 1
 ```
 
+## 推荐标定工具
+
+对于批量扫描与重新编址流程，建议使用 `tools/motor_calib`：
+
+- 中文文档：`tools/motor_calib/README.zh-CN.md`
+- 支持命令：`scan`、`set-id`、`verify`
+
 ## 扫描 ID（纯 Rust 工作流）
 
 当前 `motor_cli` 还没有独立 `scan` 子命令，可使用 shell 探测循环：

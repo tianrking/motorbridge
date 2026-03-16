@@ -40,6 +40,8 @@ motorbridge/
 │   └── template/            # 新增品牌模板
 ├── motor_cli/               # 统一 CLI（模式/参数控制）
 ├── motor_abi/               # C ABI（cdylib/staticlib）
+├── tools/
+│   └── motor_calib/         # 标定工具（scan / set-id / verify）
 ├── bindings/
 │   └── python/              # Python SDK 包（pip / motorbridge-cli）
 ├── docs/
@@ -151,6 +153,7 @@ cargo run -p motor_cli --release -- \
 - 文档总览（中文）：[docs/zh/index.md](docs/zh/index.md)
 - ABI 文档（中文）：[docs/zh/abi.md](docs/zh/abi.md)
 - CLI 文档（中文）：[docs/zh/cli.md](docs/zh/cli.md)
+- 标定工具（中文）：[tools/motor_calib/README.zh-CN.md](tools/motor_calib/README.zh-CN.md)
 - C 示例：[examples/c/c_abi_demo.c](examples/c/c_abi_demo.c)
 - C++ 示例：[examples/cpp/cpp_abi_demo.cpp](examples/cpp/cpp_abi_demo.cpp)
 - Python ctypes 示例：[examples/python/python_ctypes_demo.py](examples/python/python_ctypes_demo.py)

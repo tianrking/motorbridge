@@ -2,9 +2,10 @@ use crate::motor::TemplateMotor;
 use motor_core::bus::CanBus;
 use motor_core::controller::CoreController;
 use motor_core::error::{MotorError, Result};
-use motor_core::socketcan::SocketCanBus;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+#[cfg(target_os = "linux")]
+use motor_core::socketcan::SocketCanBus;
 
 pub struct TemplateController {
     core: CoreController,
@@ -20,8 +21,18 @@ impl TemplateController {
     }
 
     pub fn new_socketcan(channel: &str) -> Result<Self> {
-        let bus: Arc<dyn CanBus> = Arc::new(SocketCanBus::open(channel)?);
-        Ok(Self::new(bus))
+        #[cfg(target_os = "linux")]
+        {
+            let bus: Arc<dyn CanBus> = Arc::new(SocketCanBus::open(channel)?);
+            return Ok(Self::new(bus));
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = channel;
+            Err(MotorError::InvalidArgument(
+                "SocketCAN backend is only supported on Linux".to_string(),
+            ))
+        }
     }
 
     pub fn add_motor(&self, motor_id: u16, feedback_id: u16, model: &str) -> Result<Arc<TemplateMotor>> {

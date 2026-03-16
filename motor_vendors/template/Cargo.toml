@@ -1,13 +1,13 @@
 [package]
-name = "motor_vendor_damiao"
+name = "motor_vendor_template"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
 [lib]
-name = "motor_vendor_damiao"
+name = "motor_vendor_template"
 path = "src/lib.rs"
 
 [dependencies]
-motor_core = { path = "../motor_core" }
+motor_core = { path = "../../motor_core" }

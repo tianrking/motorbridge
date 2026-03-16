@@ -10,8 +10,8 @@
 
 - Rust CLI: `motor_cli/src/main.rs`
 - Rust native examples:
-  - `motor_vendor_damiao/examples/test_4340.rs`
-  - `motor_vendor_damiao/examples/test_4340p.rs`
+  - `motor_vendors/damiao/examples/test_4340.rs`
+  - `motor_vendors/damiao/examples/test_4340p.rs`
 - C ABI demo: `examples/c/c_abi_demo.c`
 - C++ ABI demo: `examples/cpp/cpp_abi_demo.cpp`
 - Python ctypes demo: `examples/python/python_ctypes_demo.py`

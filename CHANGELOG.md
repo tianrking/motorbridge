@@ -13,7 +13,7 @@ Versioning.
 - Damiao vendor implementation with multi-model support.
 - Unified CLI (`motor_cli`) with mode-based parameter control.
 - C/C++/Python examples for ABI integration.
-- Vendor template crate (`motor_vendor_template`) for onboarding new brands.
+- Vendor template scaffold (`motor_vendors/template`) for onboarding new brands.
 
 ## [0.1.0] - 2026-03-16
 

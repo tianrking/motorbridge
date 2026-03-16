@@ -28,7 +28,7 @@
 
 对 Damiao：
 
-1. 打开 `motor_vendor_damiao/src/motor.rs`
+1. 打开 `motor_vendors/damiao/src/motor.rs`
 2. 在 `DAMIAO_MODELS` 里新增条目：
    - `model`
    - `pmax`

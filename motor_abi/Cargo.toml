@@ -9,4 +9,4 @@ license.workspace = true
 crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
-motor_vendor_damiao = { path = "../motor_vendor_damiao" }
+motor_vendor_damiao = { path = "../motor_vendors/damiao" }

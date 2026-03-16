@@ -18,6 +18,13 @@ Repository: https://github.com/tianrking/motorbridge.git
 - A stable C ABI for C/C++/Python/other languages
 - Clear path to add more brands without rewriting core logic
 
+## Tech Stack
+
+- Core language: **Rust** (edition 2021)
+- Low-level bus backend: **Linux SocketCAN** (FFI/system calls)
+- Cross-language integration: **C ABI** (`cdylib` + `staticlib`)
+- Runtime consumers: Rust / C / C++ / Python (`ctypes`)
+
 ## Architecture
 
 ```text
@@ -28,8 +35,9 @@ motorbridge/
 │   ├── controller.rs        # CoreController scheduler + routing
 │   ├── model.rs             # Model catalog abstractions
 │   └── socketcan.rs         # Linux SocketCAN backend
-├── motor_vendor_damiao/     # Damiao plugin (protocol/registers/models)
-├── motor_vendor_template/   # Template for adding new vendors
+├── motor_vendors/
+│   ├── damiao/              # Damiao plugin (protocol/registers/models)
+│   └── template/            # Template for adding new vendors
 ├── motor_cli/               # Unified CLI for mode/parameter control
 ├── motor_abi/               # C ABI (cdylib/staticlib)
 ├── docs/
@@ -40,6 +48,9 @@ motorbridge/
 └── examples/
     └── README.md            # Cross-language examples index
 ```
+
+`motor_vendors/` is the canonical vendor namespace directory.  
+Each subdirectory represents one vendor implementation (for example `damiao`) or one onboarding scaffold (`template`).
 
 ## Current Support
 
@@ -62,6 +73,7 @@ Build only core + Damiao plugin:
 
 ```bash
 cargo build -p motor_core -p motor_vendor_damiao --release
+# note: crate motor_vendor_damiao is located at motor_vendors/damiao
 ```
 
 Build ABI only:
@@ -109,7 +121,7 @@ cargo run -p motor_cli --release -- \
 
 ## Adding New Vendors
 
-Use [motor_vendor_template](motor_vendor_template) as the scaffold.
+Use [motor_vendors/template](motor_vendors/template) as the scaffold.
 
 Detailed guide: [docs/EXTENDING.md](docs/EXTENDING.md)
 

@@ -18,6 +18,13 @@
 - 提供稳定 C ABI，方便 C/C++/Python 等语言调用
 - 后续新增品牌不需要重写核心层
 
+## 技术栈与构建语言
+
+- 核心开发语言：**Rust**（edition 2021）
+- 底层总线后端：**Linux SocketCAN**（系统调用/FFI）
+- 跨语言接口：**C ABI**（`cdylib` + `staticlib`）
+- 调用方语言：Rust / C / C++ / Python（`ctypes`）
+
 ## 架构说明
 
 ```text
@@ -28,8 +35,9 @@ motorbridge/
 │   ├── controller.rs        # CoreController 调度与路由
 │   ├── model.rs             # 型号目录抽象
 │   └── socketcan.rs         # Linux SocketCAN 后端
-├── motor_vendor_damiao/     # Damiao 插件（协议/寄存器/型号）
-├── motor_vendor_template/   # 新增品牌模板
+├── motor_vendors/
+│   ├── damiao/              # Damiao 插件（协议/寄存器/型号）
+│   └── template/            # 新增品牌模板
 ├── motor_cli/               # 统一 CLI（模式/参数控制）
 ├── motor_abi/               # C ABI（cdylib/staticlib）
 ├── docs/
@@ -40,6 +48,9 @@ motorbridge/
 └── examples/
     └── README.md            # 多语言示例索引
 ```
+
+`motor_vendors/` 是统一的厂商命名空间目录。  
+每个子目录对应一个厂商实现（如 `damiao`）或一个接入模板（`template`）。
 
 ## 当前支持
 
@@ -62,6 +73,7 @@ cargo build --release
 
 ```bash
 cargo build -p motor_core -p motor_vendor_damiao --release
+# note: crate motor_vendor_damiao is located at motor_vendors/damiao
 ```
 
 只构建 ABI：
@@ -109,7 +121,7 @@ cargo run -p motor_cli --release -- \
 
 ## 新增品牌
 
-可直接从 [motor_vendor_template](motor_vendor_template) 复制改造。
+可直接从 [motor_vendors/template](motor_vendors/template) 复制改造。
 
 详细流程见 [docs/EXTENDING.md](docs/EXTENDING.md)。
 

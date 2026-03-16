@@ -2,9 +2,9 @@
 
 This directory helps you quickly find:
 
-- Which parameters each control mode needs
-- Which method maps to each language (CLI / Python / C / C++)
-- How to run each integration path
+- Full parameter sets per control mode
+- Method mapping by language (CLI / Python / C / C++)
+- Direct command examples, including standalone `enable/disable`
 
 > Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
@@ -19,45 +19,46 @@ This directory helps you quickly find:
 - Python ctypes demo: `examples/python/python_ctypes_demo.py`
 - ABI header: `motor_abi/include/motor_abi.h`
 
-## Common Device Arguments
+## Common Device Parameters
 
-- `channel`: CAN interface name (for example `can0`)
-- `model`: motor model (for example `4340`, `4340P`, `4310`, `8006`)
-- `motor_id`: command ID (`ESC_ID`)
-- `feedback_id`: feedback ID (`MST_ID`)
-
-## Control Modes and Parameters
-
-| Mode | Meaning | Required Params |
+| Param | Description | Default |
 |---|---|---|
-| `mit` | Position + velocity + stiffness + damping + feedforward torque | `pos`, `vel`, `kp`, `kd`, `tau` |
-| `pos-vel` | Position control with velocity limit | `pos`, `vlim` |
-| `vel` | Velocity control | `vel` |
-| `force-pos` | Force-position hybrid | `pos`, `vlim`, `ratio` |
+| `channel` | CAN interface name | `can0` |
+| `model` | Motor model (`4340`, `4340P`, `4310`, etc.) | `4340` |
+| `motor-id` | Command ID (`ESC_ID`) | `0x01` |
+| `feedback-id` | Feedback ID (`MST_ID`) | `0x11` |
+| `loop` | Send cycles | `1` |
+| `dt-ms` | Send period in ms | `20` |
+| `ensure-mode` | Ensure control mode before sending (`1/0`) | `1` |
 
-## Method Mapping (CLI / Python / C / C++)
+## Full Parameters per Mode (CLI)
 
-| Mode | CLI | Python ctypes | C ABI | C++ ABI |
-|---|---|---|---|---|
-| MIT | `--mode mit --pos --vel --kp --kd --tau` | `motor_handle_send_mit(...)` | `motor_handle_send_mit(...)` | `motor_handle_send_mit(...)` |
-| POS_VEL | `--mode pos-vel --pos --vlim` | `motor_handle_send_pos_vel(...)` | `motor_handle_send_pos_vel(...)` | `motor_handle_send_pos_vel(...)` |
-| VEL | `--mode vel --vel` | `motor_handle_send_vel(...)` | `motor_handle_send_vel(...)` | `motor_handle_send_vel(...)` |
-| FORCE_POS | `--mode force-pos --pos --vlim --ratio` | `motor_handle_send_force_pos(...)` | `motor_handle_send_force_pos(...)` | `motor_handle_send_force_pos(...)` |
+### 1) Standalone Enable
 
-Mode setup (all languages):
-
-- Ensure mode: `motor_handle_ensure_mode(motor, mode, timeout_ms)`
-- Mode values: `1=MIT`, `2=POS_VEL`, `3=VEL`, `4=FORCE_POS`
-
-## Quick Run
-
-### 1) CLI (recommended)
+- Mode: `--mode enable`
+- Optional: `--loop`, `--dt-ms`
 
 ```bash
-cargo run -p motor_cli -- --help
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode enable --loop 1
 ```
 
-MIT:
+### 2) Standalone Disable
+
+- Mode: `--mode disable`
+- Optional: `--loop`, `--dt-ms`
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode disable --loop 1
+```
+
+### 3) MIT Mode
+
+- Mode: `--mode mit`
+- Required control params: `--pos --vel --kp --kd --tau`
 
 ```bash
 cargo run -p motor_cli --release -- \
@@ -65,7 +66,10 @@ cargo run -p motor_cli --release -- \
   --mode mit --pos 0 --vel 0 --kp 30 --kd 1 --tau 0 --loop 200 --dt-ms 20
 ```
 
-Position (POS_VEL):
+### 4) POS_VEL Mode (Position-Velocity)
+
+- Mode: `--mode pos-vel`
+- Required control params: `--pos --vlim`
 
 ```bash
 cargo run -p motor_cli --release -- \
@@ -73,14 +77,54 @@ cargo run -p motor_cli --release -- \
   --mode pos-vel --pos 1.2 --vlim 2.0 --loop 100 --dt-ms 20
 ```
 
-### 2) Python ctypes
+### 5) VEL Mode
+
+- Mode: `--mode vel`
+- Required control params: `--vel`
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode vel --vel 0.5 --loop 100 --dt-ms 20
+```
+
+### 6) FORCE_POS Mode
+
+- Mode: `--mode force-pos`
+- Required control params: `--pos --vlim --ratio`
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode force-pos --pos 0.8 --vlim 2.0 --ratio 0.3 --loop 100 --dt-ms 20
+```
+
+## Method Mapping (CLI / Python / C / C++)
+
+| Action | CLI | Python ctypes / C / C++ ABI |
+|---|---|---|
+| Enable | `--mode enable` | `motor_handle_enable(...)` |
+| Disable | `--mode disable` | `motor_handle_disable(...)` |
+| MIT send | `--mode mit ...` | `motor_handle_send_mit(...)` |
+| POS_VEL send | `--mode pos-vel ...` | `motor_handle_send_pos_vel(...)` |
+| VEL send | `--mode vel ...` | `motor_handle_send_vel(...)` |
+| FORCE_POS send | `--mode force-pos ...` | `motor_handle_send_force_pos(...)` |
+| Ensure mode | `--ensure-mode 1` | `motor_handle_ensure_mode(...)` |
+
+Mode values for ABI:
+
+- `1=MIT`, `2=POS_VEL`, `3=VEL`, `4=FORCE_POS`
+
+## Cross-language Quick Run
+
+### Python ctypes
 
 ```bash
 cargo build -p motor_abi --release
 python3 examples/python/python_ctypes_demo.py --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11
 ```
 
-### 3) C
+### C
 
 ```bash
 cargo build -p motor_abi --release
@@ -88,7 +132,7 @@ cc examples/c/c_abi_demo.c -I motor_abi/include -L target/release -lmotor_abi -o
 LD_LIBRARY_PATH=target/release ./c_abi_demo can0 4340P 0x01 0x11
 ```
 
-### 4) C++
+### C++
 
 ```bash
 cargo build -p motor_abi --release
@@ -98,13 +142,11 @@ LD_LIBRARY_PATH=target/release ./cpp_abi_demo can0 4340P 0x01 0x11
 
 ## Useful Runtime APIs
 
-- feedback poll: `motor_controller_poll_feedback_once(...)`
-- read state: `motor_handle_get_state(...)`
-- register write/read:
-  - `motor_handle_write_register_f32/u32(...)`
-  - `motor_handle_get_register_f32/u32(...)`
-- maintenance:
-  - `motor_handle_clear_error(...)`
-  - `motor_handle_set_zero_position(...)`
-  - `motor_handle_store_parameters(...)`
-  - `motor_handle_set_can_timeout_ms(...)`
+- `motor_controller_poll_feedback_once(...)`
+- `motor_handle_get_state(...)`
+- `motor_handle_write_register_f32/u32(...)`
+- `motor_handle_get_register_f32/u32(...)`
+- `motor_handle_clear_error(...)`
+- `motor_handle_set_zero_position(...)`
+- `motor_handle_store_parameters(...)`
+- `motor_handle_set_can_timeout_ms(...)`

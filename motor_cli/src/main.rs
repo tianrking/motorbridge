@@ -66,6 +66,8 @@ fn print_help() {
 Usage:\n\
   cargo run -p motor_cli --release -- \\\n    --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \\\n    --mode mit --pos 0 --vel 0 --kp 30 --kd 1 --tau 0 --loop 200 --dt-ms 20\n\n\
 Modes:\n\
+  --mode enable    (send enable command only)\n\
+  --mode disable   (send disable command only)\n\
   --mode mit       (MIT: pos/vel/kp/kd/tau)\n\
   --mode pos-vel   (Position mode: pos + vlim)\n\
   --mode vel       (Velocity mode: vel)\n\
@@ -121,6 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "pos-vel" => ControlMode::PosVel,
             "vel" => ControlMode::Vel,
             "force-pos" => ControlMode::ForcePos,
+            "enable" | "disable" => ControlMode::Mit,
             _ => return Err(format!("unknown mode: {mode}").into()),
         };
         if let Err(e) = motor.ensure_control_mode(cm, Duration::from_millis(1000)) {
@@ -130,6 +133,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     for i in 0..loop_n {
         match mode.as_str() {
+            "enable" => {
+                motor.enable()?;
+            }
+            "disable" => {
+                motor.disable()?;
+            }
             "mit" => {
                 let pos = get_f32(&args, "pos", 0.0)?;
                 let vel = get_f32(&args, "vel", 0.0)?;

@@ -2,9 +2,9 @@
 
 本目录用于快速查找：
 
-- 不同控制模式需要哪些参数
-- 不同语言（CLI / Python / C / C++）对应调用哪个方法
-- 每种调用方式如何运行
+- 每种控制模式的完整参数
+- 不同语言（CLI / Python / C / C++）的方法映射
+- 可直接运行的命令（包含单独使能/失能）
 
 > English version: [README.md](README.md)
 
@@ -21,43 +21,44 @@
 
 ## 通用设备参数
 
-- `channel`：CAN 接口名（例如 `can0`）
-- `model`：电机型号（例如 `4340`, `4340P`, `4310`, `8006`）
-- `motor_id`：命令 ID（`ESC_ID`）
-- `feedback_id`：反馈 ID（`MST_ID`）
-
-## 控制模式与参数
-
-| 模式 | 含义 | 必填参数 |
+| 参数 | 说明 | 默认值 |
 |---|---|---|
-| `mit` | 位置 + 速度 + 刚度 + 阻尼 + 前馈力矩 | `pos`, `vel`, `kp`, `kd`, `tau` |
-| `pos-vel` | 位置控制（带速度限制） | `pos`, `vlim` |
-| `vel` | 速度控制 | `vel` |
-| `force-pos` | 力位混合 | `pos`, `vlim`, `ratio` |
+| `channel` | CAN 接口名 | `can0` |
+| `model` | 电机型号（如 `4340`, `4340P`, `4310`） | `4340` |
+| `motor-id` | 命令 ID（`ESC_ID`） | `0x01` |
+| `feedback-id` | 反馈 ID（`MST_ID`） | `0x11` |
+| `loop` | 发送循环次数 | `1` |
+| `dt-ms` | 发送周期（毫秒） | `20` |
+| `ensure-mode` | 发送前是否确保控制模式（`1/0`） | `1` |
 
-## 方法映射（CLI / Python / C / C++）
+## 各模式完整参数（CLI）
 
-| 模式 | CLI | Python ctypes | C ABI | C++ ABI |
-|---|---|---|---|---|
-| MIT | `--mode mit --pos --vel --kp --kd --tau` | `motor_handle_send_mit(...)` | `motor_handle_send_mit(...)` | `motor_handle_send_mit(...)` |
-| POS_VEL | `--mode pos-vel --pos --vlim` | `motor_handle_send_pos_vel(...)` | `motor_handle_send_pos_vel(...)` | `motor_handle_send_pos_vel(...)` |
-| VEL | `--mode vel --vel` | `motor_handle_send_vel(...)` | `motor_handle_send_vel(...)` | `motor_handle_send_vel(...)` |
-| FORCE_POS | `--mode force-pos --pos --vlim --ratio` | `motor_handle_send_force_pos(...)` | `motor_handle_send_force_pos(...)` | `motor_handle_send_force_pos(...)` |
+### 1) 单独使能
 
-模式设置（所有语言通用）：
-
-- 切换模式：`motor_handle_ensure_mode(motor, mode, timeout_ms)`
-- 模式值：`1=MIT`, `2=POS_VEL`, `3=VEL`, `4=FORCE_POS`
-
-## 快速运行
-
-### 1) CLI（推荐）
+- 模式：`--mode enable`
+- 可选：`--loop`, `--dt-ms`
 
 ```bash
-cargo run -p motor_cli -- --help
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode enable --loop 1
 ```
 
-MIT：
+### 2) 单独失能
+
+- 模式：`--mode disable`
+- 可选：`--loop`, `--dt-ms`
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode disable --loop 1
+```
+
+### 3) MIT 模式
+
+- 模式：`--mode mit`
+- 必填控制参数：`--pos --vel --kp --kd --tau`
 
 ```bash
 cargo run -p motor_cli --release -- \
@@ -65,7 +66,10 @@ cargo run -p motor_cli --release -- \
   --mode mit --pos 0 --vel 0 --kp 30 --kd 1 --tau 0 --loop 200 --dt-ms 20
 ```
 
-位置模式（POS_VEL）：
+### 4) POS_VEL 模式（位置速度）
+
+- 模式：`--mode pos-vel`
+- 必填控制参数：`--pos --vlim`
 
 ```bash
 cargo run -p motor_cli --release -- \
@@ -73,14 +77,54 @@ cargo run -p motor_cli --release -- \
   --mode pos-vel --pos 1.2 --vlim 2.0 --loop 100 --dt-ms 20
 ```
 
-### 2) Python ctypes
+### 5) VEL 模式
+
+- 模式：`--mode vel`
+- 必填控制参数：`--vel`
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode vel --vel 0.5 --loop 100 --dt-ms 20
+```
+
+### 6) FORCE_POS 模式
+
+- 模式：`--mode force-pos`
+- 必填控制参数：`--pos --vlim --ratio`
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode force-pos --pos 0.8 --vlim 2.0 --ratio 0.3 --loop 100 --dt-ms 20
+```
+
+## 方法映射（CLI / Python / C / C++）
+
+| 动作 | CLI | Python ctypes / C / C++ ABI |
+|---|---|---|
+| 使能 | `--mode enable` | `motor_handle_enable(...)` |
+| 失能 | `--mode disable` | `motor_handle_disable(...)` |
+| MIT 发送 | `--mode mit ...` | `motor_handle_send_mit(...)` |
+| POS_VEL 发送 | `--mode pos-vel ...` | `motor_handle_send_pos_vel(...)` |
+| VEL 发送 | `--mode vel ...` | `motor_handle_send_vel(...)` |
+| FORCE_POS 发送 | `--mode force-pos ...` | `motor_handle_send_force_pos(...)` |
+| 确保模式 | `--ensure-mode 1` | `motor_handle_ensure_mode(...)` |
+
+ABI 模式值：
+
+- `1=MIT`, `2=POS_VEL`, `3=VEL`, `4=FORCE_POS`
+
+## 跨语言快速运行
+
+### Python ctypes
 
 ```bash
 cargo build -p motor_abi --release
 python3 examples/python/python_ctypes_demo.py --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11
 ```
 
-### 3) C
+### C
 
 ```bash
 cargo build -p motor_abi --release
@@ -88,7 +132,7 @@ cc examples/c/c_abi_demo.c -I motor_abi/include -L target/release -lmotor_abi -o
 LD_LIBRARY_PATH=target/release ./c_abi_demo can0 4340P 0x01 0x11
 ```
 
-### 4) C++
+### C++
 
 ```bash
 cargo build -p motor_abi --release
@@ -98,13 +142,11 @@ LD_LIBRARY_PATH=target/release ./cpp_abi_demo can0 4340P 0x01 0x11
 
 ## 常用运行时接口
 
-- feedback poll：`motor_controller_poll_feedback_once(...)`
-- 读取状态：`motor_handle_get_state(...)`
-- 寄存器读写：
-  - `motor_handle_write_register_f32/u32(...)`
-  - `motor_handle_get_register_f32/u32(...)`
-- 运维接口：
-  - `motor_handle_clear_error(...)`
-  - `motor_handle_set_zero_position(...)`
-  - `motor_handle_store_parameters(...)`
-  - `motor_handle_set_can_timeout_ms(...)`
+- `motor_controller_poll_feedback_once(...)`
+- `motor_handle_get_state(...)`
+- `motor_handle_write_register_f32/u32(...)`
+- `motor_handle_get_register_f32/u32(...)`
+- `motor_handle_clear_error(...)`
+- `motor_handle_set_zero_position(...)`
+- `motor_handle_store_parameters(...)`
+- `motor_handle_set_can_timeout_ms(...)`

@@ -65,6 +65,38 @@ Production support today:
 - Models: `3507`, `4310`, `4310P`, `4340`, `4340P`, `6006`, `8006`, `8009`, `10010L`, `10010`, `H3510`, `G6215`, `H6220`, `JH11`, `6248P`
 - Modes: `MIT`, `POS_VEL`, `VEL`, `FORCE_POS`
 
+## Capability Matrix
+
+### Core control capabilities
+
+| Capability | `motor_cli` | `motor_calib` | Python SDK CLI | Python API | C ABI |
+|---|---|---|---|---|---|
+| Enable / Disable | Yes | No | Yes (`run --mode enable/disable`) | Yes | Yes |
+| MIT command | Yes | No | Yes | Yes | Yes |
+| POS_VEL command | Yes | No | Yes | Yes | Yes |
+| VEL command | Yes | No | Yes | Yes | Yes |
+| FORCE_POS command | Yes | No | Yes | Yes | Yes |
+| Ensure control mode | Yes | No | Yes | Yes | Yes |
+| Read motor state | Yes | No | Yes | Yes | Yes |
+| Model handshake verify (`PMAX/VMAX/TMAX`) | Yes | No | No | Optional (manual) | Optional (manual) |
+
+### Configuration / calibration capabilities
+
+| Capability | `motor_cli` | `motor_calib` | Python SDK CLI | Python API | C ABI |
+|---|---|---|---|---|---|
+| Scan active IDs | Script loop | Yes (`scan`) | Yes (`scan`) | Yes (custom loop) | Yes (custom loop) |
+| Set `ESC_ID` / `MST_ID` | Yes (`--set-*`) | Yes (`set-id`) | Yes (`id-set`) | Yes | Yes |
+| Verify IDs by register read | Yes (`--verify-id`) | Yes (`verify`) | Yes (`id-dump`) | Yes | Yes |
+| Read key registers (`7/8/9/10/21/22/23`) | No (dedicated cmd not yet) | Via `verify` | Yes (`id-dump`) | Yes | Yes |
+| Write register (`u32`/`f32`) | Limited built-ins | No | Via API | Yes | Yes |
+| Store parameters (`0xAA`) | Yes (ID flow) | Yes | Yes | Yes | Yes |
+
+### Why this is strong
+
+- One protocol core, many control surfaces (Rust CLI/tooling + Python + C ABI).
+- Fast operation tools (`motor_calib`) and integration APIs can coexist.
+- Same hardware capability can be reached from multiple language/runtime paths.
+
 ## Build
 
 ```bash

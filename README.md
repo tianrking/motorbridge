@@ -88,6 +88,12 @@ ABI outputs:
 - `target/release/libmotor_abi.so`
 - `target/release/libmotor_abi.a`
 
+GitHub CI prebuilt ABI artifacts:
+
+- Workflow: `.github/workflows/build-abi.yml`
+- On each push/PR, CI uploads platform artifacts (`linux` / `macos` / `windows`)
+- Download from GitHub Actions artifacts, then use the ABI examples directly
+
 ## Quick Start (CLI)
 
 Show CLI help:

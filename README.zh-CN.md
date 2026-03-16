@@ -87,6 +87,12 @@ ABI 产物：
 - `target/release/libmotor_abi.so`
 - `target/release/libmotor_abi.a`
 
+GitHub CI 预构建 ABI 产物：
+
+- 工作流：`.github/workflows/build-abi.yml`
+- 每次 push / PR 都会上传多平台产物（`linux` / `macos` / `windows`）
+- 其他人可直接从 GitHub Actions 下载对应平台动态库，然后按 ABI 示例调用
+
 ## 快速开始（CLI）
 
 查看 CLI 参数：

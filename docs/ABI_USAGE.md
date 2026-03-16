@@ -41,6 +41,16 @@ cargo build -p motor_abi --release
 
 - `motor_abi/include/motor_abi.h`
 
+### GitHub CI 预构建产物
+
+项目已提供工作流：`.github/workflows/build-abi.yml`，会在 push/PR 时自动构建并上传：
+
+- Linux: `libmotor_abi.so`, `libmotor_abi.a`, `motor_abi.h`
+- macOS: `libmotor_abi.dylib`, `libmotor_abi.a`, `motor_abi.h`
+- Windows: `motor_abi.dll`, `motor_abi.lib`, `motor_abi.h`
+
+调用方可以直接下载对应平台 artifact，无需本地编译 Rust。
+
 ## 4. C/C++ 调用流程
 
 1. 创建控制器 `motor_controller_new_socketcan("can0")`

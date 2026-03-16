@@ -1,29 +1,34 @@
-name: Build ABI Artifacts
+name: ABI Release
 
 on:
   push:
     branches: [main]
-    tags: ["v*"]
+    tags:
+      - "v*.*.*"
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: abi-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build-abi:
-    name: build-abi-${{ matrix.os }}
+  build:
+    name: build-${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            platform: linux
+            platform: linux-x86_64
           - os: macos-latest
-            platform: macos
+            platform: macos-host
           - os: windows-latest
-            platform: windows
+            platform: windows-x86_64
 
     steps:
       - name: Checkout
@@ -35,55 +40,75 @@ jobs:
       - name: Build ABI (release)
         run: cargo build -p motor_abi --release
 
-      - name: Prepare artifact directory (Unix)
-        if: runner.os != 'Windows'
+      - name: Prepare package (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
         run: |
-          mkdir -p dist
-          cp motor_abi/include/motor_abi.h dist/
-          cp target/release/libmotor_abi.a dist/
-          if [ "${{ runner.os }}" = "Linux" ]; then
-            cp target/release/libmotor_abi.so dist/
-          else
-            cp target/release/libmotor_abi.dylib dist/
-          fi
+          VERSION="${GITHUB_REF_NAME}"
+          STAGE="dist/motorbridge-abi-${VERSION}-linux-x86_64"
+          mkdir -p "${STAGE}"
+          cp -v motor_abi/include/motor_abi.h "${STAGE}/"
+          cp -v target/release/libmotor_abi.so "${STAGE}/"
+          cp -v target/release/libmotor_abi.a "${STAGE}/"
+          tar -czf "dist/motorbridge-abi-${VERSION}-linux-x86_64.tar.gz" -C dist "$(basename "${STAGE}")"
 
-      - name: Prepare artifact directory (Windows)
+      - name: Prepare package (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          STAGE="dist/motorbridge-abi-${VERSION}-macos-host"
+          mkdir -p "${STAGE}"
+          cp -v motor_abi/include/motor_abi.h "${STAGE}/"
+          cp -v target/release/libmotor_abi.dylib "${STAGE}/"
+          cp -v target/release/libmotor_abi.a "${STAGE}/"
+          tar -czf "dist/motorbridge-abi-${VERSION}-macos-host.tar.gz" -C dist "$(basename "${STAGE}")"
+
+      - name: Prepare package (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path dist -Force | Out-Null
-          Copy-Item motor_abi/include/motor_abi.h dist/
-          Copy-Item target/release/motor_abi.dll dist/
+          $version = "${env:GITHUB_REF_NAME}"
+          $stage = "dist/motorbridge-abi-$version-windows-x86_64"
+          New-Item -ItemType Directory -Path $stage -Force | Out-Null
+          Copy-Item motor_abi/include/motor_abi.h "$stage/" -Force
+          Copy-Item target/release/motor_abi.dll "$stage/" -Force
           if (Test-Path target/release/motor_abi.lib) {
-            Copy-Item target/release/motor_abi.lib dist/
+            Copy-Item target/release/motor_abi.lib "$stage/" -Force
           }
+          Compress-Archive -Path "$stage/*" -DestinationPath "dist/motorbridge-abi-$version-windows-x86_64.zip" -Force
 
-      - name: Upload ABI artifact
+      - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: motor_abi-${{ matrix.platform }}
-          path: dist/*
+          name: abi-package-${{ matrix.platform }}
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
           if-no-files-found: error
 
   release:
-    name: create-release
+    name: publish-release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build-abi
+    needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Download all ABI artifacts
+      - name: Download all packages
         uses: actions/download-artifact@v4
         with:
           path: release-assets
 
-      - name: Show downloaded files
-        run: find release-assets -type f | sort
+      - name: Generate SHA256SUMS
+        shell: bash
+        run: |
+          find release-assets -type f \( -name "*.tar.gz" -o -name "*.zip" \) -print0 | sort -z | xargs -0 sha256sum > release-assets/SHA256SUMS.txt
+          cat release-assets/SHA256SUMS.txt
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: |
-            release-assets/motor_abi-linux/*
-            release-assets/motor_abi-macos/*
-            release-assets/motor_abi-windows/*
+            release-assets/**/*.tar.gz
+            release-assets/**/*.zip
+            release-assets/SHA256SUMS.txt

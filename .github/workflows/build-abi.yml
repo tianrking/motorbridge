@@ -29,10 +29,6 @@ jobs:
             platform: linux-aarch64
           - os: windows-latest
             platform: windows-x86_64
-          - os: macos-13
-            platform: macos-x86_64
-          - os: macos-14
-            platform: macos-arm64
 
     steps:
       - name: Checkout
@@ -61,8 +57,8 @@ jobs:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         run: cargo build -p motor_abi --release --target aarch64-unknown-linux-gnu
 
-      - name: Build ABI (Windows/macOS)
-        if: startsWith(matrix.platform, 'windows') || startsWith(matrix.platform, 'macos')
+      - name: Build ABI (Windows)
+        if: startsWith(matrix.platform, 'windows')
         run: cargo build -p motor_abi --release
 
       - name: Prepare package (Linux x86_64)
@@ -102,30 +98,6 @@ jobs:
             Copy-Item target/release/motor_abi.lib "$stage/" -Force
           }
           Compress-Archive -Path "$stage/*" -DestinationPath "dist/motorbridge-abi-$version-windows-x86_64.zip" -Force
-
-      - name: Prepare package (macOS x86_64)
-        if: matrix.platform == 'macos-x86_64'
-        shell: bash
-        run: |
-          VERSION="${GITHUB_REF_NAME}"
-          STAGE="dist/motorbridge-abi-${VERSION}-macos-x86_64"
-          mkdir -p "${STAGE}"
-          cp -v motor_abi/include/motor_abi.h "${STAGE}/"
-          cp -v target/release/libmotor_abi.dylib "${STAGE}/"
-          cp -v target/release/libmotor_abi.a "${STAGE}/"
-          tar -czf "dist/motorbridge-abi-${VERSION}-macos-x86_64.tar.gz" -C dist "$(basename "${STAGE}")"
-
-      - name: Prepare package (macOS arm64)
-        if: matrix.platform == 'macos-arm64'
-        shell: bash
-        run: |
-          VERSION="${GITHUB_REF_NAME}"
-          STAGE="dist/motorbridge-abi-${VERSION}-macos-arm64"
-          mkdir -p "${STAGE}"
-          cp -v motor_abi/include/motor_abi.h "${STAGE}/"
-          cp -v target/release/libmotor_abi.dylib "${STAGE}/"
-          cp -v target/release/libmotor_abi.a "${STAGE}/"
-          tar -czf "dist/motorbridge-abi-${VERSION}-macos-arm64.tar.gz" -C dist "$(basename "${STAGE}")"
 
       - name: Upload ABI package artifact
         uses: actions/upload-artifact@v4
@@ -229,68 +201,6 @@ jobs:
           path: bindings/python/dist/*.whl
           if-no-files-found: error
 
-  build-python-wheel-macos:
-    name: build-python-wheel-${{ matrix.os-label }}-py${{ matrix.python-version }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-13
-            os-label: macos-x86_64
-            python-version: "3.10"
-          - os: macos-13
-            os-label: macos-x86_64
-            python-version: "3.11"
-          - os: macos-13
-            os-label: macos-x86_64
-            python-version: "3.12"
-          - os: macos-14
-            os-label: macos-arm64
-            python-version: "3.10"
-          - os: macos-14
-            os-label: macos-arm64
-            python-version: "3.11"
-          - os: macos-14
-            os-label: macos-arm64
-            python-version: "3.12"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install Python build tools
-        run: python -m pip install --upgrade pip setuptools wheel
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build ABI for wheel
-        run: cargo build -p motor_abi --release
-
-      - name: Inject shared library into Python package
-        shell: bash
-        run: |
-          mkdir -p bindings/python/src/motorbridge/lib
-          cp -v target/release/libmotor_abi.dylib bindings/python/src/motorbridge/lib/
-
-      - name: Build wheel
-        shell: bash
-        run: |
-          rm -rf bindings/python/dist bindings/python/build bindings/python/src/motorbridge.egg-info
-          python -m pip wheel --no-build-isolation bindings/python -w bindings/python/dist
-
-      - name: Upload wheel artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-wheel-${{ matrix.os-label }}-py${{ matrix.python-version }}
-          path: bindings/python/dist/*.whl
-          if-no-files-found: error
-
   build-python-sdist:
     name: build-python-sdist
     runs-on: ubuntu-latest
@@ -326,7 +236,6 @@ jobs:
       - build-abi
       - build-python-wheel-linux
       - build-python-wheel-windows
-      - build-python-wheel-macos
       - build-python-sdist
     runs-on: ubuntu-latest
     steps:

@@ -100,6 +100,115 @@ Production support today:
 - Fast operation tools (`motor_calib`) and integration APIs can coexist.
 - Same hardware capability can be reached from multiple language/runtime paths.
 
+## `motor_cli` vs `motor_calib`
+
+They are intentionally separated, not duplicated:
+
+- `motor_cli`: primary online control tool for enable/disable, MIT, motion commands, mode switching, and model handshake checks.
+- `motor_calib`: calibration/operations tool for bus scanning, ID assignment, and ID verification.
+
+Recommended usage:
+
+- Daily control and integration testing: use `motor_cli`.
+- Device addressing, replacement, and maintenance: use `motor_calib`.
+- Single-tool workflow is possible (`motor_cli` can set IDs), but for batch maintenance, `motor_calib` is the better fit.
+
+### `motor_cli` examples
+
+Show help:
+
+```bash
+cargo run -p motor_cli -- --help
+```
+
+1. Standalone enable
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode enable --loop 20 --dt-ms 100
+```
+
+2. Standalone disable
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode disable --loop 20 --dt-ms 100
+```
+
+3. MIT control
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 200 --dt-ms 20
+```
+
+4. POS_VEL control (reach target position)
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode pos-vel --pos 3.10 --vlim 1.50 --loop 300 --dt-ms 20
+```
+
+5. VEL control
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode vel --vel 0.5 --loop 100 --dt-ms 20
+```
+
+6. FORCE_POS control
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode force-pos --pos 0.8 --vlim 2.0 --ratio 0.3 --loop 100 --dt-ms 20
+```
+
+7. Set IDs directly in `motor_cli` (pure Rust path)
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4310 --motor-id 0x07 --feedback-id 0x17 \
+  --set-motor-id 0x02 --set-feedback-id 0x12 --store 1 --verify-id 1
+```
+
+### `motor_calib` examples
+
+Show help:
+
+```bash
+cargo run -p motor_calib -- --help
+```
+
+1. Scan online IDs
+
+```bash
+cargo run -p motor_calib -- scan \
+  --channel can0 --model 4310 --start-id 0x01 --end-id 0x10 --timeout-ms 100
+```
+
+2. Set IDs (standard calibration flow)
+
+```bash
+cargo run -p motor_calib -- set-id \
+  --channel can0 --model 4310 \
+  --motor-id 0x02 --feedback-id 0x12 \
+  --new-motor-id 0x05 --new-feedback-id 0x15 \
+  --store 1 --verify 1
+```
+
+3. Verify IDs
+
+```bash
+cargo run -p motor_calib -- verify \
+  --channel can0 --model 4310 --motor-id 0x05 --feedback-id 0x15
+```
+
 ## Build
 
 ```bash
@@ -129,9 +238,9 @@ GitHub CI prebuilt ABI artifacts:
 
 - Workflow: `.github/workflows/build-abi.yml`
 - On each push/PR, CI uploads ABI artifacts for:
-  `linux-x86_64`, `linux-aarch64`, `macos-x86_64`, `macos-arm64`, `windows-x86_64`
+  `linux-x86_64`, `linux-aarch64`, `windows-x86_64`
 - On version tags (`v*.*.*`), CI also publishes Python wheels to GitHub Releases:
-  Linux (`x86_64` / `aarch64`), macOS (`x86_64` / `arm64`), Windows (`x86_64`)
+  Linux (`x86_64` / `aarch64`), Windows (`x86_64`)
 - Download from GitHub Actions artifacts or GitHub Releases, then use ABI/SDK examples directly
 
 ## Quick Start (CLI)

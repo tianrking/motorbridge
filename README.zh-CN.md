@@ -99,6 +99,115 @@ motorbridge/
 - 既能快速运维（`motor_calib`），也能做工程集成（SDK/ABI）。
 - 同一套硬件能力可被多语言、不同运行时一致调用。
 
+## `motor_cli` 与 `motor_calib` 的定位
+
+两者不是重复关系，而是“控制面”和“运维/标定面”的分工：
+
+- `motor_cli`：在线控制主入口，负责使能/失能、MIT、位置速度控制、模式切换与握手校验。
+- `motor_calib`：标定运维入口，负责扫描在线 ID、改 ID、回读校验，适合上线前调试与批量维护。
+
+推荐使用方式：
+
+- 日常控制与联调：优先 `motor_cli`。
+- 设备编址、换机、排障：优先 `motor_calib`。
+- 需要“一把梭”时：可以仅用 `motor_cli`（已支持改 ID），但批量流程仍建议 `motor_calib`。
+
+### `motor_cli` 常用功能与示例
+
+查看帮助：
+
+```bash
+cargo run -p motor_cli -- --help
+```
+
+1. 单独使能
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode enable --loop 20 --dt-ms 100
+```
+
+2. 单独失能
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode disable --loop 20 --dt-ms 100
+```
+
+3. MIT 控制
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 200 --dt-ms 20
+```
+
+4. POS_VEL 控制（到目标位置）
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode pos-vel --pos 3.10 --vlim 1.50 --loop 300 --dt-ms 20
+```
+
+5. VEL 控制
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode vel --vel 0.5 --loop 100 --dt-ms 20
+```
+
+6. FORCE_POS 控制
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode force-pos --pos 0.8 --vlim 2.0 --ratio 0.3 --loop 100 --dt-ms 20
+```
+
+7. 改 ID（纯 Rust，`motor_cli` 直接支持）
+
+```bash
+cargo run -p motor_cli --release -- \
+  --channel can0 --model 4310 --motor-id 0x07 --feedback-id 0x17 \
+  --set-motor-id 0x02 --set-feedback-id 0x12 --store 1 --verify-id 1
+```
+
+### `motor_calib` 常用功能与示例
+
+查看帮助：
+
+```bash
+cargo run -p motor_calib -- --help
+```
+
+1. 扫描在线 ID
+
+```bash
+cargo run -p motor_calib -- scan \
+  --channel can0 --model 4310 --start-id 0x01 --end-id 0x10 --timeout-ms 100
+```
+
+2. 改 ID（标准标定流程）
+
+```bash
+cargo run -p motor_calib -- set-id \
+  --channel can0 --model 4310 \
+  --motor-id 0x02 --feedback-id 0x12 \
+  --new-motor-id 0x05 --new-feedback-id 0x15 \
+  --store 1 --verify 1
+```
+
+3. 回读校验 ID
+
+```bash
+cargo run -p motor_calib -- verify \
+  --channel can0 --model 4310 --motor-id 0x05 --feedback-id 0x15
+```
+
 ## 构建
 
 ```bash
@@ -128,9 +237,9 @@ GitHub CI 预构建 ABI 产物：
 
 - 工作流：`.github/workflows/build-abi.yml`
 - 每次 push / PR 会上传 ABI 多平台产物：
-  `linux-x86_64`、`linux-aarch64`、`macos-x86_64`、`macos-arm64`、`windows-x86_64`
+  `linux-x86_64`、`linux-aarch64`、`windows-x86_64`
 - 在版本标签（`v*.*.*`）触发时，还会自动发布 Python wheels 到 GitHub Releases：
-  Linux（`x86_64` / `aarch64`）、macOS（`x86_64` / `arm64`）、Windows（`x86_64`）
+  Linux（`x86_64` / `aarch64`）、Windows（`x86_64`）
 - 用户可以直接从 GitHub Actions 或 GitHub Releases 下载对应产物并按示例调用
 
 ## 快速开始（CLI）

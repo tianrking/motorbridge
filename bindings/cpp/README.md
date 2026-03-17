@@ -40,6 +40,9 @@ Damiao metadata (parity with Python package exports):
 - Header: `include/motorbridge/motorbridge.hpp`
 - CMake package: `CMakeLists.txt`, `cmake/motorbridge-config.cmake.in`
 - Wrapper demo: `examples/cpp_wrapper_demo.cpp`
+- Fast bus scan demo: `examples/scan_ids_demo.cpp`
+- One-shot target position demo: `examples/pos_ctrl_demo.cpp`
+- Interactive position console demo: `examples/pos_repl_demo.cpp`
 
 ## Install Without Rust (Recommended for users)
 
@@ -186,3 +189,38 @@ cmake -S bindings/cpp -B bindings/cpp/build \
 cmake --build bindings/cpp/build -j
 LD_LIBRARY_PATH=target/release ./bindings/cpp/build/cpp_wrapper_demo
 ```
+
+## Practical C++ Demos
+
+Build:
+
+```bash
+cargo build -p motor_abi --release
+cmake -S bindings/cpp -B bindings/cpp/build \
+  -DMOTORBRIDGE_ABI_LIBRARY=$PWD/target/release/libmotor_abi.so
+cmake --build bindings/cpp/build -j
+```
+
+1) Fast bus scan:
+
+```bash
+LD_LIBRARY_PATH=target/release ./bindings/cpp/build/scan_ids_demo \
+  --channel can0 --model 4310 --start-id 0x01 --end-id 0xFF --feedback-base 0x10 --timeout-ms 120
+```
+
+2) One-shot target position (POS_VEL):
+
+```bash
+LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pos_ctrl_demo \
+  --channel can0 --model 4310 --motor-id 0x01 --feedback-id 0x11 \
+  --target-pos 3.14 --vlim 1.5 --loop 300 --dt-ms 20
+```
+
+3) Interactive position console:
+
+```bash
+LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pos_repl_demo \
+  --channel can0 --model 4310 --motor-id 0x01 --feedback-id 0x11 --vlim 1.5
+```
+
+Then type values like `1` or `3.14` and press Enter.

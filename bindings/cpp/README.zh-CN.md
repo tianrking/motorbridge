@@ -40,6 +40,9 @@ Damiao 参数元数据（与 Python 导出对齐）：
 - 头文件：`include/motorbridge/motorbridge.hpp`
 - CMake 包配置：`CMakeLists.txt`、`cmake/motorbridge-config.cmake.in`
 - 封装示例：`examples/cpp_wrapper_demo.cpp`
+- 总线快速扫描示例：`examples/scan_ids_demo.cpp`
+- 单次目标位置控制示例：`examples/pos_ctrl_demo.cpp`
+- 交互式位置控制台示例：`examples/pos_repl_demo.cpp`
 
 ## 无需 Rust 的安装方式（推荐用户）
 
@@ -186,3 +189,38 @@ cmake -S bindings/cpp -B bindings/cpp/build \
 cmake --build bindings/cpp/build -j
 LD_LIBRARY_PATH=target/release ./bindings/cpp/build/cpp_wrapper_demo
 ```
+
+## 实用 C++ 小示例
+
+先构建：
+
+```bash
+cargo build -p motor_abi --release
+cmake -S bindings/cpp -B bindings/cpp/build \
+  -DMOTORBRIDGE_ABI_LIBRARY=$PWD/target/release/libmotor_abi.so
+cmake --build bindings/cpp/build -j
+```
+
+1）总线快速扫描：
+
+```bash
+LD_LIBRARY_PATH=target/release ./bindings/cpp/build/scan_ids_demo \
+  --channel can0 --model 4310 --start-id 0x01 --end-id 0xFF --feedback-base 0x10 --timeout-ms 120
+```
+
+2）单次目标位置控制（POS_VEL）：
+
+```bash
+LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pos_ctrl_demo \
+  --channel can0 --model 4310 --motor-id 0x01 --feedback-id 0x11 \
+  --target-pos 3.14 --vlim 1.5 --loop 300 --dt-ms 20
+```
+
+3）交互式位置控制台：
+
+```bash
+LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pos_repl_demo \
+  --channel can0 --model 4310 --motor-id 0x01 --feedback-id 0x11 --vlim 1.5
+```
+
+启动后直接输入 `1`、`3.14` 回车即可发送目标位置。

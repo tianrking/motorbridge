@@ -37,6 +37,15 @@ if(MOTORBRIDGE_CPP_BUILD_EXAMPLES)
   else()
     add_executable(cpp_wrapper_demo examples/cpp_wrapper_demo.cpp)
     target_link_libraries(cpp_wrapper_demo PRIVATE motorbridge::cpp "${MOTORBRIDGE_ABI_LIBRARY}")
+
+    add_executable(scan_ids_demo examples/scan_ids_demo.cpp)
+    target_link_libraries(scan_ids_demo PRIVATE motorbridge::cpp "${MOTORBRIDGE_ABI_LIBRARY}")
+
+    add_executable(pos_ctrl_demo examples/pos_ctrl_demo.cpp)
+    target_link_libraries(pos_ctrl_demo PRIVATE motorbridge::cpp "${MOTORBRIDGE_ABI_LIBRARY}")
+
+    add_executable(pos_repl_demo examples/pos_repl_demo.cpp)
+    target_link_libraries(pos_repl_demo PRIVATE motorbridge::cpp "${MOTORBRIDGE_ABI_LIBRARY}")
   endif()
 endif()
 

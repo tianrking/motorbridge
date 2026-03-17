@@ -50,6 +50,17 @@ with Controller("can0") as ctrl:
 - [../examples/dm_api_cn.md](../examples/dm_api_cn.md)（完整参数表 + CLI 示例）
 - [../examples/dm_api.md](../examples/dm_api.md)（full table + CLI examples）
 
+## 先配置 CAN（必需）
+
+在运行 `motorbridge-cli` 或 Python API 控制实机前，请先配置并启用 CAN：
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 1000000 restart-ms 100
+sudo ip link set can0 up
+ip -details link show can0
+```
+
 ## CLI 总览
 
 `motorbridge-cli` 现在支持子命令：

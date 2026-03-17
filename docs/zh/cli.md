@@ -6,6 +6,17 @@
 cargo build -p motor_cli --release
 ```
 
+## CAN 配置（必需）
+
+运行任意命令前请先启用 CAN：
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 1000000 restart-ms 100
+sudo ip link set can0 up
+ip -details link show can0
+```
+
 ## 通用参数
 
 - `--channel`（默认 `can0`）

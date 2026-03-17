@@ -23,6 +23,15 @@ cc examples/c/c_abi_demo.c -I motor_abi/include -L target/release -lmotor_abi -o
 LD_LIBRARY_PATH=target/release ./c_abi_demo --help
 ```
 
+运行前请先配置 CAN：
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 1000000 restart-ms 100
+sudo ip link set can0 up
+ip -details link show can0
+```
+
 ## 完整命令
 
 使能：

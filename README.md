@@ -230,6 +230,23 @@ Build ABI only:
 cargo build -p motor_abi --release
 ```
 
+## CAN Prerequisite (Must Be Up Before Running)
+
+Before running any CLI / Python / C / C++ control command, ensure CAN interface is configured and `UP`.
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 1000000 restart-ms 100
+sudo ip link set can0 up
+ip -details link show can0
+```
+
+Optional monitor:
+
+```bash
+candump can0
+```
+
 ABI outputs:
 
 - `target/release/libmotor_abi.so`

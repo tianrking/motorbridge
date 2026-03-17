@@ -229,6 +229,23 @@ cargo build -p motor_core -p motor_vendor_damiao --release
 cargo build -p motor_abi --release
 ```
 
+## CAN 前置条件（运行前必须先配置）
+
+在运行任意 CLI / Python / C / C++ 控制命令前，请先确保 CAN 网口已正确配置并处于 `UP` 状态。
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 1000000 restart-ms 100
+sudo ip link set can0 up
+ip -details link show can0
+```
+
+可选总线观察：
+
+```bash
+candump can0
+```
+
 ABI 产物：
 
 - `target/release/libmotor_abi.so`

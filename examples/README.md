@@ -45,6 +45,17 @@ This directory helps you quickly find:
 | `verify-timeout-ms` | Register read timeout for model verification | `500` |
 | `verify-tol` | Absolute tolerance for `PMAX/VMAX/TMAX` comparison | `0.2` |
 
+## CAN Setup First (Required)
+
+Before running any example command:
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 1000000 restart-ms 100
+sudo ip link set can0 up
+ip -details link show can0
+```
+
 ## Full Parameters per Mode (CLI)
 
 ### 1) Standalone Enable

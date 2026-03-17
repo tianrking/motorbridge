@@ -50,6 +50,17 @@ For full Damiao parameter interfaces (control modes, register meaning, tunable r
 - [../examples/dm_api.md](../examples/dm_api.md) (full table + CLI examples)
 - [../examples/dm_api_cn.md](../examples/dm_api_cn.md) (完整参数表 + CLI 示例)
 
+## CAN Setup First (Required)
+
+Before running `motorbridge-cli` / Python API against hardware:
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 1000000 restart-ms 100
+sudo ip link set can0 up
+ip -details link show can0
+```
+
 ## CLI Overview
 
 `motorbridge-cli` now supports subcommands:

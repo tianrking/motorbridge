@@ -41,26 +41,121 @@ Damiao metadata (parity with Python package exports):
 - CMake package: `CMakeLists.txt`, `cmake/motorbridge-config.cmake.in`
 - Wrapper demo: `examples/cpp_wrapper_demo.cpp`
 
-## Build Demo Locally
+## Install Without Rust (Recommended for users)
 
-From repo root:
+Users do not need Rust locally. Download prebuilt assets from GitHub Releases.
+
+### 1) Linux x86_64: install `.deb` (recommended)
+
+Download:
+
+- `motorbridge-abi-<version>-linux-x86_64.deb`
+
+Install:
 
 ```bash
-cargo build -p motor_abi --release
-cmake -S bindings/cpp -B bindings/cpp/build \
-  -DMOTORBRIDGE_ABI_LIBRARY=$PWD/target/release/libmotor_abi.so
-cmake --build bindings/cpp/build -j
-LD_LIBRARY_PATH=target/release ./bindings/cpp/build/cpp_wrapper_demo
+sudo dpkg -i motorbridge-abi-<version>-linux-x86_64.deb
 ```
+
+Installed paths:
+
+- headers: `/usr/include/motorbridge/motorbridge.hpp`, `/usr/include/motor_abi.h`
+- libs: `/usr/lib/libmotor_abi.so`, `/usr/lib/libmotor_abi.a`
+- CMake package: `/usr/lib/cmake/motorbridge/*`
+
+Quick verification:
+
+```bash
+dpkg -L motorbridge-abi | grep -E "motorbridge.hpp|motor_abi.h|libmotor_abi|cmake/motorbridge"
+```
+
+### 2) Linux aarch64 / Windows x86_64: use release archive
+
+Download and extract:
+
+- Linux aarch64: `motorbridge-abi-<version>-linux-aarch64.tar.gz`
+- Windows x86_64: `motorbridge-abi-<version>-windows-x86_64.zip`
+
+After extraction, keep this structure:
+
+- `<prefix>/include/motorbridge/motorbridge.hpp`
+- `<prefix>/include/motor_abi.h`
+- `<prefix>/lib/*` (contains `libmotor_abi.so` or `motor_abi.dll/.lib`)
+- `<prefix>/lib/cmake/motorbridge/*`
+
+Then pass `<prefix>` to `CMAKE_PREFIX_PATH`.
 
 ## Consumer Usage (`find_package`)
 
-After installation/package extraction (contains `include/`, `lib/`, `lib/cmake/motorbridge/`):
+`CMakeLists.txt`:
 
 ```cmake
 find_package(motorbridge CONFIG REQUIRED)
 add_executable(app main.cpp)
 target_link_libraries(app PRIVATE motorbridge::cpp)
+```
+
+Configure:
+
+- Linux `.deb` install:
+
+```bash
+cmake -S . -B build
+cmake --build build -j
+```
+
+- Manual extracted package:
+
+```bash
+cmake -S . -B build -DCMAKE_PREFIX_PATH=/path/to/motorbridge-prefix
+cmake --build build -j
+```
+
+Minimal compile/link verification (after `.deb` install):
+
+```bash
+cat > CMakeLists.txt <<'CMAKE'
+cmake_minimum_required(VERSION 3.16)
+project(mb_check LANGUAGES CXX)
+find_package(motorbridge CONFIG REQUIRED)
+add_executable(mb_check main.cpp)
+target_link_libraries(mb_check PRIVATE motorbridge::cpp)
+CMAKE
+cat > main.cpp <<'CPP'
+#include "motorbridge/motorbridge.hpp"
+int main() { return motorbridge::get_damiao_register_spec(motorbridge::RID_CTRL_MODE) ? 0 : 1; }
+CPP
+cmake -S . -B build && cmake --build build -j && ./build/mb_check
+```
+
+Runtime library notes:
+
+- Linux: make sure loader can find `libmotor_abi.so` (`ldconfig`, `LD_LIBRARY_PATH`, or rpath).
+- Windows: keep `motor_abi.dll` next to your `.exe` (or add its folder to `PATH`).
+
+## CAN setup before running (Linux)
+
+If you see `socketcan write failed: Network is down (os error 100)`, `can0` is not up.
+
+Recommended commands (1Mbps example):
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 1000000 restart-ms 100
+sudo ip link set can0 up
+ip -details link show can0
+```
+
+Optional bus monitor (`can-utils`):
+
+```bash
+candump can0
+```
+
+Install if needed:
+
+```bash
+sudo apt install can-utils
 ```
 
 ## Minimal Usage Example
@@ -80,3 +175,14 @@ int main() {
 }
 ```
 
+## Build Demo Locally (for developers)
+
+From repo root:
+
+```bash
+cargo build -p motor_abi --release
+cmake -S bindings/cpp -B bindings/cpp/build \
+  -DMOTORBRIDGE_ABI_LIBRARY=$PWD/target/release/libmotor_abi.so
+cmake --build bindings/cpp/build -j
+LD_LIBRARY_PATH=target/release ./bindings/cpp/build/cpp_wrapper_demo
+```

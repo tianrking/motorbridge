@@ -23,6 +23,15 @@ g++ -std=c++17 examples/cpp/cpp_abi_demo.cpp -I motor_abi/include -L target/rele
 LD_LIBRARY_PATH=target/release ./cpp_abi_demo --help
 ```
 
+运行前请先配置 CAN：
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 1000000 restart-ms 100
+sudo ip link set can0 up
+ip -details link show can0
+```
+
 ## 完整命令
 
 使能：

@@ -41,26 +41,121 @@ Damiao 参数元数据（与 Python 导出对齐）：
 - CMake 包配置：`CMakeLists.txt`、`cmake/motorbridge-config.cmake.in`
 - 封装示例：`examples/cpp_wrapper_demo.cpp`
 
-## 本地构建示例
+## 无需 Rust 的安装方式（推荐用户）
 
-在仓库根目录执行：
+用户机器上不需要安装 Rust，直接从 GitHub Releases 下载预编译产物即可。
+
+### 1）Linux x86_64：安装 `.deb`（推荐）
+
+下载：
+
+- `motorbridge-abi-<version>-linux-x86_64.deb`
+
+安装：
 
 ```bash
-cargo build -p motor_abi --release
-cmake -S bindings/cpp -B bindings/cpp/build \
-  -DMOTORBRIDGE_ABI_LIBRARY=$PWD/target/release/libmotor_abi.so
-cmake --build bindings/cpp/build -j
-LD_LIBRARY_PATH=target/release ./bindings/cpp/build/cpp_wrapper_demo
+sudo dpkg -i motorbridge-abi-<version>-linux-x86_64.deb
 ```
 
-## 用户侧 `find_package` 用法
+安装后默认路径：
 
-在安装/解压后的目录包含 `include/`、`lib/`、`lib/cmake/motorbridge/` 时：
+- 头文件：`/usr/include/motorbridge/motorbridge.hpp`、`/usr/include/motor_abi.h`
+- 库文件：`/usr/lib/libmotor_abi.so`、`/usr/lib/libmotor_abi.a`
+- CMake 包：`/usr/lib/cmake/motorbridge/*`
+
+快速检查：
+
+```bash
+dpkg -L motorbridge-abi | grep -E "motorbridge.hpp|motor_abi.h|libmotor_abi|cmake/motorbridge"
+```
+
+### 2）Linux aarch64 / Windows x86_64：使用压缩包
+
+下载并解压：
+
+- Linux aarch64：`motorbridge-abi-<version>-linux-aarch64.tar.gz`
+- Windows x86_64：`motorbridge-abi-<version>-windows-x86_64.zip`
+
+解压后建议保持目录结构：
+
+- `<prefix>/include/motorbridge/motorbridge.hpp`
+- `<prefix>/include/motor_abi.h`
+- `<prefix>/lib/*`（包含 `libmotor_abi.so` 或 `motor_abi.dll/.lib`）
+- `<prefix>/lib/cmake/motorbridge/*`
+
+然后在 CMake 里通过 `CMAKE_PREFIX_PATH` 指向 `<prefix>`。
+
+## 用户侧 `find_package` 调用
+
+`CMakeLists.txt`：
 
 ```cmake
 find_package(motorbridge CONFIG REQUIRED)
 add_executable(app main.cpp)
 target_link_libraries(app PRIVATE motorbridge::cpp)
+```
+
+构建：
+
+- Linux `.deb` 安装后：
+
+```bash
+cmake -S . -B build
+cmake --build build -j
+```
+
+- 使用手动解压包：
+
+```bash
+cmake -S . -B build -DCMAKE_PREFIX_PATH=/path/to/motorbridge-prefix
+cmake --build build -j
+```
+
+最小编译/链接自检（`.deb` 安装后）：
+
+```bash
+cat > CMakeLists.txt <<'CMAKE'
+cmake_minimum_required(VERSION 3.16)
+project(mb_check LANGUAGES CXX)
+find_package(motorbridge CONFIG REQUIRED)
+add_executable(mb_check main.cpp)
+target_link_libraries(mb_check PRIVATE motorbridge::cpp)
+CMAKE
+cat > main.cpp <<'CPP'
+#include "motorbridge/motorbridge.hpp"
+int main() { return motorbridge::get_damiao_register_spec(motorbridge::RID_CTRL_MODE) ? 0 : 1; }
+CPP
+cmake -S . -B build && cmake --build build -j && ./build/mb_check
+```
+
+运行时库注意事项：
+
+- Linux：确保系统能找到 `libmotor_abi.so`（`ldconfig`、`LD_LIBRARY_PATH` 或 rpath）。
+- Windows：确保 `motor_abi.dll` 在可执行文件同目录，或其路径已加入 `PATH`。
+
+## 运行前 CAN 配置（Linux）
+
+如果出现 `socketcan write failed: Network is down (os error 100)`，说明 `can0` 未正确启动。
+
+建议命令（以 1Mbps 为例）：
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 1000000 restart-ms 100
+sudo ip link set can0 up
+ip -details link show can0
+```
+
+可选总线观察（需要 `can-utils`）：
+
+```bash
+candump can0
+```
+
+若未安装：
+
+```bash
+sudo apt install can-utils
 ```
 
 ## 最小调用示例
@@ -80,3 +175,14 @@ int main() {
 }
 ```
 
+## 本地构建示例（开发者）
+
+在仓库根目录执行：
+
+```bash
+cargo build -p motor_abi --release
+cmake -S bindings/cpp -B bindings/cpp/build \
+  -DMOTORBRIDGE_ABI_LIBRARY=$PWD/target/release/libmotor_abi.so
+cmake --build bindings/cpp/build -j
+LD_LIBRARY_PATH=target/release ./bindings/cpp/build/cpp_wrapper_demo
+```

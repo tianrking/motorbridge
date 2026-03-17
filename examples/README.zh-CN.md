@@ -45,6 +45,17 @@
 | `verify-timeout-ms` | 型号校验寄存器读取超时（毫秒） | `500` |
 | `verify-tol` | `PMAX/VMAX/TMAX` 比较绝对容差 | `0.2` |
 
+## 先配置 CAN（必需）
+
+运行任意示例命令前请先执行：
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 1000000 restart-ms 100
+sudo ip link set can0 up
+ip -details link show can0
+```
+
 ## 各模式完整参数（CLI）
 
 ### 1) 单独使能

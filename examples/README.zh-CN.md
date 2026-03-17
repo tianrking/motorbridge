@@ -9,6 +9,20 @@
 
 > English version: [README.md](README.md)
 
+## 示例家族关系图
+
+```mermaid
+flowchart LR
+  IDX["examples/"] --> RUST["Rust CLI / 厂商原生示例"]
+  IDX --> C["examples/c"]
+  IDX --> CPP["examples/cpp"]
+  IDX --> PY["examples/python"]
+  IDX --> API["dm_api.md / dm_api_cn.md"]
+  C --> ABI["motor_abi.h"]
+  CPP --> ABI
+  PY --> ABI
+```
+
 ## 文件索引
 
 - Rust CLI：`motor_cli/src/main.rs`

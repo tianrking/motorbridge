@@ -4,6 +4,20 @@
 
 > English version: [README.md](README.md)
 
+## C 调用链路图
+
+```mermaid
+sequenceDiagram
+  participant C as C 程序
+  participant H as motor_abi.h
+  participant SO as libmotor_abi
+  participant R as Rust Core
+  C->>H: 调用 motor_* 接口
+  H->>SO: 符号分发
+  SO->>R: 执行控制器/电机操作
+  R-->>C: 返回码 + 错误/状态数据
+```
+
 ## 文件
 
 - `c_abi_demo.c`：统一多模式命令行示例（`enable/disable/mit/pos-vel/vel/force-pos`）

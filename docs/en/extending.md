@@ -1,5 +1,20 @@
 # Extending motorbridge
 
+## Vendor Onboarding Flow
+
+```mermaid
+flowchart TD
+  A["Create new vendor crate"] --> B["Implement protocol.rs/registers.rs"]
+  B --> C["Implement motor.rs (MotorDevice)"]
+  C --> D["Implement controller facade"]
+  D --> E{"Need cross-language access?"}
+  E -- Yes --> F["Add ABI entry function"]
+  E -- No --> G["Use Rust API only"]
+  F --> H["Add hardware regression"]
+  G --> H
+  H --> I["Document model/protocol constraints"]
+```
+
 ## Add a New Vendor (example: Robostride)
 
 Goal: keep `motor_core` unchanged; add a new vendor crate.

@@ -3,6 +3,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/tianrking/motorbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/tianrking/motorbridge/actions/workflows/ci.yml)
 
+![motorbridge 平台愿景图](docs/motorbridge_platform_vision.svg)
+
 一个面向 CAN 电机的统一、高可靠控制栈。
 
 仓库地址：https://github.com/tianrking/motorbridge.git
@@ -17,6 +19,38 @@
 - 厂商插件负责协议/寄存器/型号差异
 - 提供稳定 C ABI，方便 C/C++/Python 等语言调用
 - 后续新增品牌不需要重写核心层
+
+## 多维度项目定位图
+
+### 价值与用户画像
+
+```mermaid
+flowchart LR
+  CORE["motorbridge 核心价值"] --> REL["真实 CAN 总线下的高可靠控制"]
+  CORE --> PERF["Rust 低开销运行时"]
+  CORE --> EXT["可扩展的厂商架构"]
+  CORE --> ABI["稳定跨语言 ABI"]
+  ABI --> LANG["C / C++ / Python / ROS2 / WS"]
+  REL --> USER1["嵌入式/机器人集成工程师"]
+  PERF --> USER2["对时延和性能敏感的控制链路"]
+  EXT --> USER3["需要持续接入新品牌/新型号的团队"]
+```
+
+### 产品能力面分层
+
+```mermaid
+flowchart TB
+  P["motorbridge"] --> C1["控制面"]
+  P --> C2["标定运维面"]
+  P --> C3["系统集成面"]
+  C1 --> CLI["motor_cli"]
+  C1 --> PY["Python API / CLI"]
+  C1 --> ABI["C ABI"]
+  C2 --> CAL["tools/motor_calib"]
+  C2 --> REG["寄存器读写与改 ID 工作流"]
+  C3 --> ROS["ros2_bridge"]
+  C3 --> WS["ws_gateway"]
+```
 
 ## 技术栈与构建语言
 

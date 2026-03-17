@@ -3,6 +3,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![CI](https://github.com/tianrking/motorbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/tianrking/motorbridge/actions/workflows/ci.yml)
 
+![motorbridge platform vision](docs/motorbridge_platform_vision.svg)
+
 A unified, high-reliability motor control stack for CAN-based actuators.
 
 Repository: https://github.com/tianrking/motorbridge.git
@@ -17,6 +19,38 @@ Repository: https://github.com/tianrking/motorbridge.git
 - Vendor plugins for protocol/register/model differences
 - A stable C ABI for C/C++/Python/other languages
 - Clear path to add more brands without rewriting core logic
+
+## Multi-Dimensional Project Positioning
+
+### Value and Audience Map
+
+```mermaid
+flowchart LR
+  CORE["motorbridge Core Value"] --> REL["High reliability on real CAN buses"]
+  CORE --> PERF["Low-overhead Rust runtime"]
+  CORE --> EXT["Vendor-extensible architecture"]
+  CORE --> ABI["Stable cross-language ABI"]
+  ABI --> LANG["C / C++ / Python / ROS2 / WS"]
+  REL --> USER1["Embedded/robotics integration engineers"]
+  PERF --> USER2["Performance-sensitive control pipelines"]
+  EXT --> USER3["Teams onboarding new motor brands/models"]
+```
+
+### Product Surface Map
+
+```mermaid
+flowchart TB
+  P["motorbridge"] --> C1["Control Surface"]
+  P --> C2["Calibration Surface"]
+  P --> C3["Integration Surface"]
+  C1 --> CLI["motor_cli"]
+  C1 --> PY["Python API / CLI"]
+  C1 --> ABI["C ABI"]
+  C2 --> CAL["tools/motor_calib"]
+  C2 --> REG["register read/write + ID workflows"]
+  C3 --> ROS["ros2_bridge"]
+  C3 --> WS["ws_gateway"]
+```
 
 ## Tech Stack
 

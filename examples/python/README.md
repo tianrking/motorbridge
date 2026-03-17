@@ -4,6 +4,16 @@ This directory contains Python demos that call Rust `motor_abi` via `ctypes`.
 
 > Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
+## Python ctypes Example Flow
+
+```mermaid
+flowchart TD
+  PY["python_ctypes_demo.py"] --> CT["ctypes.CDLL(libmotor_abi)"]
+  CT --> ABI["motor_* C ABI functions"]
+  ABI --> CTRL["controller + motor handles"]
+  CTRL --> CAN["CAN frames / feedback"]
+```
+
 ## Purpose of This Directory
 
 - Show direct ABI calls from Python (`ctypes`)

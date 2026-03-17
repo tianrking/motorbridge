@@ -2,6 +2,17 @@
 
 基于 Python（`rclpy`）+ `motorbridge` Python SDK 的 ROS2 桥接。
 
+```mermaid
+flowchart LR
+  CMD["/motorbridge/cmd (JSON)"] --> NODE["ros2_bridge 节点"]
+  NODE --> SDK["motorbridge Python SDK"]
+  SDK --> MOTOR["CAN 总线电机"]
+  MOTOR --> SDK
+  SDK --> NODE
+  NODE --> STATE["/motorbridge/state"]
+  NODE --> EVT["/motorbridge/event"]
+```
+
 ## 功能
 
 - 订阅命令 topic 并执行电机指令

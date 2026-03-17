@@ -4,6 +4,16 @@ C++ examples for calling Rust `motor_abi` from C++.
 
 > Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
+## C++ Example Role
+
+```mermaid
+flowchart LR
+  CPP["cpp_abi_demo.cpp"] --> ABI["motor_abi.h"]
+  ABI --> LIB["libmotor_abi.so/.a"]
+  LIB --> CORE["Rust core + vendor"]
+  CPP --> MODES["enable/disable/mit/pos-vel/vel/force-pos"]
+```
+
 ## Files
 
 - `cpp_abi_demo.cpp`: unified multi-mode CLI demo (`enable/disable/mit/pos-vel/vel/force-pos`)

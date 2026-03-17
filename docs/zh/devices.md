@@ -1,5 +1,28 @@
 # 支持设备
 
+## 设备支持全景图
+
+```mermaid
+mindmap
+  root((motorbridge 设备))
+    生产支持
+      Damiao
+        3507
+        4310 / 4310P
+        4340 / 4340P
+        6006 / 8006 / 8009
+        10010 / 10010L
+        H3510 / G6215 / H6220 / JH11 / 6248P
+      控制模式
+        MIT
+        POS_VEL
+        VEL
+        FORCE_POS
+    模板
+      template_vendor
+        model_a
+```
+
 ## 生产可用支持
 
 | 品牌 | 型号 | 控制模式 | 寄存器读写 | ABI 覆盖 | 说明 |

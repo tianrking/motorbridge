@@ -2,6 +2,20 @@
 
 This documentation set is aligned with the current `main` branch implementation.
 
+## Documentation Navigation Graph
+
+```mermaid
+flowchart TD
+  IDX["index.md"] --> ARCH["architecture.md"]
+  IDX --> DEV["devices.md"]
+  IDX --> CLI["cli.md"]
+  IDX --> ABI["abi.md"]
+  IDX --> EX["examples.md"]
+  IDX --> EXT["extending.md"]
+  IDX --> CAL["tools/motor_calib/README.md"]
+  IDX --> INT["integrations/README.md"]
+```
+
 ## Quick Links
 
 - Architecture: [architecture.md](architecture.md)
@@ -21,6 +35,7 @@ This documentation set is aligned with the current `main` branch implementation.
 - Rust CLI (`motor_cli`)
 - Stable C ABI (`motor_abi`) for C/C++/Python/others
 - Python SDK package (`bindings/python`)
+- C++ RAII wrapper package (`bindings/cpp`)
 
 ## Recommended Reading Order
 

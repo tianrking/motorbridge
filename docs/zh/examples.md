@@ -1,5 +1,18 @@
 # 多语言示例
 
+## 示例覆盖关系图
+
+```mermaid
+flowchart LR
+  ABI["motor_abi"] --> C["examples/c/c_abi_demo.c"]
+  ABI --> CPP["examples/cpp/cpp_abi_demo.cpp"]
+  ABI --> PYCT["examples/python/python_ctypes_demo.py"]
+  ABI --> PYSDK["bindings/python（SDK + CLI）"]
+  ABI --> CPPSDK["bindings/cpp（RAII 封装）"]
+  ABI --> ROS["integrations/ros2_bridge"]
+  ABI --> WS["integrations/ws_gateway"]
+```
+
 ## 示例索引
 
 - Rust CLI：`motor_cli/src/main.rs`
@@ -8,6 +21,7 @@
   - `motor_vendors/damiao/examples/test_4340p.rs`
 - C ABI：`examples/c/c_abi_demo.c`
 - C++ ABI：`examples/cpp/cpp_abi_demo.cpp`
+- C++ 封装包：`bindings/cpp`
 - Python ctypes ABI：`examples/python/python_ctypes_demo.py`
 - Python SDK 包：`bindings/python`
 - ROS2 桥接：`integrations/ros2_bridge`

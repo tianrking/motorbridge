@@ -2,6 +2,14 @@
 
 用于 Damiao 电机的 Rust 标定小工具。
 
+```mermaid
+flowchart LR
+  SCAN["scan 扫描"] --> HIT["发现在线 ID"]
+  HIT --> SET["set-id 改地址"]
+  SET --> VERIFY["verify 校验"]
+  VERIFY --> DONE["形成可维护地址表"]
+```
+
 ## 功能
 
 - `scan`：扫描总线在线电机（寄存器探测）

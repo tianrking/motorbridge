@@ -4,6 +4,16 @@
 
 > English version: [README.md](README.md)
 
+## Python ctypes 调用流程图
+
+```mermaid
+flowchart TD
+  PY["python_ctypes_demo.py"] --> CT["ctypes.CDLL(libmotor_abi)"]
+  CT --> ABI["motor_* C ABI 接口"]
+  ABI --> CTRL["controller + motor 句柄"]
+  CTRL --> CAN["CAN 指令/反馈链路"]
+```
+
 ## 本目录用途
 
 - 演示 Python 侧直接 ABI 调用（`ctypes`）

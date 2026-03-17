@@ -4,6 +4,17 @@ Python package for calling `motorbridge` Rust ABI.
 
 > 中文版: [README.zh-CN.md](README.zh-CN.md)
 
+## Python SDK Positioning
+
+```mermaid
+flowchart TB
+  SDK["motorbridge Python SDK"] --> API["Python API (Controller/Motor)"]
+  SDK --> CLI["motorbridge-cli"]
+  API --> ABI["ctypes -> motor_abi"]
+  CLI --> ABI
+  ABI --> DEV["Damiao devices via CAN"]
+```
+
 ## Install
 
 ### A) Install from release wheel (recommended)

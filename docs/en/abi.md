@@ -1,5 +1,33 @@
 # ABI Guide (`motor_abi`)
 
+## ABI Lifecycle Sequence
+
+```mermaid
+sequenceDiagram
+  participant A as App (C/C++/Python)
+  participant ABI as motor_abi
+  participant CTRL as MotorController
+  participant M as MotorHandle
+  A->>ABI: motor_controller_new_socketcan()
+  ABI-->>A: controller*
+  A->>ABI: motor_controller_add_damiao_motor()
+  ABI-->>A: motor*
+  A->>ABI: motor_handle_send_* / get_state / register R/W
+  A->>ABI: motor_controller_shutdown() or close_bus()
+  A->>ABI: motor_handle_free()
+  A->>ABI: motor_controller_free()
+```
+
+## Error Handling Path
+
+```mermaid
+flowchart LR
+  CALL["ABI call"] --> RC{"rc == 0 ?"}
+  RC -- Yes --> OK["Continue"]
+  RC -- No --> ERR["Read motor_last_error_message()"]
+  ERR --> FIX["Fix args / CAN / model-id / state"]
+```
+
 ## Build
 
 ```bash
@@ -94,6 +122,7 @@ For `motor_handle_ensure_mode(motor, mode, timeout_ms)`:
 - C++ example: `examples/cpp/cpp_abi_demo.cpp`
 - Python ctypes example: `examples/python/python_ctypes_demo.py`
 - Python SDK wrapper: `bindings/python`
+- C++ RAII wrapper: `bindings/cpp`
 
 ## Integration Mapping
 

@@ -1,0 +1,114 @@
+<svg width="100%" viewBox="0 0 680 520" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+<style>
+  text { font-family: sans-serif; fill: #1a1a1a; }
+  .th { font-size: 14px; font-weight: 500; }
+  .ts { font-size: 12px; font-weight: 400; fill: #555; }
+  .c-purple rect { fill: #EEEDFE; stroke: #534AB7; }
+  .c-purple .th { fill: #3C3489; }
+  .c-purple .ts { fill: #534AB7; }
+  .c-teal rect { fill: #E1F5EE; stroke: #0F6E56; }
+  .c-teal .th { fill: #085041; }
+  .c-teal .ts { fill: #0F6E56; }
+  .c-coral rect { fill: #FAECE7; stroke: #993C1D; }
+  .c-coral .th { fill: #712B13; }
+  .c-coral .ts { fill: #993C1D; }
+  .c-amber rect { fill: #FAEEDA; stroke: #854F0B; }
+  .c-amber .th { fill: #633806; }
+  .c-amber .ts { fill: #854F0B; }
+  .c-gray rect { fill: #F1EFE8; stroke: #5F5E5A; }
+  .c-gray .th { fill: #444441; }
+  .c-gray .ts { fill: #5F5E5A; }
+  line.arr { stroke: #aaa; stroke-width: 1.5; fill: none; }
+</style>
+</defs>
+
+<!-- Top layer label -->
+<text class="ts" x="340" y="26" text-anchor="middle">Who uses motorbridge</text>
+
+<!-- Consumer layer -->
+<g class="c-purple">
+<rect x="36" y="38" width="130" height="52" rx="8" stroke-width="0.5"/>
+<text class="th" x="101" y="58" text-anchor="middle" dominant-baseline="central">Python SDK</text>
+<text class="ts" x="101" y="77" text-anchor="middle" dominant-baseline="central">pip install</text>
+</g>
+
+<g class="c-purple">
+<rect x="182" y="38" width="130" height="52" rx="8" stroke-width="0.5"/>
+<text class="th" x="247" y="58" text-anchor="middle" dominant-baseline="central">ROS2 bridge</text>
+<text class="ts" x="247" y="77" text-anchor="middle" dominant-baseline="central">ros2_control</text>
+</g>
+
+<g class="c-purple">
+<rect x="328" y="38" width="130" height="52" rx="8" stroke-width="0.5"/>
+<text class="th" x="393" y="58" text-anchor="middle" dominant-baseline="central">C / C++ ABI</text>
+<text class="ts" x="393" y="77" text-anchor="middle" dominant-baseline="central">cdylib + staticlib</text>
+</g>
+
+<g class="c-purple">
+<rect x="474" y="38" width="170" height="52" rx="8" stroke-width="0.5"/>
+<text class="th" x="559" y="58" text-anchor="middle" dominant-baseline="central">WS gateway</text>
+<text class="ts" x="559" y="77" text-anchor="middle" dominant-baseline="central">Web / Node / Go</text>
+</g>
+
+<!-- Arrows down to core -->
+<line x1="101" y1="90" x2="101" y2="152" class="arr" marker-end="url(#arrow)"/>
+<line x1="247" y1="90" x2="247" y2="152" class="arr" marker-end="url(#arrow)"/>
+<line x1="393" y1="90" x2="393" y2="152" class="arr" marker-end="url(#arrow)"/>
+<line x1="559" y1="90" x2="559" y2="152" class="arr" marker-end="url(#arrow)"/>
+
+<!-- Core layer -->
+<g class="c-teal">
+<rect x="36" y="152" width="608" height="80" rx="12" stroke-width="0.5"/>
+<text class="th" x="340" y="181" text-anchor="middle" dominant-baseline="central">motor_core  —  vendor-agnostic Rust runtime</text>
+<text class="ts" x="340" y="202" text-anchor="middle" dominant-baseline="central">CAN bus abstraction · device scheduler · MotorDevice trait · SocketCAN backend</text>
+</g>
+
+<!-- Arrow down to vendor layer -->
+<line x1="340" y1="232" x2="340" y2="278" class="arr" marker-end="url(#arrow)"/>
+<text class="ts" x="360" y="260" dominant-baseline="central">vendor plugin API</text>
+
+<!-- Vendor layer label -->
+<text class="ts" x="340" y="295" text-anchor="middle">motor_vendors/  — plug in any brand</text>
+
+<!-- Vendor boxes -->
+<g class="c-coral">
+<rect x="36" y="308" width="130" height="56" rx="8" stroke-width="0.5"/>
+<text class="th" x="101" y="328" text-anchor="middle" dominant-baseline="central">Damiao ✓</text>
+<text class="ts" x="101" y="347" text-anchor="middle" dominant-baseline="central">MIT / POS_VEL / VEL</text>
+</g>
+
+<g class="c-amber">
+<rect x="182" y="308" width="130" height="56" rx="8" stroke-width="0.5"/>
+<text class="th" x="247" y="328" text-anchor="middle" dominant-baseline="central">RobStride</text>
+<text class="ts" x="247" y="347" text-anchor="middle" dominant-baseline="central">next target →</text>
+</g>
+
+<g class="c-gray">
+<rect x="328" y="308" width="130" height="56" rx="8" stroke-width="0.5"/>
+<text class="th" x="393" y="328" text-anchor="middle" dominant-baseline="central">Unitree GO</text>
+<text class="ts" x="393" y="347" text-anchor="middle" dominant-baseline="central">roadmap</text>
+</g>
+
+<g class="c-gray">
+<rect x="474" y="308" width="130" height="56" rx="8" stroke-width="0.5"/>
+<text class="th" x="539" y="328" text-anchor="middle" dominant-baseline="central">T-Motor / ···</text>
+<text class="ts" x="539" y="347" text-anchor="middle" dominant-baseline="central">community PRs</text>
+</g>
+
+<!-- Arrows down to hardware -->
+<line x1="101" y1="364" x2="101" y2="416" class="arr" marker-end="url(#arrow)"/>
+<line x1="247" y1="364" x2="247" y2="416" class="arr" marker-end="url(#arrow)"/>
+<line x1="393" y1="364" x2="393" y2="416" class="arr" marker-end="url(#arrow)"/>
+<line x1="539" y1="364" x2="539" y2="416" class="arr" marker-end="url(#arrow)"/>
+
+<!-- Hardware layer -->
+<g class="c-gray">
+<rect x="36" y="416" width="608" height="52" rx="10" stroke-width="0.5"/>
+<text class="th" x="340" y="436" text-anchor="middle" dominant-baseline="central">Linux SocketCAN  ·  CAN bus  @1Mbps</text>
+<text class="ts" x="340" y="456" text-anchor="middle" dominant-baseline="central">Jetson Orin · Raspberry Pi · x86 · aarch64</text>
+</g>
+</svg>

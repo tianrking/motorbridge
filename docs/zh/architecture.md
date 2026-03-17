@@ -1,5 +1,32 @@
 # 架构说明
 
+## 分层视图
+
+```mermaid
+flowchart TB
+  APP["上层应用（Rust/C/C++/Python/ROS2/WS）"] --> ABI["motor_abi / SDK 封装层"]
+  ABI --> CORE["motor_core（controller/bus/model/traits）"]
+  CORE --> VENDOR["motor_vendors/*（协议/寄存器/型号映射）"]
+  VENDOR --> CAN["SocketCAN 总线"]
+  CAN --> HW["真实电机硬件"]
+```
+
+## 运行时控制流
+
+```mermaid
+sequenceDiagram
+  participant U as 用户工具
+  participant C as CoreController
+  participant V as Vendor Motor
+  participant B as SocketCAN
+  U->>C: 发送控制指令（MIT/POS_VEL/VEL/FORCE_POS）
+  C->>V: 按电机句柄路由
+  V->>B: 编码并发送帧
+  B-->>V: 反馈帧
+  V-->>C: 解析后的状态
+  C-->>U: 状态缓存/回读结果
+```
+
 ## 设计目标
 
 `motorbridge` 的核心目标是把通用控制能力与厂商协议细节解耦。
@@ -18,7 +45,9 @@ motorbridge/
 │   └── template/                # 新厂商模板
 ├── motor_cli/                   # Rust CLI
 ├── motor_abi/                   # C ABI (cdylib + staticlib)
-├── bindings/python/             # Python SDK 包 + CLI
+├── bindings/
+│   ├── python/                 # Python SDK 包 + CLI
+│   └── cpp/                    # C++ RAII 封装 + CMake 包
 ├── examples/                    # C/C++/Python 示例
 └── docs/
     ├── en/
@@ -54,6 +83,7 @@ motorbridge/
 
 - `motor_cli`：运维/调试命令行
 - `bindings/python`：可直接集成的 Python 包
+- `bindings/cpp`：可直接集成的 C++ RAII 封装
 - `examples/*`：最小化跨语言 ABI 调用示例
 
 ## 生命周期策略

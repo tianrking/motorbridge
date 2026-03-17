@@ -1,5 +1,28 @@
 # Supported Devices
 
+## Support Landscape
+
+```mermaid
+mindmap
+  root((motorbridge devices))
+    Production
+      Damiao
+        3507
+        4310 / 4310P
+        4340 / 4340P
+        6006 / 8006 / 8009
+        10010 / 10010L
+        H3510 / G6215 / H6220 / JH11 / 6248P
+      Modes
+        MIT
+        POS_VEL
+        VEL
+        FORCE_POS
+    Template
+      template_vendor
+        model_a
+```
+
 ## Production Support
 
 | Brand | Models | Control Modes | Register R/W | ABI Coverage | Notes |

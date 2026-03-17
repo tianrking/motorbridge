@@ -1,5 +1,32 @@
 # Architecture
 
+## Layered View
+
+```mermaid
+flowchart TB
+  APP["User Apps (Rust/C/C++/Python/ROS2/WS)"] --> ABI["motor_abi / SDK wrappers"]
+  ABI --> CORE["motor_core (controller, bus, model, traits)"]
+  CORE --> VENDOR["motor_vendors/* (protocol/register/model mapping)"]
+  VENDOR --> CAN["SocketCAN Bus"]
+  CAN --> HW["Physical Motors"]
+```
+
+## Runtime Control Flow
+
+```mermaid
+sequenceDiagram
+  participant U as User Tool
+  participant C as CoreController
+  participant V as Vendor Motor
+  participant B as SocketCAN
+  U->>C: send command (MIT/POS_VEL/VEL/FORCE_POS)
+  C->>V: dispatch by motor handle
+  V->>B: encode + transmit frame
+  B-->>V: feedback frame
+  V-->>C: parsed state
+  C-->>U: state cache / readback
+```
+
 ## Design Goal
 
 `motorbridge` separates generic control infrastructure from vendor-specific protocol logic.
@@ -18,7 +45,9 @@ motorbridge/
 │   └── template/                # Scaffold for new vendors
 ├── motor_cli/                   # Rust CLI
 ├── motor_abi/                   # C ABI (cdylib + staticlib)
-├── bindings/python/             # Python SDK package + CLI
+├── bindings/
+│   ├── python/                 # Python SDK package + CLI
+│   └── cpp/                    # C++ RAII wrapper + CMake package
 ├── examples/                    # C/C++/Python demo programs
 └── docs/
     ├── en/
@@ -54,6 +83,7 @@ Each vendor crate implements:
 
 - `motor_cli`: operational/debugging command-line tool
 - `bindings/python`: reusable Python package for deployment/integration
+- `bindings/cpp`: reusable C++ RAII wrapper for deployment/integration
 - `examples/*`: minimal cross-language ABI usage references
 
 ## Lifecycle Policy

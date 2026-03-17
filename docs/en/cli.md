@@ -1,5 +1,28 @@
 # CLI Guide (`motor_cli`)
 
+## CLI Execution Decision Flow
+
+```mermaid
+flowchart TD
+  START["motor_cli command"] --> CAN{"CAN up?"}
+  CAN -- No --> FIXCAN["Configure can0 bitrate/up"]
+  FIXCAN --> START
+  CAN -- Yes --> HS{"verify-model enabled?"}
+  HS -- Yes --> VER["Read PMAX/VMAX/TMAX handshake"]
+  HS -- No --> MODE
+  VER --> MODE{"mode"}
+  MODE -->|enable/disable| ED["send enable/disable loop"]
+  MODE -->|mit| MIT["send_mit(pos, vel, kp, kd, tau)"]
+  MODE -->|pos-vel| PV["send_pos_vel(pos, vlim)"]
+  MODE -->|vel| VV["send_vel(vel)"]
+  MODE -->|force-pos| FP["send_force_pos(pos, vlim, ratio)"]
+  ED --> FB["read/print feedback"]
+  MIT --> FB
+  PV --> FB
+  VV --> FB
+  FP --> FB
+```
+
 ## Build
 
 ```bash

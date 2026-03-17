@@ -4,6 +4,16 @@ Thin C++ wrapper on top of the stable C ABI (`motor_abi`).
 
 > Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
+## Binding Scope
+
+```mermaid
+flowchart LR
+  CPP["C++ App"] --> WRAP["motorbridge.hpp (RAII wrapper)"]
+  WRAP --> ABI["motor_abi (C ABI)"]
+  ABI --> CORE["motor_core + vendor plugin"]
+  CORE --> CAN["SocketCAN"]
+```
+
 ## Goals
 
 - Keep ABI stability (all calls still go through `motor_abi`)

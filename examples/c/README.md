@@ -4,6 +4,20 @@ C examples for calling Rust `motor_abi` from C.
 
 > Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
+## C Call Path
+
+```mermaid
+sequenceDiagram
+  participant C as C Program
+  participant H as motor_abi.h
+  participant SO as libmotor_abi
+  participant R as Rust Core
+  C->>H: call motor_* APIs
+  H->>SO: symbol dispatch
+  SO->>R: controller/motor operations
+  R-->>C: rc + error/state data
+```
+
 ## Files
 
 - `c_abi_demo.c`: unified multi-mode CLI demo (`enable/disable/mit/pos-vel/vel/force-pos`)

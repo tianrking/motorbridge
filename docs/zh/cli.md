@@ -1,5 +1,28 @@
 # CLI 使用指南（`motor_cli`）
 
+## CLI 执行决策流程
+
+```mermaid
+flowchart TD
+  START["执行 motor_cli"] --> CAN{"CAN 是否已启动?"}
+  CAN -- 否 --> FIXCAN["配置 can0 比特率并置 up"]
+  FIXCAN --> START
+  CAN -- 是 --> HS{"开启型号握手校验?"}
+  HS -- 是 --> VER["读取 PMAX/VMAX/TMAX 校验"]
+  HS -- 否 --> MODE
+  VER --> MODE{"mode"}
+  MODE -->|enable/disable| ED["发送使能/失能循环"]
+  MODE -->|mit| MIT["send_mit(pos, vel, kp, kd, tau)"]
+  MODE -->|pos-vel| PV["send_pos_vel(pos, vlim)"]
+  MODE -->|vel| VV["send_vel(vel)"]
+  MODE -->|force-pos| FP["send_force_pos(pos, vlim, ratio)"]
+  ED --> FB["读取并打印反馈"]
+  MIT --> FB
+  PV --> FB
+  VV --> FB
+  FP --> FB
+```
+
 ## 构建
 
 ```bash

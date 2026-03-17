@@ -9,6 +9,20 @@ This directory helps you quickly find:
 
 > Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
+## Example Family Map
+
+```mermaid
+flowchart LR
+  IDX["examples/"] --> RUST["Rust CLI / vendor examples"]
+  IDX --> C["examples/c"]
+  IDX --> CPP["examples/cpp"]
+  IDX --> PY["examples/python"]
+  IDX --> API["dm_api.md / dm_api_cn.md"]
+  C --> ABI["motor_abi.h"]
+  CPP --> ABI
+  PY --> ABI
+```
+
 ## File Index
 
 - Rust CLI: `motor_cli/src/main.rs`

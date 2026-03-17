@@ -2,6 +2,20 @@
 
 High-performance Rust WebSocket gateway (V1: JSON over WS).
 
+```mermaid
+sequenceDiagram
+  participant Client as WS Client
+  participant GW as ws_gateway
+  participant ABI as motor_abi layer
+  participant HW as Motor/CAN
+  Client->>GW: JSON command (enable/mit/pos-vel/...)
+  GW->>ABI: execute control op
+  ABI->>HW: send frame
+  HW-->>ABI: feedback
+  ABI-->>GW: parsed state
+  GW-->>Client: state/event JSON
+```
+
 ## Status
 
 Implemented.

@@ -2,6 +2,14 @@
 
 Rust calibration utility for Damiao motors.
 
+```mermaid
+flowchart LR
+  SCAN["scan"] --> HIT["find active IDs"]
+  HIT --> SET["set-id"]
+  SET --> VERIFY["verify"]
+  VERIFY --> DONE["persisted address map"]
+```
+
 ## Features
 
 - `scan`: scan CAN bus IDs by register probing

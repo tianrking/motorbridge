@@ -1,5 +1,33 @@
 # ABI 接口指南（`motor_abi`）
 
+## ABI 生命周期时序
+
+```mermaid
+sequenceDiagram
+  participant A as 应用（C/C++/Python）
+  participant ABI as motor_abi
+  participant CTRL as MotorController
+  participant M as MotorHandle
+  A->>ABI: motor_controller_new_socketcan()
+  ABI-->>A: controller*
+  A->>ABI: motor_controller_add_damiao_motor()
+  ABI-->>A: motor*
+  A->>ABI: motor_handle_send_* / get_state / 寄存器读写
+  A->>ABI: motor_controller_shutdown() 或 close_bus()
+  A->>ABI: motor_handle_free()
+  A->>ABI: motor_controller_free()
+```
+
+## 错误处理路径
+
+```mermaid
+flowchart LR
+  CALL["调用 ABI 接口"] --> RC{"rc == 0 ?"}
+  RC -- 是 --> OK["继续执行"]
+  RC -- 否 --> ERR["读取 motor_last_error_message()"]
+  ERR --> FIX["修正参数/CAN/型号ID/状态后重试"]
+```
+
 ## 构建
 
 ```bash
@@ -94,6 +122,7 @@ cargo build -p motor_abi --release
 - C++ 示例：`examples/cpp/cpp_abi_demo.cpp`
 - Python ctypes 示例：`examples/python/python_ctypes_demo.py`
 - Python SDK 封装：`bindings/python`
+- C++ RAII 封装：`bindings/cpp`
 
 ## 集成映射
 

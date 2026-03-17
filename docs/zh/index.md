@@ -2,6 +2,20 @@
 
 本文档与当前 `main` 分支实现保持同步。
 
+## 文档导航关系图
+
+```mermaid
+flowchart TD
+  IDX["index.md"] --> ARCH["architecture.md"]
+  IDX --> DEV["devices.md"]
+  IDX --> CLI["cli.md"]
+  IDX --> ABI["abi.md"]
+  IDX --> EX["examples.md"]
+  IDX --> EXT["extending.md"]
+  IDX --> CAL["tools/motor_calib/README.zh-CN.md"]
+  IDX --> INT["integrations/README.md"]
+```
+
 ## 快速入口
 
 - 架构说明：[architecture.md](architecture.md)
@@ -21,6 +35,7 @@
 - Rust CLI（`motor_cli`）
 - 稳定 C ABI（`motor_abi`，供 C/C++/Python 等调用）
 - Python SDK 包（`bindings/python`）
+- C++ RAII 封装包（`bindings/cpp`）
 
 ## 建议阅读顺序
 

@@ -4,6 +4,16 @@
 
 > English version: [README.md](README.md)
 
+## C++ 示例定位图
+
+```mermaid
+flowchart LR
+  CPP["cpp_abi_demo.cpp"] --> ABI["motor_abi.h"]
+  ABI --> LIB["libmotor_abi.so/.a"]
+  LIB --> CORE["Rust core + vendor"]
+  CPP --> MODES["enable/disable/mit/pos-vel/vel/force-pos"]
+```
+
 ## 文件
 
 - `cpp_abi_demo.cpp`：统一多模式命令行示例（`enable/disable/mit/pos-vel/vel/force-pos`）

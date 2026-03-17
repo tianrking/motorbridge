@@ -2,6 +2,17 @@
 
 ROS2 bridge for `motorbridge` using Python (`rclpy`) + existing `motorbridge` Python SDK bindings.
 
+```mermaid
+flowchart LR
+  CMD["/motorbridge/cmd (JSON)"] --> NODE["ros2_bridge node"]
+  NODE --> SDK["motorbridge Python SDK"]
+  SDK --> MOTOR["Motor over CAN"]
+  MOTOR --> SDK
+  SDK --> NODE
+  NODE --> STATE["/motorbridge/state"]
+  NODE --> EVT["/motorbridge/event"]
+```
+
 ## Features
 
 - Subscribe command topic and execute motor commands

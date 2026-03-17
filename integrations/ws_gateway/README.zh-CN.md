@@ -2,6 +2,20 @@
 
 高性能 Rust WebSocket 网关（V1：JSON over WS）。
 
+```mermaid
+sequenceDiagram
+  participant Client as WS 客户端
+  participant GW as ws_gateway
+  participant ABI as motor_abi 层
+  participant HW as 电机/CAN
+  Client->>GW: JSON 指令（enable/mit/pos-vel/...）
+  GW->>ABI: 执行控制操作
+  ABI->>HW: 下发 CAN 帧
+  HW-->>ABI: 反馈状态
+  ABI-->>GW: 解析后的状态
+  GW-->>Client: 状态/事件 JSON
+```
+
 ## 状态
 
 已实现。

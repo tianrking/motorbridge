@@ -4,6 +4,16 @@
 
 > English version: [README.md](README.md)
 
+## 绑定能力范围图
+
+```mermaid
+flowchart LR
+  APP["C++ 应用"] --> WRAP["motorbridge.hpp（RAII 封装）"]
+  WRAP --> ABI["motor_abi（C ABI）"]
+  ABI --> CORE["motor_core + vendor 插件"]
+  CORE --> CAN["SocketCAN"]
+```
+
 ## 设计目标
 
 - 保持 ABI 稳定性（底层仍全部调用 `motor_abi`）

@@ -4,6 +4,17 @@
 
 > English version: [README.md](README.md)
 
+## Python SDK 定位图
+
+```mermaid
+flowchart TB
+  SDK["motorbridge Python SDK"] --> API["Python API（Controller/Motor）"]
+  SDK --> CLI["motorbridge-cli"]
+  API --> ABI["ctypes -> motor_abi"]
+  CLI --> ABI
+  ABI --> DEV["通过 CAN 控制 Damiao 电机"]
+```
+
 ## 安装
 
 ### A) 安装发行版 wheel（推荐）

@@ -41,6 +41,15 @@ with Controller("can0") as ctrl:
     m.close()
 ```
 
+## Damiao 完整调参参考
+
+如果你要查看 Damiao 的完整控制/调参接口（控制模式、寄存器语义、可调范围、调参流程），请看：
+
+- [DAMIAO_API.zh-CN.md](DAMIAO_API.zh-CN.md)（中文）
+- [DAMIAO_API.md](DAMIAO_API.md)（英文）
+- [../examples/dm_api_cn.md](../examples/dm_api_cn.md)（完整参数表 + CLI 示例）
+- [../examples/dm_api.md](../examples/dm_api.md)（full table + CLI examples）
+
 ## CLI 总览
 
 `motorbridge-cli` 现在支持子命令：

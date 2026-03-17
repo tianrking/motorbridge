@@ -41,6 +41,15 @@ with Controller("can0") as ctrl:
     m.close()
 ```
 
+## Complete Damiao Tuning Reference
+
+For full Damiao parameter interfaces (control modes, register meaning, tunable range, and tuning workflow):
+
+- [DAMIAO_API.md](DAMIAO_API.md) (English)
+- [DAMIAO_API.zh-CN.md](DAMIAO_API.zh-CN.md) (Chinese)
+- [../examples/dm_api.md](../examples/dm_api.md) (full table + CLI examples)
+- [../examples/dm_api_cn.md](../examples/dm_api_cn.md) (完整参数表 + CLI 示例)
+
 ## CLI Overview
 
 `motorbridge-cli` now supports subcommands:

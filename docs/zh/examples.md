@@ -10,6 +10,8 @@
 - C++ ABI：`examples/cpp/cpp_abi_demo.cpp`
 - Python ctypes ABI：`examples/python/python_ctypes_demo.py`
 - Python SDK 包：`bindings/python`
+- ROS2 桥接：`integrations/ros2_bridge`
+- WebSocket 网关：`integrations/ws_gateway`
 
 ## 运行 C 示例
 

@@ -46,7 +46,8 @@ motorbridge/
 ├── tools/
 │   └── motor_calib/         # 标定工具（scan / set-id / verify）
 ├── bindings/
-│   └── python/              # Python SDK 包（pip / motorbridge-cli）
+│   ├── python/              # Python SDK 包（pip / motorbridge-cli）
+│   └── cpp/                 # C++ RAII 封装 + CMake 包
 ├── docs/
 │   ├── en/                    # 英文文档
 │   └── zh/                    # 中文文档
@@ -240,6 +241,9 @@ GitHub CI 预构建 ABI 产物：
   `linux-x86_64`、`linux-aarch64`、`windows-x86_64`
 - 在版本标签（`v*.*.*`）触发时，还会自动发布 Python wheels 到 GitHub Releases：
   Linux（`x86_64` / `aarch64`）、Windows（`x86_64`）
+- ABI 发布包同时包含 C++ 封装头文件和 CMake 包配置
+  （`find_package(motorbridge CONFIG REQUIRED)`）。
+- Linux `x86_64` 额外发布 `.deb` 安装包（`motorbridge-abi`）。
 - 用户可以直接从 GitHub Actions 或 GitHub Releases 下载对应产物并按示例调用
 
 ## 快速开始（CLI）
@@ -308,6 +312,9 @@ cargo run -p motor_cli --release -- \
 - C++ 示例：[examples/cpp/cpp_abi_demo.cpp](examples/cpp/cpp_abi_demo.cpp)
 - Python ctypes 示例：[examples/python/python_ctypes_demo.py](examples/python/python_ctypes_demo.py)
 - Python SDK 包：[bindings/python](bindings/python)
+- C++ 封装包：[bindings/cpp](bindings/cpp)
+- C++ 封装说明（英文）：[bindings/cpp/README.md](bindings/cpp/README.md)
+- C++ 封装说明（中文）：[bindings/cpp/README.zh-CN.md](bindings/cpp/README.zh-CN.md)
 - Python SDK CLI 子命令：`run` / `id-dump` / `id-set` / `scan`
 - 示例总览（英文）：[examples/README.md](examples/README.md)
 - 示例总览（中文）：[examples/README.zh-CN.md](examples/README.zh-CN.md)

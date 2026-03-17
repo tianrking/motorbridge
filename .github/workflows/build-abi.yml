@@ -65,38 +65,68 @@ jobs:
         if: matrix.platform == 'linux-x86_64'
         shell: bash
         run: |
-          VERSION="${GITHUB_REF_NAME}"
+          VERSION="${GITHUB_REF_NAME//\//-}"
           STAGE="dist/motorbridge-abi-${VERSION}-linux-x86_64"
-          mkdir -p "${STAGE}"
-          cp -v motor_abi/include/motor_abi.h "${STAGE}/"
-          cp -v target/release/libmotor_abi.so "${STAGE}/"
-          cp -v target/release/libmotor_abi.a "${STAGE}/"
+          mkdir -p "${STAGE}/lib"
+          cp -v target/release/libmotor_abi.so "${STAGE}/lib/"
+          cp -v target/release/libmotor_abi.a "${STAGE}/lib/"
+          cmake -S bindings/cpp -B build/cpp-linux-x86_64 \
+            -DCMAKE_INSTALL_PREFIX="${PWD}/${STAGE}" \
+            -DMOTORBRIDGE_ABI_HEADER="${PWD}/motor_abi/include/motor_abi.h"
+          cmake --install build/cpp-linux-x86_64
+          # Debian package (Linux x86_64 only)
+          PKG_DIR="dist/pkg-deb-amd64"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            DEB_VERSION="${VERSION#v}"
+          else
+            DEB_VERSION="0.0.0~${GITHUB_RUN_NUMBER}"
+          fi
+          mkdir -p "${PKG_DIR}/DEBIAN" "${PKG_DIR}/usr/include" "${PKG_DIR}/usr/lib"
+          cp -vr "${STAGE}/include/." "${PKG_DIR}/usr/include/"
+          cp -vr "${STAGE}/lib/." "${PKG_DIR}/usr/lib/"
+          cat > "${PKG_DIR}/DEBIAN/control" <<EOF
+          Package: motorbridge-abi
+          Version: ${DEB_VERSION}
+          Section: libs
+          Priority: optional
+          Architecture: amd64
+          Maintainer: motorbridge contributors
+          Description: motorbridge ABI libraries and C/C++ headers
+           Includes motor_abi dynamic/static libs and C++ wrapper headers/CMake config.
+          EOF
+          dpkg-deb -b "${PKG_DIR}" "dist/motorbridge-abi-${VERSION}-linux-x86_64.deb"
           tar -czf "dist/motorbridge-abi-${VERSION}-linux-x86_64.tar.gz" -C dist "$(basename "${STAGE}")"
 
       - name: Prepare package (Linux aarch64)
         if: matrix.platform == 'linux-aarch64'
         shell: bash
         run: |
-          VERSION="${GITHUB_REF_NAME}"
+          VERSION="${GITHUB_REF_NAME//\//-}"
           STAGE="dist/motorbridge-abi-${VERSION}-linux-aarch64"
-          mkdir -p "${STAGE}"
-          cp -v motor_abi/include/motor_abi.h "${STAGE}/"
-          cp -v target/aarch64-unknown-linux-gnu/release/libmotor_abi.so "${STAGE}/"
-          cp -v target/aarch64-unknown-linux-gnu/release/libmotor_abi.a "${STAGE}/"
+          mkdir -p "${STAGE}/lib"
+          cp -v target/aarch64-unknown-linux-gnu/release/libmotor_abi.so "${STAGE}/lib/"
+          cp -v target/aarch64-unknown-linux-gnu/release/libmotor_abi.a "${STAGE}/lib/"
+          cmake -S bindings/cpp -B build/cpp-linux-aarch64 \
+            -DCMAKE_INSTALL_PREFIX="${PWD}/${STAGE}" \
+            -DMOTORBRIDGE_ABI_HEADER="${PWD}/motor_abi/include/motor_abi.h"
+          cmake --install build/cpp-linux-aarch64
           tar -czf "dist/motorbridge-abi-${VERSION}-linux-aarch64.tar.gz" -C dist "$(basename "${STAGE}")"
 
       - name: Prepare package (Windows)
         if: matrix.platform == 'windows-x86_64'
         shell: pwsh
         run: |
-          $version = "${env:GITHUB_REF_NAME}"
+          $version = "${env:GITHUB_REF_NAME}" -replace '/', '-'
           $stage = "dist/motorbridge-abi-$version-windows-x86_64"
-          New-Item -ItemType Directory -Path $stage -Force | Out-Null
-          Copy-Item motor_abi/include/motor_abi.h "$stage/" -Force
-          Copy-Item target/release/motor_abi.dll "$stage/" -Force
+          New-Item -ItemType Directory -Path "$stage/lib" -Force | Out-Null
+          Copy-Item target/release/motor_abi.dll "$stage/lib/" -Force
           if (Test-Path target/release/motor_abi.lib) {
-            Copy-Item target/release/motor_abi.lib "$stage/" -Force
+            Copy-Item target/release/motor_abi.lib "$stage/lib/" -Force
           }
+          cmake -S bindings/cpp -B build/cpp-windows-x86_64 `
+            -DCMAKE_INSTALL_PREFIX="$PWD/$stage" `
+            -DMOTORBRIDGE_ABI_HEADER="$PWD/motor_abi/include/motor_abi.h"
+          cmake --install build/cpp-windows-x86_64 --config Release
           Compress-Archive -Path "$stage/*" -DestinationPath "dist/motorbridge-abi-$version-windows-x86_64.zip" -Force
 
       - name: Upload ABI package artifact
@@ -106,6 +136,7 @@ jobs:
           path: |
             dist/*.tar.gz
             dist/*.zip
+            dist/*.deb
           if-no-files-found: error
 
   build-python-wheel-linux:
@@ -247,7 +278,7 @@ jobs:
       - name: Generate SHA256SUMS
         shell: bash
         run: |
-          find release-assets -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.whl" \) -print0 | sort -z | xargs -0 sha256sum > release-assets/SHA256SUMS.txt
+          find release-assets -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.whl" -o -name "*.deb" \) -print0 | sort -z | xargs -0 sha256sum > release-assets/SHA256SUMS.txt
           cat release-assets/SHA256SUMS.txt
 
       - name: Publish GitHub Release
@@ -258,4 +289,5 @@ jobs:
             release-assets/**/*.tar.gz
             release-assets/**/*.zip
             release-assets/**/*.whl
+            release-assets/**/*.deb
             release-assets/SHA256SUMS.txt

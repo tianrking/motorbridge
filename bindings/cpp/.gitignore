@@ -1,0 +1,14 @@
+/build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.ninja
+*.obj
+*.o
+*.pdb
+*.ilk
+*.so
+*.dll
+*.dylib
+cpp_wrapper_demo

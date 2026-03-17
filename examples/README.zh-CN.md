@@ -21,6 +21,7 @@
 - C++ ABI 示例：`examples/cpp/cpp_abi_demo.cpp`
 - C++ 示例说明（英文）：`examples/cpp/README.md`
 - C++ 示例说明（中文）：`examples/cpp/README.zh-CN.md`
+- C++ 封装包（推荐正式集成）：`bindings/cpp`
 - Python ctypes 示例：`examples/python/python_ctypes_demo.py`
 - Python 示例说明（英文）：`examples/python/README.md`
 - Python 示例说明（中文）：`examples/python/README.zh-CN.md`
@@ -183,7 +184,7 @@ LD_LIBRARY_PATH=target/release ./c_abi_demo can0 4340P 0x01 0x11
 ```bash
 cargo build -p motor_abi --release
 g++ -std=c++17 examples/cpp/cpp_abi_demo.cpp -I motor_abi/include -L target/release -lmotor_abi -o cpp_abi_demo
-LD_LIBRARY_PATH=target/release ./cpp_abi_demo can0 4340P 0x01 0x11
+LD_LIBRARY_PATH=target/release ./cpp_abi_demo --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode mit
 ```
 
 ## 常用运行时接口

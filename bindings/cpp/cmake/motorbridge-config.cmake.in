@@ -1,0 +1,45 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/motorbridgeTargets.cmake")
+
+set(_mb_lib_dir "${PACKAGE_PREFIX_DIR}/lib")
+unset(_mb_abi_found)
+
+if(WIN32)
+  foreach(_cand "${_mb_lib_dir}/motor_abi.lib" "${_mb_lib_dir}/motor_abi.dll")
+    if(EXISTS "${_cand}")
+      set(_mb_abi_found "${_cand}")
+      break()
+    endif()
+  endforeach()
+elseif(APPLE)
+  foreach(_cand "${_mb_lib_dir}/libmotor_abi.dylib")
+    if(EXISTS "${_cand}")
+      set(_mb_abi_found "${_cand}")
+      break()
+    endif()
+  endforeach()
+else()
+  foreach(_cand "${_mb_lib_dir}/libmotor_abi.so" "${_mb_lib_dir}/libmotor_abi.a")
+    if(EXISTS "${_cand}")
+      set(_mb_abi_found "${_cand}")
+      break()
+    endif()
+  endforeach()
+endif()
+
+if(_mb_abi_found AND NOT TARGET motorbridge::abi)
+  add_library(motorbridge::abi UNKNOWN IMPORTED)
+  set_target_properties(motorbridge::abi PROPERTIES IMPORTED_LOCATION "${_mb_abi_found}")
+endif()
+
+if(TARGET motorbridge::abi)
+  set_property(
+    TARGET motorbridge::cpp
+    APPEND
+    PROPERTY INTERFACE_LINK_LIBRARIES motorbridge::abi
+  )
+endif()
+
+unset(_mb_lib_dir)
+unset(_mb_abi_found)

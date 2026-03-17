@@ -47,7 +47,8 @@ motorbridge/
 ├── tools/
 │   └── motor_calib/         # Calibration tool (scan / set-id / verify)
 ├── bindings/
-│   └── python/              # Python SDK package (pip / motorbridge-cli)
+│   ├── python/              # Python SDK package (pip / motorbridge-cli)
+│   └── cpp/                 # C++ RAII wrapper + CMake package
 ├── docs/
 │   ├── en/                    # English docs
 │   └── zh/                    # Chinese docs
@@ -241,6 +242,9 @@ GitHub CI prebuilt ABI artifacts:
   `linux-x86_64`, `linux-aarch64`, `windows-x86_64`
 - On version tags (`v*.*.*`), CI also publishes Python wheels to GitHub Releases:
   Linux (`x86_64` / `aarch64`), Windows (`x86_64`)
+- ABI release packages also include C++ wrapper headers and CMake package files
+  (`find_package(motorbridge CONFIG REQUIRED)`).
+- Linux `x86_64` additionally publishes `.deb` package (`motorbridge-abi`).
 - Download from GitHub Actions artifacts or GitHub Releases, then use ABI/SDK examples directly
 
 ## Quick Start (CLI)
@@ -309,6 +313,9 @@ cargo run -p motor_cli --release -- \
 - C++ example: [examples/cpp/cpp_abi_demo.cpp](examples/cpp/cpp_abi_demo.cpp)
 - Python ctypes example: [examples/python/python_ctypes_demo.py](examples/python/python_ctypes_demo.py)
 - Python SDK package: [bindings/python](bindings/python)
+- C++ wrapper package: [bindings/cpp](bindings/cpp)
+- C++ wrapper guide (EN): [bindings/cpp/README.md](bindings/cpp/README.md)
+- C++ wrapper guide (ZH): [bindings/cpp/README.zh-CN.md](bindings/cpp/README.zh-CN.md)
 - Python SDK CLI subcommands: `run` / `id-dump` / `id-set` / `scan`
 - Full examples index (EN): [examples/README.md](examples/README.md)
 - Full examples index (ZH): [examples/README.zh-CN.md](examples/README.zh-CN.md)

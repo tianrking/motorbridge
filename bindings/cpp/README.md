@@ -40,6 +40,8 @@ Damiao metadata (parity with Python package exports):
 - Header: `include/motorbridge/motorbridge.hpp`
 - CMake package: `CMakeLists.txt`, `cmake/motorbridge-config.cmake.in`
 - Wrapper demo: `examples/cpp_wrapper_demo.cpp`
+- Unified full-mode demo: `examples/full_modes_demo.cpp`
+- PID/high-impact register tuning demo: `examples/pid_register_tune_demo.cpp`
 - Fast bus scan demo: `examples/scan_ids_demo.cpp`
 - One-shot target position demo: `examples/pos_ctrl_demo.cpp`
 - Interactive position console demo: `examples/pos_repl_demo.cpp`
@@ -201,14 +203,34 @@ cmake -S bindings/cpp -B bindings/cpp/build \
 cmake --build bindings/cpp/build -j
 ```
 
-1) Fast bus scan:
+1) Full-mode full-parameter control:
+
+```bash
+LD_LIBRARY_PATH=target/release ./bindings/cpp/build/full_modes_demo \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 \
+  --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
+  --loop 200 --dt-ms 20 --print-state 1
+```
+
+2) PID / high-impact register tuning:
+
+```bash
+LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pid_register_tune_demo \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --kp-asr 20 --ki-asr 0.2 --kp-apr 30 --ki-apr 0.1 \
+  --pmax 12.5 --vmax 45 --tmax 18 --acc 30 --dec -30 --max-spd 30 \
+  --store 1 --timeout-ms 1000
+```
+
+3) Fast bus scan:
 
 ```bash
 LD_LIBRARY_PATH=target/release ./bindings/cpp/build/scan_ids_demo \
   --channel can0 --model 4310 --start-id 0x01 --end-id 0xFF --feedback-base 0x10 --timeout-ms 120
 ```
 
-2) One-shot target position (POS_VEL):
+4) One-shot target position (POS_VEL):
 
 ```bash
 LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pos_ctrl_demo \
@@ -216,7 +238,7 @@ LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pos_ctrl_demo \
   --target-pos 3.14 --vlim 1.5 --loop 300 --dt-ms 20
 ```
 
-3) Interactive position console:
+5) Interactive position console:
 
 ```bash
 LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pos_repl_demo \
@@ -224,3 +246,12 @@ LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pos_repl_demo \
 ```
 
 Then type values like `1` or `3.14` and press Enter.
+
+For full mode coverage (`enable/disable/mit/pos-vel/vel/force-pos`), see:
+
+- `examples/cpp/cpp_abi_demo.cpp`
+
+For plain C ABI full-mode usage, see:
+
+- `examples/c/c_abi_demo.c`
+- `examples/c/README.md`

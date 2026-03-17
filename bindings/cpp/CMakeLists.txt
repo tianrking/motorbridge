@@ -46,6 +46,12 @@ if(MOTORBRIDGE_CPP_BUILD_EXAMPLES)
 
     add_executable(pos_repl_demo examples/pos_repl_demo.cpp)
     target_link_libraries(pos_repl_demo PRIVATE motorbridge::cpp "${MOTORBRIDGE_ABI_LIBRARY}")
+
+    add_executable(full_modes_demo examples/full_modes_demo.cpp)
+    target_link_libraries(full_modes_demo PRIVATE motorbridge::cpp "${MOTORBRIDGE_ABI_LIBRARY}")
+
+    add_executable(pid_register_tune_demo examples/pid_register_tune_demo.cpp)
+    target_link_libraries(pid_register_tune_demo PRIVATE motorbridge::cpp "${MOTORBRIDGE_ABI_LIBRARY}")
   endif()
 endif()
 

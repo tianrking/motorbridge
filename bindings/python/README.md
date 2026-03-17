@@ -41,6 +41,23 @@ with Controller("can0") as ctrl:
     m.close()
 ```
 
+## Practical Python Demos (Aligned with C++)
+
+- `bindings/python/examples/python_wrapper_demo.py`
+- `bindings/python/examples/full_modes_demo.py`
+- `bindings/python/examples/pid_register_tune_demo.py`
+- `bindings/python/examples/scan_ids_demo.py`
+- `bindings/python/examples/pos_ctrl_demo.py`
+- `bindings/python/examples/pos_repl_demo.py`
+- docs: [examples/README.md](examples/README.md)
+
+## C SDK / ABI Full-Mode Reference
+
+If you also need C-level usage for every control mode and full parameters:
+
+- C example source: [../../examples/c/c_abi_demo.c](../../examples/c/c_abi_demo.c)
+- C example usage: [../../examples/c/README.md](../../examples/c/README.md)
+
 ## Complete Damiao Tuning Reference
 
 For full Damiao parameter interfaces (control modes, register meaning, tunable range, and tuning workflow):

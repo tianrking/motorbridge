@@ -41,6 +41,23 @@ with Controller("can0") as ctrl:
     m.close()
 ```
 
+## Python 实用示例（与 C++ 对齐）
+
+- `bindings/python/examples/python_wrapper_demo.py`
+- `bindings/python/examples/full_modes_demo.py`
+- `bindings/python/examples/pid_register_tune_demo.py`
+- `bindings/python/examples/scan_ids_demo.py`
+- `bindings/python/examples/pos_ctrl_demo.py`
+- `bindings/python/examples/pos_repl_demo.py`
+- 说明文档：[examples/README.zh-CN.md](examples/README.zh-CN.md)
+
+## C SDK / ABI 全模式参考
+
+如果你还需要 C 语言层面的全模式全参数用法：
+
+- C 示例源码：[../../examples/c/c_abi_demo.c](../../examples/c/c_abi_demo.c)
+- C 示例说明：[../../examples/c/README.zh-CN.md](../../examples/c/README.zh-CN.md)
+
 ## Damiao 完整调参参考
 
 如果你要查看 Damiao 的完整控制/调参接口（控制模式、寄存器语义、可调范围、调参流程），请看：

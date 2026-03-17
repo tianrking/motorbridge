@@ -40,6 +40,8 @@ Damiao 参数元数据（与 Python 导出对齐）：
 - 头文件：`include/motorbridge/motorbridge.hpp`
 - CMake 包配置：`CMakeLists.txt`、`cmake/motorbridge-config.cmake.in`
 - 封装示例：`examples/cpp_wrapper_demo.cpp`
+- 全模式全参数示例：`examples/full_modes_demo.cpp`
+- PID/高影响寄存器调参示例：`examples/pid_register_tune_demo.cpp`
 - 总线快速扫描示例：`examples/scan_ids_demo.cpp`
 - 单次目标位置控制示例：`examples/pos_ctrl_demo.cpp`
 - 交互式位置控制台示例：`examples/pos_repl_demo.cpp`
@@ -201,14 +203,34 @@ cmake -S bindings/cpp -B bindings/cpp/build \
 cmake --build bindings/cpp/build -j
 ```
 
-1）总线快速扫描：
+1）全模式全参数控制：
+
+```bash
+LD_LIBRARY_PATH=target/release ./bindings/cpp/build/full_modes_demo \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 \
+  --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
+  --loop 200 --dt-ms 20 --print-state 1
+```
+
+2）PID / 高影响寄存器调参：
+
+```bash
+LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pid_register_tune_demo \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --kp-asr 20 --ki-asr 0.2 --kp-apr 30 --ki-apr 0.1 \
+  --pmax 12.5 --vmax 45 --tmax 18 --acc 30 --dec -30 --max-spd 30 \
+  --store 1 --timeout-ms 1000
+```
+
+3）总线快速扫描：
 
 ```bash
 LD_LIBRARY_PATH=target/release ./bindings/cpp/build/scan_ids_demo \
   --channel can0 --model 4310 --start-id 0x01 --end-id 0xFF --feedback-base 0x10 --timeout-ms 120
 ```
 
-2）单次目标位置控制（POS_VEL）：
+4）单次目标位置控制（POS_VEL）：
 
 ```bash
 LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pos_ctrl_demo \
@@ -216,7 +238,7 @@ LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pos_ctrl_demo \
   --target-pos 3.14 --vlim 1.5 --loop 300 --dt-ms 20
 ```
 
-3）交互式位置控制台：
+5）交互式位置控制台：
 
 ```bash
 LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pos_repl_demo \
@@ -224,3 +246,12 @@ LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pos_repl_demo \
 ```
 
 启动后直接输入 `1`、`3.14` 回车即可发送目标位置。
+
+完整模式覆盖（`enable/disable/mit/pos-vel/vel/force-pos`）请参考：
+
+- `examples/cpp/cpp_abi_demo.cpp`
+
+纯 C ABI 的全模式用法请参考：
+
+- `examples/c/c_abi_demo.c`
+- `examples/c/README.zh-CN.md`

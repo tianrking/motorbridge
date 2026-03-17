@@ -16,8 +16,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    name: build-${{ matrix.platform }}
+  build-abi:
+    name: build-abi-${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -25,10 +25,14 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux-x86_64
-          - os: macos-latest
-            platform: macos-host
+          - os: ubuntu-latest
+            platform: linux-aarch64
           - os: windows-latest
             platform: windows-x86_64
+          - os: macos-13
+            platform: macos-x86_64
+          - os: macos-14
+            platform: macos-arm64
 
     steps:
       - name: Checkout
@@ -37,11 +41,32 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build ABI (release)
+      - name: Install Linux aarch64 cross linker
+        if: matrix.platform == 'linux-aarch64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Add Linux aarch64 Rust target
+        if: matrix.platform == 'linux-aarch64'
+        run: rustup target add aarch64-unknown-linux-gnu
+
+      - name: Build ABI (Linux x86_64)
+        if: matrix.platform == 'linux-x86_64'
         run: cargo build -p motor_abi --release
 
-      - name: Prepare package (Linux)
-        if: runner.os == 'Linux'
+      - name: Build ABI (Linux aarch64)
+        if: matrix.platform == 'linux-aarch64'
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: cargo build -p motor_abi --release --target aarch64-unknown-linux-gnu
+
+      - name: Build ABI (Windows/macOS)
+        if: startsWith(matrix.platform, 'windows') || startsWith(matrix.platform, 'macos')
+        run: cargo build -p motor_abi --release
+
+      - name: Prepare package (Linux x86_64)
+        if: matrix.platform == 'linux-x86_64'
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME}"
@@ -52,20 +77,20 @@ jobs:
           cp -v target/release/libmotor_abi.a "${STAGE}/"
           tar -czf "dist/motorbridge-abi-${VERSION}-linux-x86_64.tar.gz" -C dist "$(basename "${STAGE}")"
 
-      - name: Prepare package (macOS)
-        if: runner.os == 'macOS'
+      - name: Prepare package (Linux aarch64)
+        if: matrix.platform == 'linux-aarch64'
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME}"
-          STAGE="dist/motorbridge-abi-${VERSION}-macos-host"
+          STAGE="dist/motorbridge-abi-${VERSION}-linux-aarch64"
           mkdir -p "${STAGE}"
           cp -v motor_abi/include/motor_abi.h "${STAGE}/"
-          cp -v target/release/libmotor_abi.dylib "${STAGE}/"
-          cp -v target/release/libmotor_abi.a "${STAGE}/"
-          tar -czf "dist/motorbridge-abi-${VERSION}-macos-host.tar.gz" -C dist "$(basename "${STAGE}")"
+          cp -v target/aarch64-unknown-linux-gnu/release/libmotor_abi.so "${STAGE}/"
+          cp -v target/aarch64-unknown-linux-gnu/release/libmotor_abi.a "${STAGE}/"
+          tar -czf "dist/motorbridge-abi-${VERSION}-linux-aarch64.tar.gz" -C dist "$(basename "${STAGE}")"
 
       - name: Prepare package (Windows)
-        if: runner.os == 'Windows'
+        if: matrix.platform == 'windows-x86_64'
         shell: pwsh
         run: |
           $version = "${env:GITHUB_REF_NAME}"
@@ -78,7 +103,31 @@ jobs:
           }
           Compress-Archive -Path "$stage/*" -DestinationPath "dist/motorbridge-abi-$version-windows-x86_64.zip" -Force
 
-      - name: Upload package artifact
+      - name: Prepare package (macOS x86_64)
+        if: matrix.platform == 'macos-x86_64'
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          STAGE="dist/motorbridge-abi-${VERSION}-macos-x86_64"
+          mkdir -p "${STAGE}"
+          cp -v motor_abi/include/motor_abi.h "${STAGE}/"
+          cp -v target/release/libmotor_abi.dylib "${STAGE}/"
+          cp -v target/release/libmotor_abi.a "${STAGE}/"
+          tar -czf "dist/motorbridge-abi-${VERSION}-macos-x86_64.tar.gz" -C dist "$(basename "${STAGE}")"
+
+      - name: Prepare package (macOS arm64)
+        if: matrix.platform == 'macos-arm64'
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          STAGE="dist/motorbridge-abi-${VERSION}-macos-arm64"
+          mkdir -p "${STAGE}"
+          cp -v motor_abi/include/motor_abi.h "${STAGE}/"
+          cp -v target/release/libmotor_abi.dylib "${STAGE}/"
+          cp -v target/release/libmotor_abi.a "${STAGE}/"
+          tar -czf "dist/motorbridge-abi-${VERSION}-macos-arm64.tar.gz" -C dist "$(basename "${STAGE}")"
+
+      - name: Upload ABI package artifact
         uses: actions/upload-artifact@v4
         with:
           name: abi-package-${{ matrix.platform }}
@@ -87,9 +136,56 @@ jobs:
             dist/*.zip
           if-no-files-found: error
 
-  build-python-wheel:
-    name: build-python-wheel-py${{ matrix.python-version }}
+  build-python-wheel-linux:
+    name: build-python-wheel-linux-${{ matrix.arch }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup QEMU
+        if: matrix.arch == 'aarch64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Install cibuildwheel
+        run: python -m pip install --upgrade pip cibuildwheel==2.21.3
+
+      - name: Build Python wheels (Linux)
+        env:
+          CIBW_BUILD: "cp310-* cp311-* cp312-*"
+          CIBW_SKIP: "*musllinux* *i686* *pp*"
+          CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+          CIBW_BUILD_FRONTEND: pip
+          CIBW_BEFORE_ALL_LINUX: >
+            curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal &&
+            . $HOME/.cargo/env &&
+            cd /project &&
+            cargo build -p motor_abi --release &&
+            mkdir -p bindings/python/src/motorbridge/lib &&
+            cp -v target/release/libmotor_abi.so bindings/python/src/motorbridge/lib/
+        run: python -m cibuildwheel --platform linux bindings/python --output-dir bindings/python/dist
+
+      - name: Upload Linux wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-wheel-linux-${{ matrix.arch }}
+          path: bindings/python/dist/*.whl
+          if-no-files-found: error
+
+  build-python-wheel-windows:
+    name: build-python-wheel-windows-py${{ matrix.python-version }}
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
@@ -109,14 +205,78 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build ABI for Linux wheel
+      - name: Build ABI for wheel
+        run: cargo build -p motor_abi --release
+
+      - name: Inject shared library into Python package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path bindings/python/src/motorbridge/lib -Force | Out-Null
+          Copy-Item target/release/motor_abi.dll bindings/python/src/motorbridge/lib/motor_abi.dll -Force
+
+      - name: Build wheel
+        shell: pwsh
+        run: |
+          if (Test-Path bindings/python/dist) { Remove-Item bindings/python/dist -Recurse -Force }
+          if (Test-Path bindings/python/build) { Remove-Item bindings/python/build -Recurse -Force }
+          if (Test-Path bindings/python/src/motorbridge.egg-info) { Remove-Item bindings/python/src/motorbridge.egg-info -Recurse -Force }
+          python -m pip wheel --no-build-isolation bindings/python -w bindings/python/dist
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-wheel-windows-py${{ matrix.python-version }}
+          path: bindings/python/dist/*.whl
+          if-no-files-found: error
+
+  build-python-wheel-macos:
+    name: build-python-wheel-${{ matrix.os-label }}-py${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-13
+            os-label: macos-x86_64
+            python-version: "3.10"
+          - os: macos-13
+            os-label: macos-x86_64
+            python-version: "3.11"
+          - os: macos-13
+            os-label: macos-x86_64
+            python-version: "3.12"
+          - os: macos-14
+            os-label: macos-arm64
+            python-version: "3.10"
+          - os: macos-14
+            os-label: macos-arm64
+            python-version: "3.11"
+          - os: macos-14
+            os-label: macos-arm64
+            python-version: "3.12"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Python build tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build ABI for wheel
         run: cargo build -p motor_abi --release
 
       - name: Inject shared library into Python package
         shell: bash
         run: |
           mkdir -p bindings/python/src/motorbridge/lib
-          cp -v target/release/libmotor_abi.so bindings/python/src/motorbridge/lib/
+          cp -v target/release/libmotor_abi.dylib bindings/python/src/motorbridge/lib/
 
       - name: Build wheel
         shell: bash
@@ -127,7 +287,7 @@ jobs:
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: python-wheel-py${{ matrix.python-version }}
+          name: python-wheel-${{ matrix.os-label }}-py${{ matrix.python-version }}
           path: bindings/python/dist/*.whl
           if-no-files-found: error
 
@@ -162,7 +322,12 @@ jobs:
   release:
     name: publish-release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build, build-python-wheel, build-python-sdist]
+    needs:
+      - build-abi
+      - build-python-wheel-linux
+      - build-python-wheel-windows
+      - build-python-wheel-macos
+      - build-python-sdist
     runs-on: ubuntu-latest
     steps:
       - name: Download all packages

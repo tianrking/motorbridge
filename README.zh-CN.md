@@ -127,8 +127,11 @@ ABI 产物：
 GitHub CI 预构建 ABI 产物：
 
 - 工作流：`.github/workflows/build-abi.yml`
-- 每次 push / PR 都会上传多平台产物（`linux` / `macos` / `windows`）
-- 其他人可直接从 GitHub Actions 下载对应平台动态库，然后按 ABI 示例调用
+- 每次 push / PR 会上传 ABI 多平台产物：
+  `linux-x86_64`、`linux-aarch64`、`macos-x86_64`、`macos-arm64`、`windows-x86_64`
+- 在版本标签（`v*.*.*`）触发时，还会自动发布 Python wheels 到 GitHub Releases：
+  Linux（`x86_64` / `aarch64`）、macOS（`x86_64` / `arm64`）、Windows（`x86_64`）
+- 用户可以直接从 GitHub Actions 或 GitHub Releases 下载对应产物并按示例调用
 
 ## 快速开始（CLI）
 

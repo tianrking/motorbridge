@@ -128,8 +128,11 @@ ABI outputs:
 GitHub CI prebuilt ABI artifacts:
 
 - Workflow: `.github/workflows/build-abi.yml`
-- On each push/PR, CI uploads platform artifacts (`linux` / `macos` / `windows`)
-- Download from GitHub Actions artifacts, then use the ABI examples directly
+- On each push/PR, CI uploads ABI artifacts for:
+  `linux-x86_64`, `linux-aarch64`, `macos-x86_64`, `macos-arm64`, `windows-x86_64`
+- On version tags (`v*.*.*`), CI also publishes Python wheels to GitHub Releases:
+  Linux (`x86_64` / `aarch64`), macOS (`x86_64` / `arm64`), Windows (`x86_64`)
+- Download from GitHub Actions artifacts or GitHub Releases, then use ABI/SDK examples directly
 
 ## Quick Start (CLI)
 

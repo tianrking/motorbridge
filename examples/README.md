@@ -24,6 +24,8 @@ This directory helps you quickly find:
 - Python ctypes demo: `examples/python/python_ctypes_demo.py`
 - Python examples README (EN): `examples/python/README.md`
 - Python examples README (ZH): `examples/python/README.zh-CN.md`
+- Damiao API/tuning full reference (EN): `examples/dm_api.md`
+- Damiao API/tuning full reference (ZH): `examples/dm_api_cn.md`
 - Python SDK package (recommended for integration): `bindings/python`
 - ABI header: `motor_abi/include/motor_abi.h`
 

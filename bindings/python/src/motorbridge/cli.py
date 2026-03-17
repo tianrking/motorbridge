@@ -207,12 +207,12 @@ def _id_set_command(args: argparse.Namespace) -> None:
     ctrl = Controller(args.channel)
     motor = ctrl.add_damiao_motor(motor_id, feedback_id, args.model)
     try:
-        if new_motor_id != motor_id:
-            motor.write_register_u32(8, new_motor_id)
-            print(f"write rid=8 (ESC_ID) <= 0x{new_motor_id:X}")
         if new_feedback_id != feedback_id:
             motor.write_register_u32(7, new_feedback_id)
             print(f"write rid=7 (MST_ID) <= 0x{new_feedback_id:X}")
+        if new_motor_id != motor_id:
+            motor.write_register_u32(8, new_motor_id)
+            print(f"write rid=8 (ESC_ID) <= 0x{new_motor_id:X}")
         if args.store:
             motor.store_parameters()
             print("store_parameters sent")

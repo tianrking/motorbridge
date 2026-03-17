@@ -1,5 +1,5 @@
 use futures_util::{SinkExt, StreamExt};
-use motor_vendor_damiao::{DamiaoController, DamiaoMotor};
+use motor_vendor_damiao::{ControlMode, DamiaoController, DamiaoMotor};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use std::time::Duration;
@@ -198,6 +198,28 @@ fn as_u16(v: &Value, key: &str, default: u16) -> u16 {
         Some(Value::String(s)) => parse_hex_or_dec(s).unwrap_or(default),
         _ => default,
     }
+}
+
+fn parse_mode(v: &Value) -> Result<ControlMode, String> {
+    if let Some(s) = v.get("mode").and_then(Value::as_str) {
+        return match s.to_lowercase().as_str() {
+            "mit" => Ok(ControlMode::Mit),
+            "pos_vel" | "pos-vel" | "posvel" => Ok(ControlMode::PosVel),
+            "vel" => Ok(ControlMode::Vel),
+            "force_pos" | "force-pos" | "forcepos" => Ok(ControlMode::ForcePos),
+            _ => Err(format!("unsupported mode string: {s}")),
+        };
+    }
+    if let Some(n) = v.get("mode").and_then(Value::as_u64) {
+        return match n {
+            1 => Ok(ControlMode::Mit),
+            2 => Ok(ControlMode::PosVel),
+            3 => Ok(ControlMode::Vel),
+            4 => Ok(ControlMode::ForcePos),
+            _ => Err(format!("unsupported mode value: {n}")),
+        };
+    }
+    Err("missing mode (string or numeric)".to_string())
 }
 
 async fn send_json<S>(tx: &mut S, obj: Value) -> Result<(), String>
@@ -449,7 +471,7 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
                                     tau: as_f32(&v, "tau", 0.0),
                                 };
                                 if let Some(m) = ctx.motor.as_ref() {
-                                    m.ensure_control_mode(motor_vendor_damiao::ControlMode::Mit, Duration::from_millis(as_u64(&v,"ensure_timeout_ms",1000)))
+                                    m.ensure_control_mode(ControlMode::Mit, Duration::from_millis(as_u64(&v,"ensure_timeout_ms",1000)))
                                         .map_err(|e| e.to_string())?;
                                 }
                                 ctx.active = if as_bool(&v, "continuous", false) { Some(cmd.clone()) } else { None };
@@ -465,7 +487,7 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
                                 ctx.ensure_connected()?;
                                 let cmd = ActiveCommand::PosVel { pos: as_f32(&v, "pos", 0.0), vlim: as_f32(&v, "vlim", 1.0)};
                                 if let Some(m) = ctx.motor.as_ref() {
-                                    m.ensure_control_mode(motor_vendor_damiao::ControlMode::PosVel, Duration::from_millis(as_u64(&v,"ensure_timeout_ms",1000)))
+                                    m.ensure_control_mode(ControlMode::PosVel, Duration::from_millis(as_u64(&v,"ensure_timeout_ms",1000)))
                                         .map_err(|e| e.to_string())?;
                                 }
                                 ctx.active = if as_bool(&v, "continuous", false) { Some(cmd.clone()) } else { None };
@@ -478,7 +500,7 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
                                 ctx.ensure_connected()?;
                                 let cmd = ActiveCommand::Vel { vel: as_f32(&v, "vel", 0.0)};
                                 if let Some(m) = ctx.motor.as_ref() {
-                                    m.ensure_control_mode(motor_vendor_damiao::ControlMode::Vel, Duration::from_millis(as_u64(&v,"ensure_timeout_ms",1000)))
+                                    m.ensure_control_mode(ControlMode::Vel, Duration::from_millis(as_u64(&v,"ensure_timeout_ms",1000)))
                                         .map_err(|e| e.to_string())?;
                                 }
                                 ctx.active = if as_bool(&v, "continuous", false) { Some(cmd.clone()) } else { None };
@@ -495,7 +517,7 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
                                     ratio: as_f32(&v, "ratio", 0.3),
                                 };
                                 if let Some(m) = ctx.motor.as_ref() {
-                                    m.ensure_control_mode(motor_vendor_damiao::ControlMode::ForcePos, Duration::from_millis(as_u64(&v,"ensure_timeout_ms",1000)))
+                                    m.ensure_control_mode(ControlMode::ForcePos, Duration::from_millis(as_u64(&v,"ensure_timeout_ms",1000)))
                                         .map_err(|e| e.to_string())?;
                                 }
                                 ctx.active = if as_bool(&v, "continuous", false) { Some(cmd.clone()) } else { None };
@@ -516,6 +538,115 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
                                 } else {
                                     Err("motor not connected".to_string())
                                 }
+                            }
+                            "clear_error" => {
+                                ctx.ensure_connected()?;
+                                if let Some(m) = ctx.motor.as_ref() {
+                                    m.clear_error().map_err(|e| e.to_string())?;
+                                }
+                                Ok(json!({"cleared": true}))
+                            }
+                            "set_zero_position" => {
+                                ctx.ensure_connected()?;
+                                if let Some(m) = ctx.motor.as_ref() {
+                                    m.set_zero_position().map_err(|e| e.to_string())?;
+                                }
+                                Ok(json!({"zero_set": true}))
+                            }
+                            "ensure_mode" => {
+                                ctx.ensure_connected()?;
+                                let mode = parse_mode(&v)?;
+                                let timeout_ms = as_u64(&v, "timeout_ms", 1000);
+                                if let Some(m) = ctx.motor.as_ref() {
+                                    m.ensure_control_mode(mode, Duration::from_millis(timeout_ms))
+                                        .map_err(|e| e.to_string())?;
+                                }
+                                Ok(json!({"ensured": true}))
+                            }
+                            "request_feedback" => {
+                                ctx.ensure_connected()?;
+                                if let Some(m) = ctx.motor.as_ref() {
+                                    m.request_motor_feedback().map_err(|e| e.to_string())?;
+                                }
+                                Ok(json!({"requested": true}))
+                            }
+                            "store_parameters" => {
+                                ctx.ensure_connected()?;
+                                if let Some(m) = ctx.motor.as_ref() {
+                                    m.store_parameters().map_err(|e| e.to_string())?;
+                                }
+                                Ok(json!({"stored": true}))
+                            }
+                            "set_can_timeout_ms" => {
+                                ctx.ensure_connected()?;
+                                let timeout_ms = as_u64(&v, "timeout_ms", 1000);
+                                let reg_value = (timeout_ms as u32).saturating_mul(20);
+                                if let Some(m) = ctx.motor.as_ref() {
+                                    m.write_register_u32(9, reg_value).map_err(|e| e.to_string())?;
+                                }
+                                Ok(json!({"timeout_ms": timeout_ms, "reg9_value": reg_value}))
+                            }
+                            "write_register_u32" => {
+                                ctx.ensure_connected()?;
+                                let rid = as_u16(&v, "rid", 0) as u8;
+                                let value = as_u64(&v, "value", 0) as u32;
+                                if let Some(m) = ctx.motor.as_ref() {
+                                    m.write_register_u32(rid, value).map_err(|e| e.to_string())?;
+                                }
+                                Ok(json!({"rid": rid, "value": value}))
+                            }
+                            "write_register_f32" => {
+                                ctx.ensure_connected()?;
+                                let rid = as_u16(&v, "rid", 0) as u8;
+                                let value = as_f32(&v, "value", 0.0);
+                                if let Some(m) = ctx.motor.as_ref() {
+                                    m.write_register_f32(rid, value).map_err(|e| e.to_string())?;
+                                }
+                                Ok(json!({"rid": rid, "value": value}))
+                            }
+                            "get_register_u32" => {
+                                ctx.ensure_connected()?;
+                                let rid = as_u16(&v, "rid", 0) as u8;
+                                let timeout_ms = as_u64(&v, "timeout_ms", 1000);
+                                if let Some(m) = ctx.motor.as_ref() {
+                                    let val = m
+                                        .get_register_u32(rid, Duration::from_millis(timeout_ms))
+                                        .map_err(|e| e.to_string())?;
+                                    Ok(json!({"rid": rid, "value": val}))
+                                } else {
+                                    Err("motor not connected".to_string())
+                                }
+                            }
+                            "get_register_f32" => {
+                                ctx.ensure_connected()?;
+                                let rid = as_u16(&v, "rid", 0) as u8;
+                                let timeout_ms = as_u64(&v, "timeout_ms", 1000);
+                                if let Some(m) = ctx.motor.as_ref() {
+                                    let val = m
+                                        .get_register_f32(rid, Duration::from_millis(timeout_ms))
+                                        .map_err(|e| e.to_string())?;
+                                    Ok(json!({"rid": rid, "value": val}))
+                                } else {
+                                    Err("motor not connected".to_string())
+                                }
+                            }
+                            "poll_feedback_once" => {
+                                ctx.ensure_connected()?;
+                                if let Some(c) = ctx.controller.as_ref() {
+                                    c.poll_feedback_once().map_err(|e| e.to_string())?;
+                                }
+                                Ok(json!({"polled": true}))
+                            }
+                            "shutdown" => {
+                                if let Some(c) = ctx.controller.as_ref() {
+                                    c.shutdown().map_err(|e| e.to_string())?;
+                                }
+                                ctx.active = None;
+                                Ok(json!({"shutdown": true}))
+                            }
+                            "close_bus" => {
+                                ctx.disconnect(false);
+                                Ok(json!({"closed": true}))
                             }
                             "scan" => cmd_scan(&v, &ctx.target),
                             "set_id" => cmd_set_id(&v, &ctx.target),

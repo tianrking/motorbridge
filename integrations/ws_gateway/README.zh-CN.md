@@ -18,7 +18,8 @@ sequenceDiagram
 
 ## 状态
 
-已实现。
+WS API 主链路已实现。
+内置网页上位机（`tools/ws_test_client.html`）仍在持续开发中。
 
 ## 传输
 
@@ -118,6 +119,8 @@ cargo run -p ws_gateway --release -- \
 
 - 文件：`integrations/ws_gateway/tools/ws_test_client.html`
 - 直接浏览器打开（双击或 `xdg-open`），连接 `ws://127.0.0.1:9002`。
+- 当前状态：**开发中**（界面与交互会持续调整）。
+- 若要稳定联调，建议优先使用 JSON 直连客户端（wscat/websocat/自定义客户端）。
 - 动态设备工作流：
   - 同一页面扫描 Damiao 与 RobStride
   - 扫描结果进设备表（vendor + motor_id + feedback_id + model）

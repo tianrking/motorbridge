@@ -82,6 +82,29 @@ motorbridge-cli scan --vendor all --channel can0 --start-id 0x01 --end-id 0xFF
 
 See [examples/README.md](examples/README.md).
 
+## End-to-End Demo Commands
+
+```bash
+# Build ABI once
+cargo build -p motor_abi --release
+export PYTHONPATH=bindings/python/src
+export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
+
+# Damiao wrapper demo
+python3 bindings/python/examples/python_wrapper_demo.py \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 20 --dt-ms 20
+
+# RobStride wrapper demo: ping
+python3 bindings/python/examples/robstride_wrapper_demo.py \
+  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
+
+# RobStride wrapper demo: velocity
+python3 bindings/python/examples/robstride_wrapper_demo.py \
+  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+  --mode vel --vel 0.3 --loop 40 --dt-ms 50
+```
+
 ## Notes
 
 - `id-dump` and `id-set` are Damiao workflows; `scan` supports `damiao|robstride|all`.

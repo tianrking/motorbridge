@@ -18,7 +18,8 @@ sequenceDiagram
 
 ## Status
 
-Implemented.
+Core WS API is implemented.
+The bundled web HMI (`tools/ws_test_client.html`) is still under active development.
 
 ## Transport
 
@@ -118,6 +119,8 @@ State stream frame:
 
 - File: `integrations/ws_gateway/tools/ws_test_client.html`
 - Open directly in browser (double-click or `xdg-open`), then connect to `ws://127.0.0.1:9002`.
+- Current status: **in development** (UI/flow may change quickly).
+- For stable validation, prefer sending JSON commands directly (wscat/websocat/custom client).
 - Built-in dynamic device workflow:
   - scan Damiao and RobStride in one page
   - scan hits are shown in a device table (vendor + motor_id + feedback_id + model)

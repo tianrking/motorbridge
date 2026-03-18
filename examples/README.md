@@ -97,6 +97,28 @@ LD_LIBRARY_PATH=target/release ./cpp_abi_demo --vendor damiao --channel can0 --m
   - `bindings/cpp/examples/cpp_wrapper_demo.cpp`
   - `bindings/cpp/examples/robstride_wrapper_demo.cpp`
 
+## Validation Checklist (suggested order)
+
+1. Scan both vendors on the same bus.
+2. Verify Damiao control path (MIT or velocity).
+3. Verify RobStride control path (ping/read-param/velocity).
+4. Verify Python binding demos (Damiao + RobStride).
+5. Verify C++ binding demos (Damiao + RobStride).
+
+Quick commands:
+
+```bash
+# 1) Unified scan
+cargo run -p motor_cli --release -- --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
+
+# 2) Damiao quick velocity
+cargo run -p motor_cli --release -- --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode vel --vel 0.5 --loop 40 --dt-ms 50
+
+# 3) RobStride ping + velocity
+cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
+cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode vel --vel 0.3 --loop 40 --dt-ms 50
+```
+
 ## Notes
 
 - `id-dump` and `id-set` are Damiao-oriented workflows; unified `scan` is available in Rust CLI (`--vendor all`) and Python SDK CLI (`motorbridge.cli scan --vendor all`).

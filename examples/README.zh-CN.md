@@ -97,6 +97,28 @@ LD_LIBRARY_PATH=target/release ./cpp_abi_demo --vendor damiao --channel can0 --m
   - `bindings/cpp/examples/cpp_wrapper_demo.cpp`
   - `bindings/cpp/examples/robstride_wrapper_demo.cpp`
 
+## 建议验证顺序
+
+1. 先做总线双厂商扫描。
+2. 验证 Damiao 控制链路（MIT 或速度）。
+3. 验证 RobStride 控制链路（ping/读参/速度）。
+4. 验证 Python binding 示例（Damiao + RobStride）。
+5. 验证 C++ binding 示例（Damiao + RobStride）。
+
+快速命令：
+
+```bash
+# 1) 统一扫描
+cargo run -p motor_cli --release -- --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
+
+# 2) Damiao 速度控制
+cargo run -p motor_cli --release -- --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode vel --vel 0.5 --loop 40 --dt-ms 50
+
+# 3) RobStride ping + 速度
+cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
+cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode vel --vel 0.3 --loop 40 --dt-ms 50
+```
+
 ## 说明
 
 - `id-dump`、`id-set` 仍偏 Damiao 工作流；统一 `scan` 已支持 Rust CLI（`--vendor all`）和 Python SDK CLI（`motorbridge.cli scan --vendor all`）。

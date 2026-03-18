@@ -67,3 +67,23 @@ cmake -S bindings/cpp -B bindings/cpp/build \
   -DMOTORBRIDGE_ABI_LIBRARY=$PWD/target/release/libmotor_abi.so
 cmake --build bindings/cpp/build -j
 ```
+
+## End-to-End Demo Commands
+
+```bash
+export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
+
+# Damiao wrapper demo
+./bindings/cpp/build/cpp_wrapper_demo \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 20 --dt-ms 20
+
+# RobStride wrapper demo: ping
+./bindings/cpp/build/robstride_wrapper_demo \
+  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
+
+# RobStride wrapper demo: velocity
+./bindings/cpp/build/robstride_wrapper_demo \
+  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+  --mode vel --vel 0.3 --loop 40 --dt-ms 50
+```

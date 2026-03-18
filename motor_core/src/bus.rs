@@ -3,8 +3,10 @@ use std::time::Duration;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CanFrame {
-    pub arbitration_id: u16,
+    pub arbitration_id: u32,
     pub data: [u8; 8],
+    pub dlc: u8,
+    pub is_extended: bool,
     pub is_rx: bool,
 }
 

@@ -1,102 +1,55 @@
 # C ABI 示例
 
-本目录展示如何在 C 中调用 Rust `motor_abi`。
+这里是直接调用 `motor_abi` 的 C 示例。
 
 > English version: [README.md](README.md)
 
-## C 调用链路图
-
-```mermaid
-sequenceDiagram
-  participant C as C 程序
-  participant H as motor_abi.h
-  participant SO as libmotor_abi
-  participant R as Rust Core
-  C->>H: 调用 motor_* 接口
-  H->>SO: 符号分发
-  SO->>R: 执行控制器/电机操作
-  R-->>C: 返回码 + 错误/状态数据
-```
-
 ## 文件
 
-- `c_abi_demo.c`：统一多模式命令行示例（`enable/disable/mit/pos-vel/vel/force-pos`）
+- `c_abi_demo.c`: 同时支持两个 vendor 的统一示例
+
+覆盖范围:
+
+- Damiao: `enable`、`disable`、`mit`、`pos-vel`、`vel`、`force-pos`
+- RobStride: `ping`、`enable`、`disable`、`mit`、`vel`、`read-param`、`write-param`
 
 ## 构建
-
-在项目根目录（`rust_dm`）执行：
 
 ```bash
 cargo build -p motor_abi --release
 cc examples/c/c_abi_demo.c -I motor_abi/include -L target/release -lmotor_abi -o c_abi_demo
-```
-
-运行：
-
-```bash
 LD_LIBRARY_PATH=target/release ./c_abi_demo --help
 ```
 
-运行前请先配置 CAN：
+## 示例
 
-```bash
-sudo ip link set can0 down 2>/dev/null || true
-sudo ip link set can0 type can bitrate 1000000 restart-ms 100
-sudo ip link set can0 up
-ip -details link show can0
-```
-
-## 完整命令
-
-使能：
+Damiao MIT:
 
 ```bash
 LD_LIBRARY_PATH=target/release ./c_abi_demo \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode enable --loop 20 --dt-ms 100 --print-state 1
+  --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 50 --dt-ms 20
 ```
 
-失能：
+RobStride ping:
 
 ```bash
 LD_LIBRARY_PATH=target/release ./c_abi_demo \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode disable --loop 20 --dt-ms 100 --print-state 1
+  --vendor robstride --channel can0 --model rs-00 --motor-id 127 --mode ping
 ```
 
-MIT：
+RobStride 读取位置参数:
 
 ```bash
 LD_LIBRARY_PATH=target/release ./c_abi_demo \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 \
-  --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
-  --loop 200 --dt-ms 20 --print-state 1
+  --vendor robstride --channel can0 --model rs-00 --motor-id 127 \
+  --mode read-param --param-id 0x7019 --param-type f32
 ```
 
-POS_VEL：
+RobStride 低增益 MIT:
 
 ```bash
 LD_LIBRARY_PATH=target/release ./c_abi_demo \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode pos-vel --pos 3.10 --vlim 1.50 \
-  --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
-  --loop 300 --dt-ms 20 --print-state 1
-```
-
-VEL：
-
-```bash
-LD_LIBRARY_PATH=target/release ./c_abi_demo \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode vel --vel 0.5 --ensure-mode 1 --loop 100 --dt-ms 20 --print-state 1
-```
-
-FORCE_POS：
-
-```bash
-LD_LIBRARY_PATH=target/release ./c_abi_demo \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode force-pos --pos 0.8 --vlim 2.0 --ratio 0.3 \
-  --ensure-mode 1 --loop 100 --dt-ms 20 --print-state 1
+  --vendor robstride --channel can0 --model rs-00 --motor-id 127 \
+  --mode mit --pos 0 --vel 0 --kp 8 --kd 0.2 --tau 0 --loop 20 --dt-ms 50
 ```

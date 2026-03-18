@@ -1,14 +1,5 @@
 # C++ Example Programs
 
-This folder contains practical demos based on `motorbridge/motorbridge.hpp`.
-
-- `cpp_wrapper_demo.cpp`: minimal MIT loop demo
-- `full_modes_demo.cpp`: full-mode + full-parameter demo (`enable/disable/mit/pos-vel/vel/force-pos`)
-- `pid_register_tune_demo.cpp`: PID and high-impact register tuning (read/write/verify)
-- `scan_ids_demo.cpp`: CAN ID scan
-- `pos_ctrl_demo.cpp`: one-shot position target command (POS_VEL)
-- `pos_repl_demo.cpp`: interactive position console
-
 Build from repo root:
 
 ```bash
@@ -18,14 +9,19 @@ cmake -S bindings/cpp -B bindings/cpp/build \
 cmake --build bindings/cpp/build -j
 ```
 
-Run example (full modes):
+Files:
+
+- `cpp_wrapper_demo.cpp`: Damiao MIT loop
+- `robstride_wrapper_demo.cpp`: RobStride ping / read-param / mit / vel demo
+- `full_modes_demo.cpp`: Damiao full-mode control
+- `pid_register_tune_demo.cpp`: Damiao tuning
+- `scan_ids_demo.cpp`: Damiao scan (legacy helper)
+- `pos_ctrl_demo.cpp`: Damiao position target
+- `pos_repl_demo.cpp`: Damiao interactive position console
+
+Unified scan via Rust CLI:
 
 ```bash
-LD_LIBRARY_PATH=target/release ./bindings/cpp/build/full_modes_demo --help
-```
-
-Run example (PID tuning):
-
-```bash
-LD_LIBRARY_PATH=target/release ./bindings/cpp/build/pid_register_tune_demo --help
+cargo run -p motor_cli --release -- \
+  --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```

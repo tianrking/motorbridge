@@ -12,11 +12,20 @@ typedef enum Mode {
   MODE_MIT,
   MODE_POS_VEL,
   MODE_VEL,
-  MODE_FORCE_POS
+  MODE_FORCE_POS,
+  MODE_PING,
+  MODE_READ_PARAM,
+  MODE_WRITE_PARAM
 } Mode;
+
+typedef enum Vendor {
+  VENDOR_DAMIAO,
+  VENDOR_ROBSTRIDE
+} Vendor;
 
 typedef struct Options {
   const char* channel;
+  Vendor vendor;
   const char* model;
   uint16_t motor_id;
   uint16_t feedback_id;
@@ -34,23 +43,29 @@ typedef struct Options {
   float tau;
   float vlim;
   float ratio;
+  uint16_t param_id;
+  const char* param_type;
+  const char* param_value;
+  int param_timeout_ms;
 } Options;
 
 static void print_help(void) {
   puts("c_abi_demo (multi-mode)\n"
        "Usage:\n"
-       "  ./c_abi_demo --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \\\n"
+       "  ./c_abi_demo --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \\\n"
        "    --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 200 --dt-ms 20\n\n"
        "Modes:\n"
-       "  enable | disable | mit | pos-vel | vel | force-pos\n\n"
+       "  Damiao: enable | disable | mit | pos-vel | vel | force-pos\n"
+       "  RobStride: ping | enable | disable | mit | vel | read-param | write-param\n\n"
        "Common:\n"
-       "  --channel --model --motor-id --feedback-id --loop --dt-ms\n"
+       "  --vendor --channel --model --motor-id --feedback-id --loop --dt-ms\n"
        "  --ensure-mode 1/0 --ensure-timeout-ms --ensure-strict 1/0 --print-state 1/0\n"
        "Control params:\n"
        "  MIT: --pos --vel --kp --kd --tau\n"
        "  POS_VEL: --pos --vlim\n"
        "  VEL: --vel\n"
-       "  FORCE_POS: --pos --vlim --ratio");
+       "  FORCE_POS: --pos --vlim --ratio\n"
+       "  RobStride param ops: --param-id --param-type i8|u8|u16|u32|f32 --param-value --param-timeout-ms");
 }
 
 static int parse_i(const char* s, int* out) {
@@ -84,6 +99,16 @@ static int parse_mode(const char* s, Mode* out) {
   else if (strcmp(s, "pos-vel") == 0) *out = MODE_POS_VEL;
   else if (strcmp(s, "vel") == 0) *out = MODE_VEL;
   else if (strcmp(s, "force-pos") == 0) *out = MODE_FORCE_POS;
+  else if (strcmp(s, "ping") == 0) *out = MODE_PING;
+  else if (strcmp(s, "read-param") == 0) *out = MODE_READ_PARAM;
+  else if (strcmp(s, "write-param") == 0) *out = MODE_WRITE_PARAM;
+  else return -1;
+  return 0;
+}
+
+static int parse_vendor(const char* s, Vendor* out) {
+  if (strcmp(s, "damiao") == 0) *out = VENDOR_DAMIAO;
+  else if (strcmp(s, "robstride") == 0) *out = VENDOR_ROBSTRIDE;
   else return -1;
   return 0;
 }
@@ -100,7 +125,9 @@ static int parse_args(int argc, char** argv, Options* o) {
       return -1;
     }
     const char* v = argv[++i];
-    if (strcmp(k, "--channel") == 0) o->channel = v;
+    if (strcmp(k, "--vendor") == 0) {
+      if (parse_vendor(v, &o->vendor) != 0) return -1;
+    } else if (strcmp(k, "--channel") == 0) o->channel = v;
     else if (strcmp(k, "--model") == 0) o->model = v;
     else if (strcmp(k, "--motor-id") == 0) {
       if (parse_u16(v, &o->motor_id) != 0) return -1;
@@ -134,6 +161,14 @@ static int parse_args(int argc, char** argv, Options* o) {
       if (parse_f(v, &o->vlim) != 0) return -1;
     } else if (strcmp(k, "--ratio") == 0) {
       if (parse_f(v, &o->ratio) != 0) return -1;
+    } else if (strcmp(k, "--param-id") == 0) {
+      if (parse_u16(v, &o->param_id) != 0) return -1;
+    } else if (strcmp(k, "--param-type") == 0) {
+      o->param_type = v;
+    } else if (strcmp(k, "--param-value") == 0) {
+      o->param_value = v;
+    } else if (strcmp(k, "--param-timeout-ms") == 0) {
+      if (parse_i(v, &o->param_timeout_ms) != 0) return -1;
     } else {
       fprintf(stderr, "unknown arg: %s\n", k);
       return -1;
@@ -158,6 +193,14 @@ static uint32_t abi_mode(Mode m) {
   }
 }
 
+static const char* vendor_name(Vendor v) {
+  switch (v) {
+    case VENDOR_DAMIAO: return "damiao";
+    case VENDOR_ROBSTRIDE: return "robstride";
+    default: return "unknown";
+  }
+}
+
 static const char* mode_name(Mode m) {
   switch (m) {
     case MODE_ENABLE: return "enable";
@@ -166,13 +209,110 @@ static const char* mode_name(Mode m) {
     case MODE_POS_VEL: return "pos-vel";
     case MODE_VEL: return "vel";
     case MODE_FORCE_POS: return "force-pos";
+    case MODE_PING: return "ping";
+    case MODE_READ_PARAM: return "read-param";
+    case MODE_WRITE_PARAM: return "write-param";
     default: return "unknown";
+  }
+}
+
+static int print_state(MotorHandle* motor, const char* prefix) {
+  MotorState st = {0};
+  if (check_rc(motor_handle_get_state(motor, &st), "get_state") != 0) return -1;
+  if (st.has_value) {
+    printf("%s pos=%+.3f vel=%+.3f torq=%+.3f status=%u arb=0x%X\n", prefix, st.pos, st.vel,
+           st.torq, st.status_code, st.arbitration_id);
+  } else {
+    printf("%s no feedback yet\n", prefix);
+  }
+  return 0;
+}
+
+static int do_robstride_read(MotorHandle* motor, const Options* o) {
+  if (strcmp(o->param_type, "i8") == 0) {
+    int8_t value = 0;
+    if (check_rc(motor_handle_robstride_get_param_i8(motor, o->param_id,
+                                                     (uint32_t)o->param_timeout_ms, &value),
+                 "robstride_get_param_i8") != 0)
+      return -1;
+    printf("param 0x%04X (%s) = %d\n", o->param_id, o->param_type, value);
+    return 0;
+  }
+  if (strcmp(o->param_type, "u8") == 0) {
+    uint8_t value = 0;
+    if (check_rc(motor_handle_robstride_get_param_u8(motor, o->param_id,
+                                                     (uint32_t)o->param_timeout_ms, &value),
+                 "robstride_get_param_u8") != 0)
+      return -1;
+    printf("param 0x%04X (%s) = %u\n", o->param_id, o->param_type, value);
+    return 0;
+  }
+  if (strcmp(o->param_type, "u16") == 0) {
+    uint16_t value = 0;
+    if (check_rc(motor_handle_robstride_get_param_u16(motor, o->param_id,
+                                                      (uint32_t)o->param_timeout_ms, &value),
+                 "robstride_get_param_u16") != 0)
+      return -1;
+    printf("param 0x%04X (%s) = %u\n", o->param_id, o->param_type, value);
+    return 0;
+  }
+  if (strcmp(o->param_type, "u32") == 0) {
+    uint32_t value = 0;
+    if (check_rc(motor_handle_robstride_get_param_u32(motor, o->param_id,
+                                                      (uint32_t)o->param_timeout_ms, &value),
+                 "robstride_get_param_u32") != 0)
+      return -1;
+    printf("param 0x%04X (%s) = %u\n", o->param_id, o->param_type, value);
+    return 0;
+  }
+  {
+    float value = 0.0f;
+    if (check_rc(motor_handle_robstride_get_param_f32(motor, o->param_id,
+                                                      (uint32_t)o->param_timeout_ms, &value),
+                 "robstride_get_param_f32") != 0)
+      return -1;
+    printf("param 0x%04X (%s) = %.6f\n", o->param_id, o->param_type, value);
+    return 0;
+  }
+}
+
+static int do_robstride_write(MotorHandle* motor, const Options* o) {
+  if (strcmp(o->param_type, "i8") == 0) {
+    int value = 0;
+    if (parse_i(o->param_value, &value) != 0) return -1;
+    return check_rc(motor_handle_robstride_write_param_i8(motor, o->param_id, (int8_t)value),
+                    "robstride_write_param_i8");
+  }
+  if (strcmp(o->param_type, "u8") == 0) {
+    uint16_t value = 0;
+    if (parse_u16(o->param_value, &value) != 0) return -1;
+    return check_rc(motor_handle_robstride_write_param_u8(motor, o->param_id, (uint8_t)value),
+                    "robstride_write_param_u8");
+  }
+  if (strcmp(o->param_type, "u16") == 0) {
+    uint16_t value = 0;
+    if (parse_u16(o->param_value, &value) != 0) return -1;
+    return check_rc(motor_handle_robstride_write_param_u16(motor, o->param_id, value),
+                    "robstride_write_param_u16");
+  }
+  if (strcmp(o->param_type, "u32") == 0) {
+    int value = 0;
+    if (parse_i(o->param_value, &value) != 0) return -1;
+    return check_rc(motor_handle_robstride_write_param_u32(motor, o->param_id, (uint32_t)value),
+                    "robstride_write_param_u32");
+  }
+  {
+    float value = 0.0f;
+    if (parse_f(o->param_value, &value) != 0) return -1;
+    return check_rc(motor_handle_robstride_write_param_f32(motor, o->param_id, value),
+                    "robstride_write_param_f32");
   }
 }
 
 int main(int argc, char** argv) {
   Options o = {
       .channel = "can0",
+      .vendor = VENDOR_DAMIAO,
       .model = "4340",
       .motor_id = 0x01,
       .feedback_id = 0x11,
@@ -190,6 +330,10 @@ int main(int argc, char** argv) {
       .tau = 0.0f,
       .vlim = 1.0f,
       .ratio = 0.3f,
+      .param_id = 0x7019,
+      .param_type = "f32",
+      .param_value = "0",
+      .param_timeout_ms = 1000,
   };
 
   int pr = parse_args(argc, argv, &o);
@@ -199,8 +343,13 @@ int main(int argc, char** argv) {
     return 2;
   }
 
-  printf("channel=%s model=%s motor_id=0x%X feedback_id=0x%X mode=%s\n", o.channel, o.model,
-         o.motor_id, o.feedback_id, mode_name(o.mode));
+  if (o.vendor == VENDOR_ROBSTRIDE) {
+    if (strcmp(o.model, "4340") == 0) o.model = "rs-00";
+    if (o.feedback_id == 0x11) o.feedback_id = 0xFF;
+  }
+
+  printf("vendor=%s channel=%s model=%s motor_id=0x%X feedback_id=0x%X mode=%s\n",
+         vendor_name(o.vendor), o.channel, o.model, o.motor_id, o.feedback_id, mode_name(o.mode));
 
   MotorController* controller = motor_controller_new_socketcan(o.channel);
   if (!controller) {
@@ -208,12 +357,49 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  MotorHandle* motor =
-      motor_controller_add_damiao_motor(controller, o.motor_id, o.feedback_id, o.model);
+  MotorHandle* motor = o.vendor == VENDOR_DAMIAO
+                           ? motor_controller_add_damiao_motor(controller, o.motor_id,
+                                                               o.feedback_id, o.model)
+                           : motor_controller_add_robstride_motor(controller, o.motor_id,
+                                                                  o.feedback_id, o.model);
   if (!motor) {
     fprintf(stderr, "add motor failed: %s\n", motor_last_error_message());
     motor_controller_free(controller);
     return 1;
+  }
+
+  if (o.vendor == VENDOR_DAMIAO &&
+      (o.mode == MODE_PING || o.mode == MODE_READ_PARAM || o.mode == MODE_WRITE_PARAM)) {
+    fprintf(stderr, "Damiao demo does not support robstride-only modes\n");
+    goto out;
+  }
+  if (o.vendor == VENDOR_ROBSTRIDE &&
+      (o.mode == MODE_POS_VEL || o.mode == MODE_FORCE_POS)) {
+    fprintf(stderr, "RobStride demo supports ping/enable/disable/mit/vel/read-param/write-param\n");
+    goto out;
+  }
+
+  if (o.mode == MODE_PING) {
+    uint8_t device_id = 0;
+    uint8_t responder_id = 0;
+    if (check_rc(motor_handle_robstride_ping(motor, &device_id, &responder_id), "robstride_ping") != 0)
+      goto out;
+    printf("ping ok device_id=%u responder_id=%u\n", device_id, responder_id);
+    (void)print_state(motor, "[state]");
+    goto out;
+  }
+
+  if (o.mode == MODE_READ_PARAM) {
+    if (do_robstride_read(motor, &o) != 0) goto out;
+    (void)print_state(motor, "[state]");
+    goto out;
+  }
+
+  if (o.mode == MODE_WRITE_PARAM) {
+    if (do_robstride_write(motor, &o) != 0) goto out;
+    if (do_robstride_read(motor, &o) != 0) goto out;
+    (void)print_state(motor, "[state]");
+    goto out;
   }
 
   if (o.mode != MODE_ENABLE && o.mode != MODE_DISABLE) {
@@ -265,14 +451,9 @@ int main(int argc, char** argv) {
     }
 
     if (o.print_state) {
-      MotorState st = {0};
-      if (check_rc(motor_handle_get_state(motor, &st), "get_state") != 0) goto out;
-      if (st.has_value) {
-        printf("#%d pos=%+.3f vel=%+.3f torq=%+.3f status=%u\n", i, st.pos, st.vel, st.torq,
-               st.status_code);
-      } else {
-        printf("#%d no feedback yet\n", i);
-      }
+      char prefix[32];
+      snprintf(prefix, sizeof(prefix), "#%d", i);
+      if (print_state(motor, prefix) != 0) goto out;
     }
     if (o.dt_ms > 0) usleep((useconds_t)o.dt_ms * 1000);
   }

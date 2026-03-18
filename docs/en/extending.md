@@ -15,17 +15,17 @@ flowchart TD
   H --> I["Document model/protocol constraints"]
 ```
 
-## Add a New Vendor (example: Robostride)
+## Add a New Vendor (example: RobStride)
 
 Goal: keep `motor_core` unchanged; add a new vendor crate.
 
-1. Create crate (for example `motor_vendor_robostride`).
+1. Create crate (for example `motor_vendor_robstride`).
 2. Implement vendor layers:
    - `protocol.rs`
    - `registers.rs`
    - `motor.rs` (implement `motor_core::MotorDevice`)
    - `controller.rs` (facade over `CoreController`)
-3. Expose vendor access from ABI if needed (for example `motor_controller_add_robostride_motor`).
+3. Expose vendor access from ABI if needed (for example `motor_controller_add_robstride_motor`).
 4. Add crate to workspace members.
 
 ## Add Models Under Existing Vendor (Damiao)

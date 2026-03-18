@@ -23,7 +23,7 @@ const TEMPLATE_CATALOG: StaticModelCatalog = StaticModelCatalog {
 
 #[derive(Debug, Clone, Copy)]
 pub struct TemplateMotorState {
-    pub arbitration_id: u16,
+    pub arbitration_id: u32,
     pub status_code: u8,
     pub pos: f32,
     pub vel: f32,
@@ -60,10 +60,12 @@ impl TemplateMotor {
         self.state.lock().ok().and_then(|s| *s)
     }
 
-    fn send_raw(&self, arbitration_id: u16, data: [u8; 8]) -> Result<()> {
+    fn send_raw(&self, arbitration_id: u32, data: [u8; 8]) -> Result<()> {
         self.bus.send(CanFrame {
             arbitration_id,
             data,
+            dlc: 8,
+            is_extended: false,
             is_rx: false,
         })
     }
@@ -103,17 +105,16 @@ impl MotorDevice for TemplateMotor {
         self.feedback_id
     }
 
-    fn feedback_logical_id(&self) -> u8 {
-        // TODO: Replace if your protocol routes differently.
-        (self.motor_id & 0x0F) as u8
-    }
-
     fn enable(&self) -> Result<()> {
-        self.send_raw(self.motor_id, protocol::encode_enable_cmd())
+        self.send_raw(u32::from(self.motor_id), protocol::encode_enable_cmd())
     }
 
     fn disable(&self) -> Result<()> {
-        self.send_raw(self.motor_id, protocol::encode_disable_cmd())
+        self.send_raw(u32::from(self.motor_id), protocol::encode_disable_cmd())
+    }
+
+    fn accepts_frame(&self, frame: &CanFrame) -> bool {
+        !frame.is_extended && frame.arbitration_id == u32::from(self.feedback_id)
     }
 
     fn process_feedback_frame(&self, frame: CanFrame) -> Result<()> {

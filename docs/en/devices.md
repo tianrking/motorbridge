@@ -13,6 +13,9 @@ mindmap
         6006 / 8006 / 8009
         10010 / 10010L
         H3510 / G6215 / H6220 / JH11 / 6248P
+      RobStride
+        rs-00 / rs-01 / rs-02
+        rs-03 / rs-04 / rs-05 / rs-06
       Modes
         MIT
         POS_VEL
@@ -28,6 +31,7 @@ mindmap
 | Brand | Models | Control Modes | Register R/W | ABI Coverage | Notes |
 |---|---|---|---|---|---|
 | Damiao | 3507, 4310, 4310P, 4340, 4340P, 6006, 8006, 8009, 10010L, 10010, H3510, G6215, H6220, JH11, 6248P | MIT, POS_VEL, VEL, FORCE_POS | Yes (f32/u32) | Yes | Run per-model hardware regression |
+| RobStride | rs-00, rs-01, rs-02, rs-03, rs-04, rs-05, rs-06 | MIT, VEL, parameter read/write, ping | Yes (i8/u8/u16/u32/f32) | No | Uses 29-bit extended CAN IDs; verified on can0 with device 127 |
 
 ## Template (Not Production)
 

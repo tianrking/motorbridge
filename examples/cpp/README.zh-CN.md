@@ -1,98 +1,42 @@
 # C++ ABI 示例
 
-本目录展示如何在 C++ 中调用 Rust `motor_abi`。
+这里是基于 `motor_abi.h` 的 C++ 直接示例。
 
 > English version: [README.md](README.md)
 
-## C++ 示例定位图
-
-```mermaid
-flowchart LR
-  CPP["cpp_abi_demo.cpp"] --> ABI["motor_abi.h"]
-  ABI --> LIB["libmotor_abi.so/.a"]
-  LIB --> CORE["Rust core + vendor"]
-  CPP --> MODES["enable/disable/mit/pos-vel/vel/force-pos"]
-```
-
 ## 文件
 
-- `cpp_abi_demo.cpp`：统一多模式命令行示例（`enable/disable/mit/pos-vel/vel/force-pos`）
+- `cpp_abi_demo.cpp`: 同时支持 Damiao 和 RobStride 的统一 ABI 示例
 
 ## 构建
-
-在项目根目录（`rust_dm`）执行：
 
 ```bash
 cargo build -p motor_abi --release
 g++ -std=c++17 examples/cpp/cpp_abi_demo.cpp -I motor_abi/include -L target/release -lmotor_abi -o cpp_abi_demo
-```
-
-运行：
-
-```bash
 LD_LIBRARY_PATH=target/release ./cpp_abi_demo --help
 ```
 
-运行前请先配置 CAN：
+## 示例
 
-```bash
-sudo ip link set can0 down 2>/dev/null || true
-sudo ip link set can0 type can bitrate 1000000 restart-ms 100
-sudo ip link set can0 up
-ip -details link show can0
-```
-
-## 完整命令
-
-使能：
+Damiao MIT:
 
 ```bash
 LD_LIBRARY_PATH=target/release ./cpp_abi_demo \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode enable --loop 20 --dt-ms 100 --print-state 1
+  --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 50 --dt-ms 20
 ```
 
-失能：
+RobStride ping:
 
 ```bash
 LD_LIBRARY_PATH=target/release ./cpp_abi_demo \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode disable --loop 20 --dt-ms 100 --print-state 1
+  --vendor robstride --channel can0 --model rs-00 --motor-id 127 --mode ping
 ```
 
-MIT：
+RobStride 读参数:
 
 ```bash
 LD_LIBRARY_PATH=target/release ./cpp_abi_demo \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 \
-  --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
-  --loop 200 --dt-ms 20 --print-state 1
-```
-
-POS_VEL：
-
-```bash
-LD_LIBRARY_PATH=target/release ./cpp_abi_demo \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode pos-vel --pos 3.10 --vlim 1.50 \
-  --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
-  --loop 300 --dt-ms 20 --print-state 1
-```
-
-VEL：
-
-```bash
-LD_LIBRARY_PATH=target/release ./cpp_abi_demo \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode vel --vel 0.5 --ensure-mode 1 --loop 100 --dt-ms 20 --print-state 1
-```
-
-FORCE_POS：
-
-```bash
-LD_LIBRARY_PATH=target/release ./cpp_abi_demo \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode force-pos --pos 0.8 --vlim 2.0 --ratio 0.3 \
-  --ensure-mode 1 --loop 100 --dt-ms 20 --print-state 1
+  --vendor robstride --channel can0 --model rs-00 --motor-id 127 \
+  --mode read-param --param-id 0x7019 --param-type f32
 ```

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import ctypes
-from ctypes import c_float, c_uint32
+from ctypes import c_float, c_int8, c_uint8, c_uint16, c_uint32
 
 from .abi import CState, get_abi
 from .errors import CallError
@@ -51,6 +51,14 @@ class Controller:
         )
         if not m:
             raise CallError(f"add_damiao_motor failed: {_err_text()}")
+        return Motor(m)
+
+    def add_robstride_motor(self, motor_id: int, feedback_id: int, model: str) -> "Motor":
+        m = self._abi.lib.motor_controller_add_robstride_motor(
+            self._ptr, motor_id, feedback_id, model.encode()
+        )
+        if not m:
+            raise CallError(f"add_robstride_motor failed: {_err_text()}")
         return Motor(m)
 
     def __enter__(self) -> "Controller":
@@ -137,6 +145,85 @@ class Motor:
             "get_register_u32",
         )
         return int(out.value)
+
+    def robstride_ping(self) -> tuple[int, int]:
+        device_id = c_uint8(0)
+        responder_id = c_uint8(0)
+        _ok(
+            self._abi.lib.motor_handle_robstride_ping(
+                self._ptr, ctypes.byref(device_id), ctypes.byref(responder_id)
+            ),
+            "robstride_ping",
+        )
+        return int(device_id.value), int(responder_id.value)
+
+    def robstride_set_device_id(self, new_device_id: int) -> None:
+        _ok(self._abi.lib.motor_handle_robstride_set_device_id(self._ptr, new_device_id), "robstride_set_device_id")
+
+    def robstride_write_param_i8(self, param_id: int, value: int) -> None:
+        _ok(self._abi.lib.motor_handle_robstride_write_param_i8(self._ptr, param_id, value), "robstride_write_param_i8")
+
+    def robstride_write_param_u8(self, param_id: int, value: int) -> None:
+        _ok(self._abi.lib.motor_handle_robstride_write_param_u8(self._ptr, param_id, value), "robstride_write_param_u8")
+
+    def robstride_write_param_u16(self, param_id: int, value: int) -> None:
+        _ok(self._abi.lib.motor_handle_robstride_write_param_u16(self._ptr, param_id, value), "robstride_write_param_u16")
+
+    def robstride_write_param_u32(self, param_id: int, value: int) -> None:
+        _ok(self._abi.lib.motor_handle_robstride_write_param_u32(self._ptr, param_id, value), "robstride_write_param_u32")
+
+    def robstride_write_param_f32(self, param_id: int, value: float) -> None:
+        _ok(self._abi.lib.motor_handle_robstride_write_param_f32(self._ptr, param_id, value), "robstride_write_param_f32")
+
+    def robstride_get_param_i8(self, param_id: int, timeout_ms: int = 1000) -> int:
+        out = c_int8(0)
+        _ok(
+            self._abi.lib.motor_handle_robstride_get_param_i8(
+                self._ptr, param_id, timeout_ms, ctypes.byref(out)
+            ),
+            "robstride_get_param_i8",
+        )
+        return int(out.value)
+
+    def robstride_get_param_u8(self, param_id: int, timeout_ms: int = 1000) -> int:
+        out = c_uint8(0)
+        _ok(
+            self._abi.lib.motor_handle_robstride_get_param_u8(
+                self._ptr, param_id, timeout_ms, ctypes.byref(out)
+            ),
+            "robstride_get_param_u8",
+        )
+        return int(out.value)
+
+    def robstride_get_param_u16(self, param_id: int, timeout_ms: int = 1000) -> int:
+        out = c_uint16(0)
+        _ok(
+            self._abi.lib.motor_handle_robstride_get_param_u16(
+                self._ptr, param_id, timeout_ms, ctypes.byref(out)
+            ),
+            "robstride_get_param_u16",
+        )
+        return int(out.value)
+
+    def robstride_get_param_u32(self, param_id: int, timeout_ms: int = 1000) -> int:
+        out = c_uint32(0)
+        _ok(
+            self._abi.lib.motor_handle_robstride_get_param_u32(
+                self._ptr, param_id, timeout_ms, ctypes.byref(out)
+            ),
+            "robstride_get_param_u32",
+        )
+        return int(out.value)
+
+    def robstride_get_param_f32(self, param_id: int, timeout_ms: int = 1000) -> float:
+        out = c_float(0.0)
+        _ok(
+            self._abi.lib.motor_handle_robstride_get_param_f32(
+                self._ptr, param_id, timeout_ms, ctypes.byref(out)
+            ),
+            "robstride_get_param_f32",
+        )
+        return float(out.value)
 
     def get_state(self) -> MotorState | None:
         st = CState()

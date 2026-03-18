@@ -39,7 +39,7 @@ enum class Mode : uint32_t {
 
 struct State {
   uint8_t can_id;
-  uint16_t arbitration_id;
+  uint32_t arbitration_id;
   uint8_t status_code;
   float pos;
   float vel;
@@ -193,6 +193,59 @@ class Motor {
     return out;
   }
 
+  std::pair<uint8_t, uint8_t> robstride_ping() {
+    uint8_t device_id = 0;
+    uint8_t responder_id = 0;
+    check_rc(motor_handle_robstride_ping(ptr_, &device_id, &responder_id), "robstride_ping");
+    return {device_id, responder_id};
+  }
+
+  void robstride_set_device_id(uint8_t new_device_id) {
+    check_rc(motor_handle_robstride_set_device_id(ptr_, new_device_id), "robstride_set_device_id");
+  }
+
+  void robstride_write_param_i8(uint16_t param_id, int8_t value) {
+    check_rc(motor_handle_robstride_write_param_i8(ptr_, param_id, value), "robstride_write_param_i8");
+  }
+  void robstride_write_param_u8(uint16_t param_id, uint8_t value) {
+    check_rc(motor_handle_robstride_write_param_u8(ptr_, param_id, value), "robstride_write_param_u8");
+  }
+  void robstride_write_param_u16(uint16_t param_id, uint16_t value) {
+    check_rc(motor_handle_robstride_write_param_u16(ptr_, param_id, value), "robstride_write_param_u16");
+  }
+  void robstride_write_param_u32(uint16_t param_id, uint32_t value) {
+    check_rc(motor_handle_robstride_write_param_u32(ptr_, param_id, value), "robstride_write_param_u32");
+  }
+  void robstride_write_param_f32(uint16_t param_id, float value) {
+    check_rc(motor_handle_robstride_write_param_f32(ptr_, param_id, value), "robstride_write_param_f32");
+  }
+
+  int8_t robstride_get_param_i8(uint16_t param_id, uint32_t timeout_ms = 1000) {
+    int8_t out = 0;
+    check_rc(motor_handle_robstride_get_param_i8(ptr_, param_id, timeout_ms, &out), "robstride_get_param_i8");
+    return out;
+  }
+  uint8_t robstride_get_param_u8(uint16_t param_id, uint32_t timeout_ms = 1000) {
+    uint8_t out = 0;
+    check_rc(motor_handle_robstride_get_param_u8(ptr_, param_id, timeout_ms, &out), "robstride_get_param_u8");
+    return out;
+  }
+  uint16_t robstride_get_param_u16(uint16_t param_id, uint32_t timeout_ms = 1000) {
+    uint16_t out = 0;
+    check_rc(motor_handle_robstride_get_param_u16(ptr_, param_id, timeout_ms, &out), "robstride_get_param_u16");
+    return out;
+  }
+  uint32_t robstride_get_param_u32(uint16_t param_id, uint32_t timeout_ms = 1000) {
+    uint32_t out = 0;
+    check_rc(motor_handle_robstride_get_param_u32(ptr_, param_id, timeout_ms, &out), "robstride_get_param_u32");
+    return out;
+  }
+  float robstride_get_param_f32(uint16_t param_id, uint32_t timeout_ms = 1000) {
+    float out = 0.0f;
+    check_rc(motor_handle_robstride_get_param_f32(ptr_, param_id, timeout_ms, &out), "robstride_get_param_f32");
+    return out;
+  }
+
   std::optional<State> get_state() const {
     MotorState st{};
     check_rc(motor_handle_get_state(ptr_, &st), "get_state");
@@ -243,9 +296,17 @@ class Controller {
     return Motor(handle_, m);
   }
 
+  Motor add_robstride_motor(uint16_t motor_id, uint16_t feedback_id, const std::string& model) {
+    MotorHandle* m =
+        motor_controller_add_robstride_motor(handle_->ptr, motor_id, feedback_id, model.c_str());
+    if (!m) {
+      throw Error("add_robstride_motor failed: " + last_error_message());
+    }
+    return Motor(handle_, m);
+  }
+
  private:
   std::shared_ptr<detail::ControllerHandle> handle_;
 };
 
 }  // namespace motorbridge
-

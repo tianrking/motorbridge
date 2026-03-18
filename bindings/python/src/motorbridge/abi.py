@@ -1,7 +1,7 @@
 import ctypes
 import ctypes.util
 import os
-from ctypes import POINTER, Structure, c_char_p, c_float, c_int32, c_uint8, c_uint16, c_uint32, c_void_p
+from ctypes import POINTER, Structure, c_char_p, c_float, c_int8, c_int32, c_uint8, c_uint16, c_uint32, c_void_p
 from pathlib import Path
 
 from .errors import AbiLoadError
@@ -11,7 +11,7 @@ class CState(Structure):
     _fields_ = [
         ("has_value", c_int32),
         ("can_id", c_uint8),
-        ("arbitration_id", c_uint16),
+        ("arbitration_id", c_uint32),
         ("status_code", c_uint8),
         ("pos", c_float),
         ("vel", c_float),
@@ -102,6 +102,8 @@ class Abi:
 
         lib.motor_controller_add_damiao_motor.argtypes = [c_void_p, c_uint16, c_uint16, c_char_p]
         lib.motor_controller_add_damiao_motor.restype = c_void_p
+        lib.motor_controller_add_robstride_motor.argtypes = [c_void_p, c_uint16, c_uint16, c_char_p]
+        lib.motor_controller_add_robstride_motor.restype = c_void_p
 
         lib.motor_handle_free.argtypes = [c_void_p]
         lib.motor_handle_enable.argtypes = [c_void_p]
@@ -139,6 +141,31 @@ class Abi:
         lib.motor_handle_get_register_f32.restype = c_int32
         lib.motor_handle_get_register_u32.argtypes = [c_void_p, c_uint8, c_uint32, POINTER(c_uint32)]
         lib.motor_handle_get_register_u32.restype = c_int32
+
+        lib.motor_handle_robstride_ping.argtypes = [c_void_p, POINTER(c_uint8), POINTER(c_uint8)]
+        lib.motor_handle_robstride_ping.restype = c_int32
+        lib.motor_handle_robstride_set_device_id.argtypes = [c_void_p, c_uint8]
+        lib.motor_handle_robstride_set_device_id.restype = c_int32
+        lib.motor_handle_robstride_write_param_i8.argtypes = [c_void_p, c_uint16, c_int8]
+        lib.motor_handle_robstride_write_param_i8.restype = c_int32
+        lib.motor_handle_robstride_write_param_u8.argtypes = [c_void_p, c_uint16, c_uint8]
+        lib.motor_handle_robstride_write_param_u8.restype = c_int32
+        lib.motor_handle_robstride_write_param_u16.argtypes = [c_void_p, c_uint16, c_uint16]
+        lib.motor_handle_robstride_write_param_u16.restype = c_int32
+        lib.motor_handle_robstride_write_param_u32.argtypes = [c_void_p, c_uint16, c_uint32]
+        lib.motor_handle_robstride_write_param_u32.restype = c_int32
+        lib.motor_handle_robstride_write_param_f32.argtypes = [c_void_p, c_uint16, c_float]
+        lib.motor_handle_robstride_write_param_f32.restype = c_int32
+        lib.motor_handle_robstride_get_param_i8.argtypes = [c_void_p, c_uint16, c_uint32, POINTER(c_int8)]
+        lib.motor_handle_robstride_get_param_i8.restype = c_int32
+        lib.motor_handle_robstride_get_param_u8.argtypes = [c_void_p, c_uint16, c_uint32, POINTER(c_uint8)]
+        lib.motor_handle_robstride_get_param_u8.restype = c_int32
+        lib.motor_handle_robstride_get_param_u16.argtypes = [c_void_p, c_uint16, c_uint32, POINTER(c_uint16)]
+        lib.motor_handle_robstride_get_param_u16.restype = c_int32
+        lib.motor_handle_robstride_get_param_u32.argtypes = [c_void_p, c_uint16, c_uint32, POINTER(c_uint32)]
+        lib.motor_handle_robstride_get_param_u32.restype = c_int32
+        lib.motor_handle_robstride_get_param_f32.argtypes = [c_void_p, c_uint16, c_uint32, POINTER(c_float)]
+        lib.motor_handle_robstride_get_param_f32.restype = c_int32
 
         lib.motor_handle_get_state.argtypes = [c_void_p, POINTER(CState)]
         lib.motor_handle_get_state.restype = c_int32

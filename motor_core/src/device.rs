@@ -6,10 +6,10 @@ pub trait MotorDevice: Send + Sync {
     fn model(&self) -> &str;
     fn motor_id(&self) -> u16;
     fn feedback_id(&self) -> u16;
-    fn feedback_logical_id(&self) -> u8;
 
     fn enable(&self) -> Result<()>;
     fn disable(&self) -> Result<()>;
 
+    fn accepts_frame(&self, frame: &CanFrame) -> bool;
     fn process_feedback_frame(&self, frame: CanFrame) -> Result<()>;
 }

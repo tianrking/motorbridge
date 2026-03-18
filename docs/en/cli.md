@@ -1,148 +1,57 @@
 # CLI Guide (`motor_cli`)
 
-## CLI Execution Decision Flow
-
-```mermaid
-flowchart TD
-  START["motor_cli command"] --> CAN{"CAN up?"}
-  CAN -- No --> FIXCAN["Configure can0 bitrate/up"]
-  FIXCAN --> START
-  CAN -- Yes --> HS{"verify-model enabled?"}
-  HS -- Yes --> VER["Read PMAX/VMAX/TMAX handshake"]
-  HS -- No --> MODE
-  VER --> MODE{"mode"}
-  MODE -->|enable/disable| ED["send enable/disable loop"]
-  MODE -->|mit| MIT["send_mit(pos, vel, kp, kd, tau)"]
-  MODE -->|pos-vel| PV["send_pos_vel(pos, vlim)"]
-  MODE -->|vel| VV["send_vel(vel)"]
-  MODE -->|force-pos| FP["send_force_pos(pos, vlim, ratio)"]
-  ED --> FB["read/print feedback"]
-  MIT --> FB
-  PV --> FB
-  VV --> FB
-  FP --> FB
-```
-
 ## Build
 
 ```bash
 cargo build -p motor_cli --release
 ```
 
-## CAN Setup (Required)
+## Common Flag
 
-Bring up CAN before running any command:
+- `--vendor damiao|robstride|all`
 
-```bash
-sudo ip link set can0 down 2>/dev/null || true
-sudo ip link set can0 type can bitrate 1000000 restart-ms 100
-sudo ip link set can0 up
-ip -details link show can0
-```
-
-## Common Args
-
-- `--channel` (default `can0`)
-- `--model` (default `4340`)
-- `--motor-id` (default `0x01`)
-- `--feedback-id` (default `0x11`)
-- `--loop` (default `1`)
-- `--dt-ms` (default `20`)
-- `--ensure-mode` (`1/0`, default `1`)
-
-Model handshake (enabled by default):
-
-- `--verify-model 1/0` (default `1`)
-- `--verify-timeout-ms` (default `500`)
-- `--verify-tol` (default `0.2`)
-
-## Control Modes
-
-### Enable
+## Damiao Examples
 
 ```bash
 cargo run -p motor_cli --release -- \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode enable --loop 20 --dt-ms 100
+  --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 50 --dt-ms 20
 ```
-
-### Disable
 
 ```bash
 cargo run -p motor_cli --release -- \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode disable --loop 20 --dt-ms 100
+  --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode pos-vel --pos 3.10 --vlim 1.50 --loop 200 --dt-ms 20
 ```
 
-### MIT
+## RobStride Examples
+
+Ping:
 
 ```bash
 cargo run -p motor_cli --release -- \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 200 --dt-ms 20
+  --vendor robstride --channel can0 --model rs-00 --motor-id 127 --mode ping
 ```
 
-### POS_VEL
+Read parameter:
 
 ```bash
 cargo run -p motor_cli --release -- \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode pos-vel --pos 3.10 --vlim 1.50 --loop 300 --dt-ms 20
+  --vendor robstride --channel can0 --model rs-00 --motor-id 127 \
+  --mode read-param --param-id 0x7019
 ```
 
-### VEL
+MIT:
 
 ```bash
 cargo run -p motor_cli --release -- \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode vel --vel 0.5 --loop 100 --dt-ms 20
+  --vendor robstride --channel can0 --model rs-00 --motor-id 127 \
+  --mode mit --pos 0 --vel 0 --kp 8 --kd 0.2 --tau 0 --loop 20 --dt-ms 50
 ```
 
-### FORCE_POS
+Unified scan (both vendors):
 
 ```bash
 cargo run -p motor_cli --release -- \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode force-pos --pos 0.8 --vlim 2.0 --ratio 0.3 --loop 100 --dt-ms 20
-```
-
-## Pure Rust ID Update
-
-`motor_cli` supports writing IDs directly:
-
-- `--set-motor-id <id>` => register `rid=8` (`ESC_ID`)
-- `--set-feedback-id <id>` => register `rid=7` (`MST_ID`)
-- `--store 1/0` => store parameters (default `1`)
-- `--verify-id 1/0` => reconnect and verify `rid=8/7` (default `1`)
-
-Example (`0x07/0x17` -> `0x02/0x12`):
-
-```bash
-cargo run -p motor_cli --release -- \
-  --channel can0 --model 4310 --motor-id 0x07 --feedback-id 0x17 \
-  --set-motor-id 0x02 --set-feedback-id 0x12 --store 1 --verify-id 1
-```
-
-## Recommended Calibration Tool
-
-For repetitive scan/readdress workflows, use `tools/motor_calib`:
-
-- EN doc: `tools/motor_calib/README.md`
-- Commands: `scan`, `set-id`, `verify`
-
-## ID Scan (Rust-only workflow)
-
-There is no dedicated `scan` subcommand in `motor_cli` yet.
-Use a shell probe loop:
-
-```bash
-for i in $(seq 1 16); do
-  mid=$(printf "0x%02X" "$i")
-  fid=$(printf "0x%02X" $((0x10 + (i & 0x0F))))
-  if target/release/motor_cli --channel can0 --model 4340P \
-      --motor-id "$mid" --feedback-id "$fid" --mode enable --loop 1 --dt-ms 50 \
-      >/tmp/mb_scan.log 2>&1; then
-    echo "[hit] motor-id=$mid feedback-id=$fid"
-  fi
-done
+  --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```

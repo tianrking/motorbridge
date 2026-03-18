@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>motorbridge ws_gateway Test Client</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --card: #121a2a;
+      --text: #e5ecff;
+      --muted: #90a0c5;
+      --ok: #3ddc97;
+      --err: #ff6b6b;
+      --line: #24324d;
+    }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(160deg, #0b1220, #111a2b);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      gap: 14px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    input, select, textarea, button {
+      background: #0d1524;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    button {
+      cursor: pointer;
+    }
+    .status-ok { color: var(--ok); }
+    .status-err { color: var(--err); }
+    .muted { color: var(--muted); }
+    .grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+    .log {
+      width: 100%;
+      min-height: 280px;
+      background: #0a101a;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h3>ws_gateway 简易上位机</h3>
+      <div class="row">
+        <label>WS URL</label>
+        <input id="wsUrl" value="ws://127.0.0.1:9002" size="30" />
+        <button id="btnConnect">连接</button>
+        <button id="btnClose">断开</button>
+        <span id="connState" class="muted">未连接</span>
+      </div>
+      <div class="muted" style="margin-top:8px;">
+        先启动网关：<code>cargo run -p ws_gateway --release -- --vendor damiao ...</code> 或 <code>--vendor robstride ...</code>
+      </div>
+    </div>
+
+    <div class="card grid">
+      <div>
+        <h4>Damiao 快捷命令</h4>
+        <div class="row">
+          <button data-json='{"op":"set_target","vendor":"damiao","channel":"can0","model":"4340P","motor_id":1,"feedback_id":17}'>切到 Damiao(1/0x11)</button>
+          <button data-json='{"op":"enable"}'>使能</button>
+          <button data-json='{"op":"disable"}'>失能</button>
+        </div>
+        <div class="row">
+          <button data-json='{"op":"vel","vel":0.5,"continuous":true}'>正转</button>
+          <button data-json='{"op":"vel","vel":-0.5,"continuous":true}'>反转</button>
+          <button data-json='{"op":"vel","vel":0.0,"continuous":false}'>停转</button>
+        </div>
+      </div>
+      <div>
+        <h4>RobStride 快捷命令</h4>
+        <div class="row">
+          <button data-json='{"op":"set_target","vendor":"robstride","channel":"can0","model":"rs-06","motor_id":127,"feedback_id":255}'>切到 RobStride(127/0xFF)</button>
+          <button data-json='{"op":"enable"}'>使能</button>
+          <button data-json='{"op":"disable"}'>失能</button>
+        </div>
+        <div class="row">
+          <button data-json='{"op":"robstride_ping","timeout_ms":200}'>Ping</button>
+          <button data-json='{"op":"robstride_read_param","param_id":28697,"type":"f32","timeout_ms":200}'>读 0x7019</button>
+          <button data-json='{"op":"vel","vel":0.3,"continuous":true}'>正转</button>
+          <button data-json='{"op":"vel","vel":-0.3,"continuous":true}'>反转</button>
+          <button data-json='{"op":"vel","vel":0.0,"continuous":false}'>停转</button>
+        </div>
+      </div>
+      <div>
+        <h4>扫描</h4>
+        <div class="row">
+          <button data-json='{"op":"scan","vendor":"damiao","start_id":1,"end_id":255,"feedback_base":16,"timeout_ms":100}'>扫 Damiao</button>
+          <button data-json='{"op":"scan","vendor":"robstride","start_id":1,"end_id":255,"feedback_ids":"0xFF,0xFE,0x00","timeout_ms":120}'>扫 RobStride</button>
+        </div>
+      </div>
+      <div>
+        <h4>同步到目标角度</h4>
+        <div class="row">
+          <input id="targetPos" value="0.8" size="8" />
+          <button id="btnSyncPos">Damiao+RobStride 同步</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>自定义 JSON</h4>
+      <textarea id="jsonInput">{"op":"state_once"}</textarea>
+      <div class="row">
+        <button id="btnSend">发送</button>
+        <button id="btnClearLog">清空日志</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>日志</h4>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script>
+    let ws = null;
+    const $ = (id) => document.getElementById(id);
+    const logEl = $("log");
+    const stateEl = $("connState");
+
+    function log(line, cls) {
+      const t = new Date().toLocaleTimeString();
+      const div = document.createElement("div");
+      if (cls) div.className = cls;
+      div.textContent = `[${t}] ${line}`;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function sendObj(obj) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log("发送失败：WS 未连接", "status-err");
+        return;
+      }
+      const text = JSON.stringify(obj);
+      ws.send(text);
+      log(`>> ${text}`);
+    }
+
+    $("btnConnect").onclick = () => {
+      const url = $("wsUrl").value.trim();
+      if (!url) return;
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+      ws = new WebSocket(url);
+      ws.onopen = () => {
+        stateEl.textContent = "已连接";
+        stateEl.className = "status-ok";
+        log(`已连接 ${url}`, "status-ok");
+      };
+      ws.onclose = () => {
+        stateEl.textContent = "已断开";
+        stateEl.className = "status-err";
+        log("连接关闭", "status-err");
+      };
+      ws.onerror = () => log("连接错误", "status-err");
+      ws.onmessage = (ev) => log(`<< ${ev.data}`);
+    };
+
+    $("btnClose").onclick = () => { if (ws) ws.close(); };
+
+    document.querySelectorAll("button[data-json]").forEach((btn) => {
+      btn.onclick = () => {
+        try {
+          sendObj(JSON.parse(btn.dataset.json));
+        } catch (e) {
+          log(`按钮JSON错误: ${e}`, "status-err");
+        }
+      };
+    });
+
+    $("btnSend").onclick = () => {
+      try {
+        const obj = JSON.parse($("jsonInput").value);
+        sendObj(obj);
+      } catch (e) {
+        log(`JSON 解析失败: ${e}`, "status-err");
+      }
+    };
+
+    $("btnSyncPos").onclick = () => {
+      const pos = parseFloat($("targetPos").value || "0.8");
+      // Damiao
+      sendObj({ op: "set_target", vendor: "damiao", channel: "can0", model: "4340P", motor_id: 1, feedback_id: 17 });
+      sendObj({ op: "enable" });
+      sendObj({ op: "mit", pos, vel: 0.0, kp: 20.0, kd: 1.0, tau: 0.0, continuous: true });
+      // RobStride
+      setTimeout(() => {
+        sendObj({ op: "set_target", vendor: "robstride", channel: "can0", model: "rs-06", motor_id: 127, feedback_id: 255 });
+        sendObj({ op: "enable" });
+        sendObj({ op: "mit", pos, vel: 0.0, kp: 8.0, kd: 0.2, tau: 0.0, continuous: true });
+      }, 60);
+    };
+
+    $("btnClearLog").onclick = () => { logEl.innerHTML = ""; };
+  </script>
+</body>
+</html>

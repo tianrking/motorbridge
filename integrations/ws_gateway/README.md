@@ -113,3 +113,13 @@ State stream frame:
 - Damiao-only ops: `pos_vel`, `force_pos`, `write/get_register_*`.
 - RobStride-only ops: `robstride_ping`, `robstride_read_param`, `robstride_write_param`.
 - V2 plan can switch to binary frames while preserving operation semantics.
+
+## Simple HMI (for quick testing)
+
+- File: `integrations/ws_gateway/tools/ws_test_client.html`
+- Open directly in browser (double-click or `xdg-open`), then connect to `ws://127.0.0.1:9002`.
+- Built-in quick buttons:
+  - Damiao enable/vel/stop
+  - RobStride ping/read-param/vel/stop
+  - Damiao and RobStride scan
+  - one-click dual-motor MIT sync-to-position

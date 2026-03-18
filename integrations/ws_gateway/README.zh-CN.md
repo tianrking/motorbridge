@@ -113,3 +113,13 @@ cargo run -p ws_gateway --release -- \
 - Damiao 专属操作：`pos_vel`、`force_pos`、`write/get_register_*`。
 - RobStride 专属操作：`robstride_ping`、`robstride_read_param`、`robstride_write_param`。
 - 后续 V2 可升级为二进制帧，同时保留同一语义。
+
+## 简易上位机（快速联调）
+
+- 文件：`integrations/ws_gateway/tools/ws_test_client.html`
+- 直接浏览器打开（双击或 `xdg-open`），连接 `ws://127.0.0.1:9002`。
+- 内置快捷按钮：
+  - Damiao 使能/速度/停止
+  - RobStride ping/读参/速度/停止
+  - Damiao 与 RobStride 扫描
+  - 一键双电机 MIT 同步到目标角度

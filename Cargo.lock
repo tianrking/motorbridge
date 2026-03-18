@@ -498,6 +498,7 @@ version = "0.1.0"
 dependencies = [
  "futures-util",
  "motor_vendor_damiao",
+ "motor_vendor_robstride",
  "serde",
  "serde_json",
  "tokio",

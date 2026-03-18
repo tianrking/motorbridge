@@ -15,17 +15,17 @@ flowchart TD
   H --> I["补充型号/协议差异文档"]
 ```
 
-## 新增品牌（例如 Robostride）
+## 新增品牌（例如 RobStride）
 
 目标：不改 `motor_core`，只新增 vendor crate。
 
-1. 新建 crate（例如 `motor_vendor_robostride`）。
+1. 新建 crate（例如 `motor_vendor_robstride`）。
 2. 在 crate 内实现：
    - `protocol.rs`
    - `registers.rs`
    - `motor.rs`（实现 `motor_core::MotorDevice`）
    - `controller.rs`（封装 `CoreController`）
-3. 如需跨语言调用，在 ABI 中增加接入函数（例如 `motor_controller_add_robostride_motor`）。
+3. 如需跨语言调用，在 ABI 中增加接入函数（例如 `motor_controller_add_robstride_motor`）。
 4. 在 workspace 里注册新 crate。
 
 ## 新增同品牌型号（Damiao）

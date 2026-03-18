@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>motorbridge ws_gateway Test Client</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --card: #121a2a;
+      --text: #e5ecff;
+      --muted: #90a0c5;
+      --ok: #3ddc97;
+      --err: #ff6b6b;
+      --line: #24324d;
+    }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(160deg, #0b1220, #111a2b);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 1150px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      gap: 14px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    input, select, textarea, button {
+      background: #0d1524;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    button {
+      cursor: pointer;
+    }
+    .status-ok { color: var(--ok); }
+    .status-err { color: var(--err); }
+    .muted { color: var(--muted); }
+    .grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+    .log {
+      width: 100%;
+      min-height: 280px;
+      background: #0a101a;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+    }
+    .pill {
+      display: inline-block;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 6px 8px;
+      text-align: left;
+    }
+    tr:hover td {
+      background: #0e1626;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h3>ws_gateway 简易上位机（动态设备版）</h3>
+      <div class="row">
+        <label>WS URL</label>
+        <input id="wsUrl" value="ws://127.0.0.1:9002" size="30" />
+        <button id="btnConnect">连接</button>
+        <button id="btnClose">断开</button>
+        <span id="connState" class="muted">未连接</span>
+        <span id="selectedInfo" class="pill">当前目标：未选择</span>
+      </div>
+      <div class="muted" style="margin-top:8px;">
+        网关先启动后再连：<code>cargo run -p ws_gateway --release -- --listen 127.0.0.1:9002 --vendor damiao --channel can0 --model 4340P --motor-id 1 --feedback-id 0x11</code>
+      </div>
+    </div>
+
+    <div class="card grid">
+      <div>
+        <h4>扫描配置</h4>
+        <div class="row">
+          <label>Channel</label>
+          <input id="scanChannel" value="can0" size="8" />
+          <label>ID</label>
+          <input id="scanStart" value="1" size="5" />
+          <span>~</span>
+          <input id="scanEnd" value="255" size="5" />
+        </div>
+        <div class="row">
+          <label>Damiao Model</label>
+          <input id="damiaoModel" value="4340P" size="8" />
+          <button id="btnScanDamiao">扫 Damiao</button>
+        </div>
+        <div class="row">
+          <label>RobStride Model</label>
+          <input id="robModel" value="rs-06" size="8" />
+          <label>Rob feedback</label>
+          <input id="robFids" value="0xFF,0xFE,0x00" size="14" />
+          <button id="btnScanRob">扫 RobStride</button>
+        </div>
+      </div>
+
+      <div>
+        <h4>选中设备控制</h4>
+        <div class="row">
+          <button id="btnApplyTarget">设为当前目标</button>
+          <button id="btnEnable">使能</button>
+          <button id="btnDisable">失能</button>
+        </div>
+        <div class="row">
+          <input id="velValue" value="0.3" size="6" />
+          <button id="btnVelPlus">正转</button>
+          <button id="btnVelMinus">反转</button>
+          <button id="btnStop">停转</button>
+        </div>
+        <div class="row">
+          <input id="targetPos" value="0.8" size="6" />
+          <button id="btnMitSyncOne">MIT 到角度</button>
+        </div>
+        <div class="row">
+          <button id="btnPingRs">RobStride Ping</button>
+          <button id="btnReadRsPos">读 0x7019</button>
+        </div>
+      </div>
+
+      <div>
+        <h4>批量控制（勾选设备）</h4>
+        <div class="row">
+          <button id="btnSelectAll">全选</button>
+          <button id="btnClearSelect">清空勾选</button>
+          <button id="btnClearDevices">清空设备列表</button>
+        </div>
+        <div class="row">
+          <button id="btnBatchEnable">批量使能</button>
+          <button id="btnBatchStop">批量停转</button>
+          <button id="btnBatchDisable">批量失能</button>
+        </div>
+        <div class="row">
+          <input id="batchPos" value="0.8" size="6" />
+          <button id="btnBatchMit">批量同步到角度</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>扫描结果设备列表（Damiao + RobStride）</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>选</th>
+            <th>当前</th>
+            <th>Vendor</th>
+            <th>Motor ID</th>
+            <th>Feedback ID</th>
+            <th>Model</th>
+            <th>来源</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="devTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h4>自定义 JSON</h4>
+      <textarea id="jsonInput">{"op":"state_once"}</textarea>
+      <div class="row">
+        <button id="btnSend">发送</button>
+        <button id="btnClearLog">清空日志</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>日志</h4>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script>
+    let ws = null;
+    const $ = (id) => document.getElementById(id);
+    const logEl = $("log");
+    const stateEl = $("connState");
+    const selectedInfoEl = $("selectedInfo");
+    const devTableBody = $("devTableBody");
+    const devices = new Map();
+    let selectedKey = null;
+
+    function log(line, cls) {
+      const t = new Date().toLocaleTimeString();
+      const div = document.createElement("div");
+      if (cls) div.className = cls;
+      div.textContent = `[${t}] ${line}`;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function toNum(v, dft = 0) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : dft;
+    }
+
+    function toU16(v, dft = 0) {
+      if (typeof v === "number") return v & 0xffff;
+      if (typeof v === "string") {
+        const s = v.trim().toLowerCase();
+        if (s.startsWith("0x")) return parseInt(s, 16) & 0xffff;
+        const n = parseInt(s, 10);
+        return Number.isFinite(n) ? (n & 0xffff) : dft;
+      }
+      return dft;
+    }
+
+    function fmtId(v) {
+      const n = toU16(v, 0);
+      return `${n} (0x${n.toString(16).toUpperCase()})`;
+    }
+
+    function keyOf(d) {
+      return `${d.vendor}:${d.motor_id}`;
+    }
+
+    function getSelectedDevice() {
+      return selectedKey ? devices.get(selectedKey) : null;
+    }
+
+    function updateSelectedInfo() {
+      const d = getSelectedDevice();
+      if (!d) {
+        selectedInfoEl.textContent = "当前目标：未选择";
+        return;
+      }
+      selectedInfoEl.textContent = `当前目标：${d.vendor} id=${d.motor_id} fid=${d.feedback_id} model=${d.model}`;
+    }
+
+    function renderDevices() {
+      devTableBody.innerHTML = "";
+      const arr = Array.from(devices.values()).sort((a, b) => {
+        if (a.vendor !== b.vendor) return a.vendor.localeCompare(b.vendor);
+        return a.motor_id - b.motor_id;
+      });
+      for (const d of arr) {
+        const tr = document.createElement("tr");
+        const k = keyOf(d);
+        const isCur = selectedKey === k;
+        tr.innerHTML = `
+          <td><input type="checkbox" data-k="${k}" ${d.checked ? "checked" : ""}></td>
+          <td>${isCur ? "●" : ""}</td>
+          <td>${d.vendor}</td>
+          <td>${fmtId(d.motor_id)}</td>
+          <td>${fmtId(d.feedback_id)}</td>
+          <td>${d.model || "-"}</td>
+          <td>${d.source || "-"}</td>
+          <td><button data-pick="${k}">选择</button></td>
+        `;
+        devTableBody.appendChild(tr);
+      }
+
+      devTableBody.querySelectorAll("input[type=checkbox]").forEach((el) => {
+        el.onchange = () => {
+          const d = devices.get(el.dataset.k);
+          if (d) d.checked = !!el.checked;
+        };
+      });
+      devTableBody.querySelectorAll("button[data-pick]").forEach((el) => {
+        el.onclick = () => {
+          selectedKey = el.dataset.pick;
+          updateSelectedInfo();
+          renderDevices();
+        };
+      });
+      updateSelectedInfo();
+    }
+
+    function upsertDevice(d) {
+      const k = keyOf(d);
+      const prev = devices.get(k);
+      devices.set(k, {
+        checked: prev?.checked || false,
+        ...prev,
+        ...d,
+      });
+    }
+
+    function parseScanResult(payload) {
+      if (!payload || !payload.ok || payload.op !== "scan") return;
+      const data = payload.data || {};
+      const vendor = (data.vendor || "").toLowerCase();
+      const hits = Array.isArray(data.hits) ? data.hits : [];
+      if (!vendor || !hits.length) {
+        log(`[scan] ${vendor || "unknown"} 没有发现设备`);
+        return;
+      }
+      let added = 0;
+      for (const h of hits) {
+        if (vendor === "damiao") {
+          const motor_id = toU16(h.esc_id ?? h.probe, 0);
+          const feedback_id = toU16(h.mst_id ?? h.probe_feedback_id, 0x11);
+          if (!motor_id) continue;
+          upsertDevice({
+            vendor: "damiao",
+            motor_id,
+            feedback_id,
+            model: $("damiaoModel").value.trim() || "4340P",
+            source: "scan",
+          });
+          added += 1;
+        } else if (vendor === "robstride") {
+          const motor_id = toU16(h.device_id ?? h.probe, 0);
+          const feedback_id = toU16(h.feedback_id, 0xFF);
+          if (!motor_id) continue;
+          upsertDevice({
+            vendor: "robstride",
+            motor_id,
+            feedback_id,
+            model: $("robModel").value.trim() || "rs-06",
+            source: h.via || "scan",
+          });
+          added += 1;
+        }
+      }
+      renderDevices();
+      log(`[scan] ${vendor} 新增/更新 ${added} 台设备`, "status-ok");
+    }
+
+    function sendObj(obj) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log("发送失败：WS 未连接", "status-err");
+        return;
+      }
+      const text = JSON.stringify(obj);
+      ws.send(text);
+      log(`>> ${text}`);
+    }
+
+    function sendToDevice(device, op, delay = 0) {
+      setTimeout(() => {
+        sendObj({
+          op: "set_target",
+          vendor: device.vendor,
+          channel: $("scanChannel").value.trim() || "can0",
+          model: device.model,
+          motor_id: device.motor_id,
+          feedback_id: device.feedback_id,
+        });
+        setTimeout(() => sendObj(op), 40);
+      }, delay);
+    }
+
+    function runOnSelected(opBuilder) {
+      const d = getSelectedDevice();
+      if (!d) {
+        log("请先在设备列表里选择一台设备", "status-err");
+        return;
+      }
+      sendToDevice(d, opBuilder(d), 0);
+    }
+
+    function getCheckedDevices() {
+      const arr = Array.from(devices.values()).filter((d) => d.checked);
+      if (arr.length > 0) return arr;
+      return getSelectedDevice() ? [getSelectedDevice()] : [];
+    }
+
+    function runBatch(opBuilder) {
+      const arr = getCheckedDevices();
+      if (arr.length === 0) {
+        log("请至少勾选一台设备，或先选择一台设备", "status-err");
+        return;
+      }
+      arr.forEach((d, i) => sendToDevice(d, opBuilder(d), i * 120));
+    }
+
+    $("btnConnect").onclick = () => {
+      const url = $("wsUrl").value.trim();
+      if (!url) return;
+      if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+      ws = new WebSocket(url);
+      ws.onopen = () => {
+        stateEl.textContent = "已连接";
+        stateEl.className = "status-ok";
+        log(`已连接 ${url}`, "status-ok");
+      };
+      ws.onclose = () => {
+        stateEl.textContent = "已断开";
+        stateEl.className = "status-err";
+        log("连接关闭", "status-err");
+      };
+      ws.onerror = () => log("连接错误", "status-err");
+      ws.onmessage = (ev) => {
+        log(`<< ${ev.data}`);
+        try {
+          parseScanResult(JSON.parse(ev.data));
+        } catch (_) {
+        }
+      };
+    };
+
+    $("btnClose").onclick = () => { if (ws) ws.close(); };
+
+    $("btnScanDamiao").onclick = () => {
+      sendObj({
+        op: "scan",
+        vendor: "damiao",
+        channel: $("scanChannel").value.trim() || "can0",
+        model: $("damiaoModel").value.trim() || "4340P",
+        start_id: toNum($("scanStart").value, 1),
+        end_id: toNum($("scanEnd").value, 255),
+        feedback_base: 16,
+        timeout_ms: 100,
+      });
+    };
+
+    $("btnScanRob").onclick = () => {
+      sendObj({
+        op: "scan",
+        vendor: "robstride",
+        channel: $("scanChannel").value.trim() || "can0",
+        model: $("robModel").value.trim() || "rs-06",
+        start_id: toNum($("scanStart").value, 1),
+        end_id: toNum($("scanEnd").value, 255),
+        feedback_ids: $("robFids").value.trim() || "0xFF,0xFE,0x00",
+        timeout_ms: 120,
+      });
+    };
+
+    $("btnApplyTarget").onclick = () => {
+      const d = getSelectedDevice();
+      if (!d) {
+        log("请先选择一台设备", "status-err");
+        return;
+      }
+      sendObj({
+        op: "set_target",
+        vendor: d.vendor,
+        channel: $("scanChannel").value.trim() || "can0",
+        model: d.model,
+        motor_id: d.motor_id,
+        feedback_id: d.feedback_id,
+      });
+    };
+
+    $("btnEnable").onclick = () => runOnSelected(() => ({ op: "enable" }));
+    $("btnDisable").onclick = () => runOnSelected(() => ({ op: "disable" }));
+    $("btnVelPlus").onclick = () => runOnSelected(() => ({
+      op: "vel",
+      vel: Math.abs(toNum($("velValue").value, 0.3)),
+      continuous: true,
+    }));
+    $("btnVelMinus").onclick = () => runOnSelected(() => ({
+      op: "vel",
+      vel: -Math.abs(toNum($("velValue").value, 0.3)),
+      continuous: true,
+    }));
+    $("btnStop").onclick = () => runOnSelected(() => ({ op: "vel", vel: 0, continuous: false }));
+    $("btnMitSyncOne").onclick = () => runOnSelected((d) => ({
+      op: "mit",
+      pos: toNum($("targetPos").value, 0.8),
+      vel: 0.0,
+      kp: d.vendor === "damiao" ? 20.0 : 8.0,
+      kd: d.vendor === "damiao" ? 1.0 : 0.2,
+      tau: 0.0,
+      continuous: true,
+    }));
+    $("btnPingRs").onclick = () => runOnSelected((d) => {
+      if (d.vendor !== "robstride") {
+        log("当前选择不是 RobStride 设备", "status-err");
+        return { op: "state_once" };
+      }
+      return { op: "robstride_ping", timeout_ms: 250 };
+    });
+    $("btnReadRsPos").onclick = () => runOnSelected((d) => {
+      if (d.vendor !== "robstride") {
+        log("当前选择不是 RobStride 设备", "status-err");
+        return { op: "state_once" };
+      }
+      return { op: "robstride_read_param", param_id: 0x7019, type: "f32", timeout_ms: 250 };
+    });
+
+    $("btnSelectAll").onclick = () => {
+      devices.forEach((d) => { d.checked = true; });
+      renderDevices();
+    };
+    $("btnClearSelect").onclick = () => {
+      devices.forEach((d) => { d.checked = false; });
+      renderDevices();
+    };
+    $("btnClearDevices").onclick = () => {
+      devices.clear();
+      selectedKey = null;
+      renderDevices();
+    };
+    $("btnBatchEnable").onclick = () => runBatch(() => ({ op: "enable" }));
+    $("btnBatchStop").onclick = () => runBatch(() => ({ op: "vel", vel: 0, continuous: false }));
+    $("btnBatchDisable").onclick = () => runBatch(() => ({ op: "disable" }));
+    $("btnBatchMit").onclick = () => runBatch((d) => ({
+      op: "mit",
+      pos: toNum($("batchPos").value, 0.8),
+      vel: 0.0,
+      kp: d.vendor === "damiao" ? 20.0 : 8.0,
+      kd: d.vendor === "damiao" ? 1.0 : 0.2,
+      tau: 0.0,
+      continuous: true,
+    }));
+
+    $("btnSend").onclick = () => {
+      try {
+        const obj = JSON.parse($("jsonInput").value);
+        sendObj(obj);
+      } catch (e) {
+        log(`JSON 解析失败: ${e}`, "status-err");
+      }
+    };
+    $("btnClearLog").onclick = () => { logEl.innerHTML = ""; };
+
+    [
+      { vendor: "damiao", motor_id: 1, feedback_id: 0x11, model: "4340P", source: "preset" },
+      { vendor: "robstride", motor_id: 127, feedback_id: 0xFF, model: "rs-06", source: "preset" },
+    ].forEach(upsertDevice);
+    selectedKey = "damiao:1";
+    renderDevices();
+  </script>
+</body>
+</html>

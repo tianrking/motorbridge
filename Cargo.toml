@@ -2,6 +2,7 @@
 members = [
   "motor_core",
   "motor_vendors/damiao",
+  "motor_vendors/robstride",
   "motor_vendors/template",
   "motor_cli",
   "motor_abi",

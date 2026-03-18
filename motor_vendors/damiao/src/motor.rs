@@ -184,7 +184,7 @@ pub enum RegisterValue {
 #[derive(Debug, Clone, Copy)]
 pub struct MotorFeedbackState {
     pub can_id: u8,
-    pub arbitration_id: u16,
+    pub arbitration_id: u32,
     pub status_code: u8,
     pub status_name: &'static str,
     pub pos: f32,
@@ -223,28 +223,30 @@ impl DamiaoMotor {
         })
     }
 
-    fn send_raw(&self, arbitration_id: u16, data: [u8; 8]) -> Result<()> {
+    fn send_raw(&self, arbitration_id: u32, data: [u8; 8]) -> Result<()> {
         self.bus.send(CanFrame {
             arbitration_id,
             data,
+            dlc: 8,
+            is_extended: false,
             is_rx: false,
         })
     }
 
     pub fn enable(&self) -> Result<()> {
-        self.send_raw(self.motor_id, encode_enable_cmd())
+        self.send_raw(self.motor_id.into(), encode_enable_cmd())
     }
 
     pub fn disable(&self) -> Result<()> {
-        self.send_raw(self.motor_id, encode_disable_cmd())
+        self.send_raw(self.motor_id.into(), encode_disable_cmd())
     }
 
     pub fn clear_error(&self) -> Result<()> {
-        self.send_raw(self.motor_id, encode_clear_error_cmd())
+        self.send_raw(self.motor_id.into(), encode_clear_error_cmd())
     }
 
     pub fn set_zero_position(&self) -> Result<()> {
-        self.send_raw(self.motor_id, encode_set_zero_cmd())
+        self.send_raw(self.motor_id.into(), encode_set_zero_cmd())
     }
 
     pub fn send_cmd_mit(
@@ -270,18 +272,21 @@ impl DamiaoMotor {
                 t_max: self.limits.t_max,
             },
         );
-        self.send_raw(self.motor_id, data)
+        self.send_raw(self.motor_id.into(), data)
     }
 
     pub fn send_cmd_pos_vel(&self, target_position: f32, velocity_limit: f32) -> Result<()> {
         self.send_raw(
-            0x100u16 + self.motor_id,
+            u32::from(0x100u16 + self.motor_id),
             encode_pos_vel_cmd(target_position, velocity_limit),
         )
     }
 
     pub fn send_cmd_vel(&self, target_velocity: f32) -> Result<()> {
-        self.send_raw(0x200u16 + self.motor_id, encode_vel_cmd(target_velocity))
+        self.send_raw(
+            u32::from(0x200u16 + self.motor_id),
+            encode_vel_cmd(target_velocity),
+        )
     }
 
     pub fn send_cmd_force_pos(
@@ -291,7 +296,7 @@ impl DamiaoMotor {
         torque_limit_ratio: f32,
     ) -> Result<()> {
         self.send_raw(
-            0x300u16 + self.motor_id,
+            u32::from(0x300u16 + self.motor_id),
             encode_force_pos_cmd(target_position, velocity_limit, torque_limit_ratio),
         )
     }
@@ -493,16 +498,20 @@ impl MotorDevice for DamiaoMotor {
         self.feedback_id
     }
 
-    fn feedback_logical_id(&self) -> u8 {
-        (self.motor_id & 0x0F) as u8
-    }
-
     fn enable(&self) -> Result<()> {
         DamiaoMotor::enable(self)
     }
 
     fn disable(&self) -> Result<()> {
         DamiaoMotor::disable(self)
+    }
+
+    fn accepts_frame(&self, frame: &CanFrame) -> bool {
+        if frame.is_extended {
+            return false;
+        }
+        frame.arbitration_id == u32::from(self.feedback_id)
+            || (frame.dlc > 0 && (frame.data[0] & 0x0F) == (self.motor_id as u8 & 0x0F))
     }
 
     fn process_feedback_frame(&self, frame: CanFrame) -> Result<()> {

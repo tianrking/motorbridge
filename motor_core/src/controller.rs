@@ -10,7 +10,6 @@ use std::time::Duration;
 pub struct CoreController {
     bus: Arc<dyn CanBus>,
     devices: Arc<Mutex<HashMap<u16, Arc<dyn MotorDevice>>>>,
-    devices_by_feedback_logical_id: Arc<Mutex<HashMap<u8, Arc<dyn MotorDevice>>>>,
     polling_active: Arc<AtomicBool>,
     polling_thread: Mutex<Option<JoinHandle<()>>>,
 }
@@ -20,7 +19,6 @@ impl CoreController {
         Self {
             bus,
             devices: Arc::new(Mutex::new(HashMap::new())),
-            devices_by_feedback_logical_id: Arc::new(Mutex::new(HashMap::new())),
             polling_active: Arc::new(AtomicBool::new(false)),
             polling_thread: Mutex::new(None),
         }
@@ -45,12 +43,6 @@ impl CoreController {
             devices.insert(motor_id, Arc::clone(&device));
         }
 
-        self
-            .devices_by_feedback_logical_id
-            .lock()
-            .map_err(|_| MotorError::Io("feedback map lock poisoned".to_string()))?
-            .insert(device.feedback_logical_id(), device);
-
         self.start_polling_if_needed()?;
         Ok(())
     }
@@ -60,15 +52,19 @@ impl CoreController {
             if !frame.is_rx {
                 continue;
             }
-            let logical_id = frame.data[0] & 0x0F;
-            if let Some(device) = self
-                .devices_by_feedback_logical_id
+            let devices = self
+                .devices
                 .lock()
-                .map_err(|_| MotorError::Io("feedback map lock poisoned".to_string()))?
-                .get(&logical_id)
+                .map_err(|_| MotorError::Io("devices lock poisoned".to_string()))?
+                .values()
                 .cloned()
-            {
+                .collect::<Vec<_>>();
+            for device in devices {
+                if !device.accepts_frame(&frame) {
+                    continue;
+                }
                 device.process_feedback_frame(frame)?;
+                break;
             }
         }
         Ok(())
@@ -110,20 +106,24 @@ impl CoreController {
         self.polling_active.store(true, Ordering::Release);
         let active = Arc::clone(&self.polling_active);
         let bus = Arc::clone(&self.bus);
-        let feedback_map = Arc::clone(&self.devices_by_feedback_logical_id);
+        let devices = Arc::clone(&self.devices);
 
         let handle = thread::spawn(move || {
             while active.load(Ordering::Acquire) {
                 match bus.recv(Duration::from_millis(1)) {
                     Ok(Some(frame)) => {
                         if frame.is_rx {
-                            let logical_id = frame.data[0] & 0x0F;
-                            if let Some(device) = feedback_map
+                            let snapshot = devices
                                 .lock()
                                 .ok()
-                                .and_then(|m| m.get(&logical_id).cloned())
-                            {
+                                .map(|m| m.values().cloned().collect::<Vec<_>>())
+                                .unwrap_or_default();
+                            for device in snapshot {
+                                if !device.accepts_frame(&frame) {
+                                    continue;
+                                }
                                 let _ = device.process_feedback_frame(frame);
+                                break;
                             }
                         }
                     }
@@ -134,8 +134,7 @@ impl CoreController {
             }
         });
 
-        self
-            .polling_thread
+        self.polling_thread
             .lock()
             .map_err(|_| MotorError::Io("polling thread lock poisoned".to_string()))?
             .replace(handle);

@@ -1,27 +1,4 @@
-# CLI 使用指南（`motor_cli`）
-
-## CLI 执行决策流程
-
-```mermaid
-flowchart TD
-  START["执行 motor_cli"] --> CAN{"CAN 是否已启动?"}
-  CAN -- 否 --> FIXCAN["配置 can0 比特率并置 up"]
-  FIXCAN --> START
-  CAN -- 是 --> HS{"开启型号握手校验?"}
-  HS -- 是 --> VER["读取 PMAX/VMAX/TMAX 校验"]
-  HS -- 否 --> MODE
-  VER --> MODE{"mode"}
-  MODE -->|enable/disable| ED["发送使能/失能循环"]
-  MODE -->|mit| MIT["send_mit(pos, vel, kp, kd, tau)"]
-  MODE -->|pos-vel| PV["send_pos_vel(pos, vlim)"]
-  MODE -->|vel| VV["send_vel(vel)"]
-  MODE -->|force-pos| FP["send_force_pos(pos, vlim, ratio)"]
-  ED --> FB["读取并打印反馈"]
-  MIT --> FB
-  PV --> FB
-  VV --> FB
-  FP --> FB
-```
+# CLI 指南 (`motor_cli`)
 
 ## 构建
 
@@ -29,119 +6,52 @@ flowchart TD
 cargo build -p motor_cli --release
 ```
 
-## CAN 配置（必需）
-
-运行任意命令前请先启用 CAN：
-
-```bash
-sudo ip link set can0 down 2>/dev/null || true
-sudo ip link set can0 type can bitrate 1000000 restart-ms 100
-sudo ip link set can0 up
-ip -details link show can0
-```
-
 ## 通用参数
 
-- `--channel`（默认 `can0`）
-- `--model`（默认 `4340`）
-- `--motor-id`（默认 `0x01`）
-- `--feedback-id`（默认 `0x11`）
-- `--loop`（默认 `1`）
-- `--dt-ms`（默认 `20`）
-- `--ensure-mode`（`1/0`，默认 `1`）
+- `--vendor damiao|robstride|all`
 
-型号握手校验（默认开启）：
-
-- `--verify-model 1/0`（默认 `1`）
-- `--verify-timeout-ms`（默认 `500`）
-- `--verify-tol`（默认 `0.2`）
-
-## 控制模式
-
-### Enable
+## Damiao 示例
 
 ```bash
 cargo run -p motor_cli --release -- \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode enable --loop 20 --dt-ms 100
+  --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 50 --dt-ms 20
 ```
-
-### Disable
 
 ```bash
 cargo run -p motor_cli --release -- \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode disable --loop 20 --dt-ms 100
+  --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode pos-vel --pos 3.10 --vlim 1.50 --loop 200 --dt-ms 20
 ```
 
-### MIT
+## RobStride 示例
+
+Ping:
 
 ```bash
 cargo run -p motor_cli --release -- \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 200 --dt-ms 20
+  --vendor robstride --channel can0 --model rs-00 --motor-id 127 --mode ping
 ```
 
-### POS_VEL
+读参数:
 
 ```bash
 cargo run -p motor_cli --release -- \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode pos-vel --pos 3.10 --vlim 1.50 --loop 300 --dt-ms 20
+  --vendor robstride --channel can0 --model rs-00 --motor-id 127 \
+  --mode read-param --param-id 0x7019
 ```
 
-### VEL
+MIT:
 
 ```bash
 cargo run -p motor_cli --release -- \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode vel --vel 0.5 --loop 100 --dt-ms 20
+  --vendor robstride --channel can0 --model rs-00 --motor-id 127 \
+  --mode mit --pos 0 --vel 0 --kp 8 --kd 0.2 --tau 0 --loop 20 --dt-ms 50
 ```
 
-### FORCE_POS
+统一扫描（双 vendor）:
 
 ```bash
 cargo run -p motor_cli --release -- \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode force-pos --pos 0.8 --vlim 2.0 --ratio 0.3 --loop 100 --dt-ms 20
-```
-
-## 纯 Rust 改 ID
-
-`motor_cli` 已支持直接改 ID：
-
-- `--set-motor-id <id>` => 写 `rid=8`（`ESC_ID`）
-- `--set-feedback-id <id>` => 写 `rid=7`（`MST_ID`）
-- `--store 1/0` => 写完是否存储（默认 `1`）
-- `--verify-id 1/0` => 重连回读 `rid=8/7`（默认 `1`）
-
-示例（`0x07/0x17` 改为 `0x02/0x12`）：
-
-```bash
-cargo run -p motor_cli --release -- \
-  --channel can0 --model 4310 --motor-id 0x07 --feedback-id 0x17 \
-  --set-motor-id 0x02 --set-feedback-id 0x12 --store 1 --verify-id 1
-```
-
-## 推荐标定工具
-
-对于批量扫描与重新编址流程，建议使用 `tools/motor_calib`：
-
-- 中文文档：`tools/motor_calib/README.zh-CN.md`
-- 支持命令：`scan`、`set-id`、`verify`
-
-## 扫描 ID（纯 Rust 工作流）
-
-当前 `motor_cli` 还没有独立 `scan` 子命令，可使用 shell 探测循环：
-
-```bash
-for i in $(seq 1 16); do
-  mid=$(printf "0x%02X" "$i")
-  fid=$(printf "0x%02X" $((0x10 + (i & 0x0F))))
-  if target/release/motor_cli --channel can0 --model 4340P \
-      --motor-id "$mid" --feedback-id "$fid" --mode enable --loop 1 --dt-ms 50 \
-      >/tmp/mb_scan.log 2>&1; then
-    echo "[hit] motor-id=$mid feedback-id=$fid"
-  fi
-done
+  --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```

@@ -1,212 +1,113 @@
 # motorbridge Python SDK
 
-用于调用 `motorbridge` Rust ABI 的 Python 包。
+这是基于 `motor_abi` 的 Python 绑定层。
 
 > English version: [README.md](README.md)
 
-## Python SDK 定位图
+## 范围
 
-```mermaid
-flowchart TB
-  SDK["motorbridge Python SDK"] --> API["Python API（Controller/Motor）"]
-  SDK --> CLI["motorbridge-cli"]
-  API --> ABI["ctypes -> motor_abi"]
-  CLI --> ABI
-  ABI --> DEV["通过 CAN 控制 Damiao 电机"]
-```
+- 高层 API: `Controller`、`Motor`、`Mode`
+- CLI: `motorbridge-cli`
+- 厂商入口:
+  - Damiao: `add_damiao_motor(...)`
+  - RobStride: `add_robstride_motor(...)`
 
-## 安装
-
-### A) 安装发行版 wheel（推荐）
-
-```bash
-pip install motorbridge-0.1.0-<python_tag>-<platform>.whl
-```
-
-示例：
-
-```bash
-pip install motorbridge-0.1.0-cp310-cp310-linux_x86_64.whl
-```
-
-### B) 本地可编辑安装（开发）
-
-```bash
-cd bindings/python
-pip install -e .
-cd ../../
-cargo build -p motor_abi --release
-```
-
-## Python API 快速使用
+## 快速开始
 
 ```python
 from motorbridge import Controller, Mode
 
 with Controller("can0") as ctrl:
-    m = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
     ctrl.enable_all()
-    m.ensure_mode(Mode.MIT, 1000)
-    m.send_mit(0.0, 0.0, 20.0, 1.0, 0.0)
-    print(m.get_state())
-    m.close()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.0, 0.0, 20.0, 1.0, 0.0)
+    print(motor.get_state())
+    motor.close()
 ```
 
-## Python 实用示例（与 C++ 对齐）
+RobStride 快速示例:
 
-- `bindings/python/examples/python_wrapper_demo.py`
-- `bindings/python/examples/full_modes_demo.py`
-- `bindings/python/examples/pid_register_tune_demo.py`
-- `bindings/python/examples/scan_ids_demo.py`
-- `bindings/python/examples/pos_ctrl_demo.py`
-- `bindings/python/examples/pos_repl_demo.py`
-- 说明文档：[examples/README.zh-CN.md](examples/README.zh-CN.md)
+```python
+from motorbridge import Controller
 
-## C SDK / ABI 全模式参考
-
-如果你还需要 C 语言层面的全模式全参数用法：
-
-- C 示例源码：[../../examples/c/c_abi_demo.c](../../examples/c/c_abi_demo.c)
-- C 示例说明：[../../examples/c/README.zh-CN.md](../../examples/c/README.zh-CN.md)
-
-## Damiao 完整调参参考
-
-如果你要查看 Damiao 的完整控制/调参接口（控制模式、寄存器语义、可调范围、调参流程），请看：
-
-- [DAMIAO_API.zh-CN.md](DAMIAO_API.zh-CN.md)（中文）
-- [DAMIAO_API.md](DAMIAO_API.md)（英文）
-- [../examples/dm_api_cn.md](../examples/dm_api_cn.md)（完整参数表 + CLI 示例）
-- [../examples/dm_api.md](../examples/dm_api.md)（full table + CLI examples）
-
-## 先配置 CAN（必需）
-
-在运行 `motorbridge-cli` 或 Python API 控制实机前，请先配置并启用 CAN：
-
-```bash
-sudo ip link set can0 down 2>/dev/null || true
-sudo ip link set can0 type can bitrate 1000000 restart-ms 100
-sudo ip link set can0 up
-ip -details link show can0
+with Controller("can0") as ctrl:
+    motor = ctrl.add_robstride_motor(127, 0xFF, "rs-00")
+    print(motor.robstride_ping())
+    print(motor.robstride_get_param_f32(0x7019))
+    motor.close()
 ```
 
-## CLI 总览
+## CLI 示例
 
-`motorbridge-cli` 现在支持子命令：
-
-- `run`：控制循环（默认命令；兼容旧版平铺参数）
-- `id-dump`：读取关键寄存器（默认 `7,8,9,10,21,22,23`）
-- `id-set`：设置 `ESC_ID`/`MST_ID`（寄存器 `8`/`7`）并可选回读校验
-- `scan`：按 ID 范围探测在线电机
-
-查看帮助：
+Damiao:
 
 ```bash
-motorbridge-cli --help
-motorbridge-cli run --help
-motorbridge-cli id-dump --help
-motorbridge-cli id-set --help
-motorbridge-cli scan --help
-```
-
-## `run` 命令参数
-
-通用参数：
-
-- `--channel`（默认 `can0`）
-- `--model`（默认 `4340`）
-- `--motor-id`（默认 `0x01`）
-- `--feedback-id`（默认 `0x11`）
-- `--mode`（`enable|disable|mit|pos-vel|vel|force-pos`）
-- `--loop`（默认 `100`）
-- `--dt-ms`（默认 `20`）
-- `--print-state`（`1/0`，默认 `1`）
-- `--ensure-mode`（`1/0`，默认 `1`，仅对非 enable/disable 生效）
-- `--ensure-timeout-ms`（默认 `1000`）
-- `--ensure-strict`（`1/0`，默认 `0`）
-
-模式参数：
-
-- MIT：`--pos --vel --kp --kd --tau`
-- POS_VEL：`--pos --vlim`
-- VEL：`--vel`
-- FORCE_POS：`--pos --vlim --ratio`
-
-示例：
-
-```bash
-# 单独使能
 motorbridge-cli run \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode enable --loop 20 --dt-ms 100 --print-state 1
+  --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 50 --dt-ms 20
+```
 
-# 单独失能
+RobStride:
+
+```bash
 motorbridge-cli run \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode disable --loop 20 --dt-ms 100 --print-state 1
-
-# MIT
-motorbridge-cli run \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 \
-  --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
-  --loop 200 --dt-ms 20 --print-state 1
-
-# POS_VEL（目标位置）
-motorbridge-cli run \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode pos-vel --pos 3.10 --vlim 1.50 \
-  --ensure-mode 1 --ensure-timeout-ms 1000 --ensure-strict 0 \
-  --loop 300 --dt-ms 20 --print-state 1
+  --vendor robstride --channel can0 --model rs-00 --motor-id 127 \
+  --mode ping
 ```
 
-旧命令兼容（仍可用）：
+RobStride 读参数:
 
 ```bash
-motorbridge-cli --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode mit
+motorbridge-cli robstride-read-param \
+  --channel can0 --model rs-00 --motor-id 127 --param-id 0x7019 --type f32
 ```
 
-## ID/扫描命令
-
-读取关键寄存器：
+统一扫描（双 vendor）:
 
 ```bash
-motorbridge-cli id-dump \
+motorbridge-cli scan --vendor all --channel can0 --start-id 0x01 --end-id 0xFF
+```
+
+## 示例程序
+
+- Damiao wrapper 示例: `examples/python_wrapper_demo.py`
+- RobStride wrapper 示例: `examples/robstride_wrapper_demo.py`
+- Damiao 全模式示例: `examples/full_modes_demo.py`
+- Damiao 扫描 / 调参 / 位置辅助:
+  - `examples/scan_ids_demo.py`
+  - `examples/pid_register_tune_demo.py`
+  - `examples/pos_ctrl_demo.py`
+  - `examples/pos_repl_demo.py`
+
+详细见 [examples/README.md](examples/README.md)。
+
+## 端到端示例命令
+
+```bash
+# 先构建 ABI
+cargo build -p motor_abi --release
+export PYTHONPATH=bindings/python/src
+export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
+
+# Damiao wrapper 示例
+python3 bindings/python/examples/python_wrapper_demo.py \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --timeout-ms 500
+  --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 20 --dt-ms 20
+
+# RobStride wrapper 示例：ping
+python3 bindings/python/examples/robstride_wrapper_demo.py \
+  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
+
+# RobStride wrapper 示例：速度
+python3 bindings/python/examples/robstride_wrapper_demo.py \
+  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+  --mode vel --vel 0.3 --loop 40 --dt-ms 50
 ```
 
-修改 ID（写 `ESC_ID`/`MST_ID`）：
+## 说明
 
-```bash
-motorbridge-cli id-set \
-  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --new-motor-id 0x02 --new-feedback-id 0x12 \
-  --store 1 --verify 1 --timeout-ms 800
-```
-
-扫描 ID 范围：
-
-```bash
-motorbridge-cli scan \
-  --channel can0 --model 4340P \
-  --start-id 0x01 --end-id 0x10 --feedback-base 0x10 --timeout-ms 80
-```
-
-## 动态库加载顺序
-
-优先级：
-
-1. 环境变量 `MOTORBRIDGE_LIB`
-2. 包内 `motorbridge/lib/*`
-3. 仓库 `target/release/*`
-4. `ctypes.util.find_library("motor_abi")`
-
-## 常见问题
-
-- `Failed to load motor_abi shared library`：
-  - 确认 wheel 内含 `motorbridge/lib/libmotor_abi.so`（或对应平台动态库）
-  - 或设置 `MOTORBRIDGE_LIB=/path/to/libmotor_abi.so`
-- `socketcan write failed: Network is down`：
-  - 先确保 CAN 网口已启用（`ip link show can0`）
-- 持续 `no feedback yet`：
-  - 检查 model、`motor-id`、`feedback-id`、接线和供电
+- `id-dump`、`id-set` 仍是 Damiao 工作流；`scan` 支持 `damiao|robstride|all`。
+- Damiao 的完整调参参考仍保留在:
+  - [DAMIAO_API.md](DAMIAO_API.md)
+  - [DAMIAO_API.zh-CN.md](DAMIAO_API.zh-CN.md)

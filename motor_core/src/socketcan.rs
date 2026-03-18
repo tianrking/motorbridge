@@ -14,6 +14,9 @@ const PF_CAN: c_int = AF_CAN;
 const SOCK_RAW: c_int = 3;
 const CAN_RAW: c_int = 1;
 const POLLIN: c_short = 0x0001;
+const CAN_EFF_FLAG: u32 = 0x8000_0000;
+const CAN_EFF_MASK: u32 = 0x1FFF_FFFF;
+const CAN_SFF_MASK: u32 = 0x0000_07FF;
 
 #[repr(C)]
 struct SockAddrCan {
@@ -50,7 +53,14 @@ unsafe extern "C" {
 }
 
 fn last_os_error(prefix: &str) -> MotorError {
-    MotorError::Io(format!("{prefix}: {}", std::io::Error::last_os_error()))
+    let err = std::io::Error::last_os_error();
+    let hint = match err.raw_os_error() {
+        Some(100) => " (hint: can interface is down; run `ip -details link show can0` then bring it up)",
+        Some(6) => " (hint: can device/address is unavailable; check USB-CAN adapter and `ip link show`)",
+        Some(19) => " (hint: interface not found; verify channel name like can0 and adapter connection)",
+        _ => "",
+    };
+    MotorError::Io(format!("{prefix}: {err}{hint}"))
 }
 
 pub struct SocketCanBus {
@@ -64,7 +74,9 @@ impl SocketCanBus {
 
         let index = unsafe { if_nametoindex(iface.as_ptr()) };
         if index == 0 {
-            return Err(last_os_error(&format!("if_nametoindex failed for {interface}")));
+            return Err(last_os_error(&format!(
+                "if_nametoindex failed for {interface}"
+            )));
         }
 
         let fd = unsafe { socket(PF_CAN, SOCK_RAW, CAN_RAW) };
@@ -111,16 +123,32 @@ impl SocketCanBus {
 impl CanBus for SocketCanBus {
     fn send(&self, frame: CanFrame) -> Result<()> {
         self.with_fd(|fd| {
-            if frame.arbitration_id > 0x7FF {
+            if !frame.is_extended && frame.arbitration_id > CAN_SFF_MASK {
                 return Err(MotorError::InvalidArgument(format!(
                     "invalid arbitration_id {:X}, expected 11-bit std id",
                     frame.arbitration_id
                 )));
             }
+            if frame.is_extended && frame.arbitration_id > CAN_EFF_MASK {
+                return Err(MotorError::InvalidArgument(format!(
+                    "invalid arbitration_id {:X}, expected 29-bit ext id",
+                    frame.arbitration_id
+                )));
+            }
+            if frame.dlc > 8 {
+                return Err(MotorError::InvalidArgument(format!(
+                    "invalid DLC {}, expected <= 8",
+                    frame.dlc
+                )));
+            }
 
             let raw = CanFrameRaw {
-                can_id: frame.arbitration_id as u32,
-                can_dlc: 8,
+                can_id: if frame.is_extended {
+                    frame.arbitration_id | CAN_EFF_FLAG
+                } else {
+                    frame.arbitration_id
+                },
+                can_dlc: frame.dlc,
                 __pad: 0,
                 __res0: 0,
                 __res1: 0,
@@ -184,8 +212,14 @@ impl CanBus for SocketCanBus {
             }
 
             Ok(Some(CanFrame {
-                arbitration_id: (raw.can_id & 0x7FF) as u16,
+                arbitration_id: if (raw.can_id & CAN_EFF_FLAG) != 0 {
+                    raw.can_id & CAN_EFF_MASK
+                } else {
+                    raw.can_id & CAN_SFF_MASK
+                },
                 data: raw.data,
+                dlc: raw.can_dlc.min(8),
+                is_extended: (raw.can_id & CAN_EFF_FLAG) != 0,
                 is_rx: true,
             }))
         })

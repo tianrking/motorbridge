@@ -184,6 +184,7 @@ name = "motor_abi"
 version = "0.1.0"
 dependencies = [
  "motor_vendor_damiao",
+ "motor_vendor_robstride",
 ]
 
 [[package]]
@@ -198,6 +199,7 @@ name = "motor_cli"
 version = "0.1.0"
 dependencies = [
  "motor_vendor_damiao",
+ "motor_vendor_robstride",
 ]
 
 [[package]]
@@ -206,6 +208,13 @@ version = "0.1.0"
 
 [[package]]
 name = "motor_vendor_damiao"
+version = "0.1.0"
+dependencies = [
+ "motor_core",
+]
+
+[[package]]
+name = "motor_vendor_robstride"
 version = "0.1.0"
 dependencies = [
  "motor_core",
@@ -489,6 +498,7 @@ version = "0.1.0"
 dependencies = [
  "futures-util",
  "motor_vendor_damiao",
+ "motor_vendor_robstride",
  "serde",
  "serde_json",
  "tokio",

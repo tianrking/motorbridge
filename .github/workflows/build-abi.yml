@@ -285,6 +285,23 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          body: |
+            ## Quick Start (How to choose assets)
+
+            - C/C++ development on Ubuntu x86_64:
+              download `motorbridge-abi-<tag>-linux-x86_64.deb`, then install:
+              `sudo apt install ./motorbridge-abi-<tag>-linux-x86_64.deb`
+            - C/C++ development on other platforms:
+              use ABI archives (`.tar.gz` / `.zip`) and point CMake to installed include/lib paths.
+            - Python development:
+              pick the matching wheel (`cp310/cp311/cp312`, arch/platform), then:
+              `pip install ./motorbridge-*.whl`
+            - Python source install:
+              use the sdist package (`.tar.gz`) from this release.
+
+            Notes:
+            - Linux runtime may need `LD_LIBRARY_PATH` if your linker path is not configured.
+            - Recommended first validation: run a vendor scan, then ping/read-param (RobStride) or MIT test (Damiao).
           files: |
             release-assets/**/*.tar.gz
             release-assets/**/*.zip

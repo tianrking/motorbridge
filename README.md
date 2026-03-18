@@ -97,4 +97,17 @@ RobStride-specific ABI/binding helpers include:
 - Python ctypes demo: `examples/python/python_ctypes_demo.py`
 - Python SDK docs: `bindings/python/README.md`
 - C++ binding docs: `bindings/cpp/README.md`
+
+## Release Assets Guide
+
+- For C/C++ on Ubuntu x86_64:
+  - Download `motorbridge-abi-<tag>-linux-x86_64.deb`
+  - Install: `sudo apt install ./motorbridge-abi-<tag>-linux-x86_64.deb`
+- For C/C++ on other targets:
+  - Use ABI archives (`motorbridge-abi-<tag>-linux-*.tar.gz` or `windows-*.zip`)
+  - Link against `libmotor_abi` and use headers/CMake config from the package.
+- For Python:
+  - Download the matching wheel (`cp310/cp311/cp312` + correct platform/arch)
+  - Install: `pip install ./motorbridge-*.whl`
+  - Or use source package: `pip install ./motorbridge-*.tar.gz`
 - Device matrix: `docs/en/devices.md`

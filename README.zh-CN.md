@@ -97,4 +97,17 @@ RobStride 专属 ABI / binding 能力包括:
 - Python ctypes 示例: `examples/python/python_ctypes_demo.py`
 - Python SDK 文档: `bindings/python/README.md`
 - C++ binding 文档: `bindings/cpp/README.md`
+
+## Release 资产使用指南
+
+- Ubuntu x86_64 上做 C/C++ 开发：
+  - 下载 `motorbridge-abi-<tag>-linux-x86_64.deb`
+  - 安装：`sudo apt install ./motorbridge-abi-<tag>-linux-x86_64.deb`
+- 其他平台的 C/C++ 开发：
+  - 使用 ABI 压缩包（`motorbridge-abi-<tag>-linux-*.tar.gz` 或 `windows-*.zip`）
+  - 从包内 include/lib 链接 `libmotor_abi`。
+- Python 开发：
+  - 下载匹配解释器与平台的 wheel（`cp310/cp311/cp312` + 对应 arch）
+  - 安装：`pip install ./motorbridge-*.whl`
+  - 或安装源码包：`pip install ./motorbridge-*.tar.gz`
 - 设备矩阵: `docs/zh/devices.md`

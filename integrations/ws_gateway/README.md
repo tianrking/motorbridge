@@ -118,8 +118,8 @@ State stream frame:
 
 - File: `integrations/ws_gateway/tools/ws_test_client.html`
 - Open directly in browser (double-click or `xdg-open`), then connect to `ws://127.0.0.1:9002`.
-- Built-in quick buttons:
-  - Damiao enable/vel/stop
-  - RobStride ping/read-param/vel/stop
-  - Damiao and RobStride scan
-  - one-click dual-motor MIT sync-to-position
+- Built-in dynamic device workflow:
+  - scan Damiao and RobStride in one page
+  - scan hits are shown in a device table (vendor + motor_id + feedback_id + model)
+  - pick any scanned motor as current target and run enable/disable/vel/mit
+  - checkbox batch ops: batch enable/stop/disable and batch MIT sync-to-position

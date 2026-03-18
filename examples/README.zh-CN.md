@@ -15,6 +15,9 @@
 - Damiao 调参总表:
   - `examples/dm_api.md`
   - `examples/dm_api_cn.md`
+- RobStride 参数/API 总表:
+  - `examples/rs_api.md`
+  - `examples/rs_api_cn.md`
 
 ## 示例支持的厂商
 

@@ -15,6 +15,9 @@ Cross-language example entry for the current `motorbridge` stack.
 - Damiao tuning reference:
   - `examples/dm_api.md`
   - `examples/dm_api_cn.md`
+- RobStride API/parameter reference:
+  - `examples/rs_api.md`
+  - `examples/rs_api_cn.md`
 
 ## Vendor Support in Examples
 

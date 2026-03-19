@@ -238,29 +238,37 @@ pub fn run_damiao(
             motor.write_register_u32(8, v as u32)?;
             println!("[id-set] write rid=8 (ESC_ID) = 0x{:X}", v);
         }
-        if store_after_set {
-            motor.store_parameters()?;
-            println!("[id-set] store parameters sent");
-        }
         controller.close_bus()?;
 
-        if verify_id {
+        // Reconnect using NEW IDs before store/verify.
+        // Otherwise a store sent via an old-ID handle may be lost.
+        if store_after_set || verify_id {
             std::thread::sleep(Duration::from_millis(120));
             let verify_ctrl = DamiaoController::new_socketcan(channel)?;
             let verify_motor = verify_ctrl.add_motor(new_motor_id, new_feedback_id, model)?;
+
+            if store_after_set {
+                verify_motor.store_parameters()?;
+                println!("[id-set] store parameters sent (via new id)");
+                std::thread::sleep(Duration::from_millis(120));
+            }
+
+            if verify_id {
             let esc = verify_motor.get_register_u32(8, Duration::from_millis(1000))?;
             let mst = verify_motor.get_register_u32(7, Duration::from_millis(1000))?;
             println!("[id-set] verify rid=8 (ESC_ID)=0x{:X}", esc);
             println!("[id-set] verify rid=7 (MST_ID)=0x{:X}", mst);
-            verify_ctrl.close_bus()?;
-            if esc != new_motor_id as u32 || mst != new_feedback_id as u32 {
-                return Err(format!(
-                    "id verify failed: expected ESC_ID=0x{:X}, MST_ID=0x{:X}, got ESC_ID=0x{:X}, MST_ID=0x{:X}",
-                    new_motor_id, new_feedback_id, esc, mst
-                )
-                .into());
+                if esc != new_motor_id as u32 || mst != new_feedback_id as u32 {
+                    verify_ctrl.close_bus()?;
+                    return Err(format!(
+                        "id verify failed: expected ESC_ID=0x{:X}, MST_ID=0x{:X}, got ESC_ID=0x{:X}, MST_ID=0x{:X}",
+                        new_motor_id, new_feedback_id, esc, mst
+                    )
+                    .into());
+                }
+                println!("[id-set] verify ok");
             }
-            println!("[id-set] verify ok");
+            verify_ctrl.close_bus()?;
         }
         return Ok(());
     }

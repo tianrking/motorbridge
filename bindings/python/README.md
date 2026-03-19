@@ -69,6 +69,30 @@ Unified scan (both vendors):
 motorbridge-cli scan --vendor all --channel can0 --start-id 0x01 --end-id 0xFF
 ```
 
+## Experimental Windows Support (PCAN-USB)
+
+Linux remains the primary target. Windows support is experimental and currently uses PEAK PCAN.
+
+- Install PEAK PCAN driver + PCAN-Basic runtime (`PCANBasic.dll`).
+- Use `channel` as `can0@1000000` (maps to `PCAN_USBBUS1` at 1Mbps).
+
+Recommended quick validation with Rust CLI on Windows:
+
+```bash
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode scan --start-id 1 --end-id 16
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4310 --motor-id 0x07 --feedback-id 0x17 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+```
+
+Local wheel build (Windows):
+
+```bash
+python -m pip install --user wheel
+set MOTORBRIDGE_LIB=%CD%\\target\\release\\motor_abi.dll
+python -m pip wheel --no-build-isolation bindings/python -w bindings/python/dist
+python -m pip install bindings/python/dist/motorbridge-*.whl
+```
+
 ## Example Programs
 
 - Damiao wrapper demo: `examples/python_wrapper_demo.py`

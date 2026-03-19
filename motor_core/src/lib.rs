@@ -3,6 +3,8 @@ pub mod controller;
 pub mod device;
 pub mod error;
 pub mod model;
+#[cfg(target_os = "windows")]
+pub mod pcan;
 pub mod socketcan;
 
 pub use bus::{CanBus, CanFrame};

@@ -24,8 +24,10 @@ flowchart TB
   CORE --> DAMIAO["motor_vendors/damiao"]
   CORE --> ROBSTRIDE["motor_vendors/robstride"]
   CORE --> TEMPLATE["motor_vendors/template (onboarding scaffold)"]
-  DAMIAO --> CAN["SocketCAN bus"]
+  DAMIAO --> CAN["CAN bus backend"]
   ROBSTRIDE --> CAN
+  CAN --> LNX["Linux: SocketCAN"]
+  CAN --> WIN["Windows (experimental): PEAK PCAN"]
   CAN --> HW["Physical motors"]
 ```
 
@@ -49,7 +51,7 @@ flowchart LR
   BIND --> CPP["cpp"]
 ```
 
-- [`motor_core`](motor_core): vendor-agnostic controller, routing, SocketCAN bus layer
+- [`motor_core`](motor_core): vendor-agnostic controller, routing, CAN bus layer (Linux SocketCAN / Windows experimental PCAN)
 - [`motor_vendors/damiao`](motor_vendors/damiao): Damiao protocol / models / registers
 - [`motor_vendors/robstride`](motor_vendors/robstride): RobStride extended CAN protocol / models / parameters
 - [`motor_cli`](motor_cli): unified Rust CLI
@@ -120,6 +122,29 @@ cargo run -p motor_cli --release -- \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```
 
+## Experimental Windows Support (PCAN-USB)
+
+Linux remains the primary target. Windows support is experimental and currently backed by PEAK PCAN (`PCANBasic.dll`).
+
+- Install PEAK PCAN driver + PCAN-Basic runtime on Windows.
+- Channel mapping:
+  - `can0` -> `PCAN_USBBUS1`
+  - `can1` -> `PCAN_USBBUS2`
+- Optional bitrate suffix: `@<bitrate>` (for example `can0@1000000`).
+
+Validation commands on Windows:
+
+```bash
+# Scan Damiao IDs
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode scan --start-id 1 --end-id 16
+
+# Move motor #1 (4340P) to +pi rad (~180 deg)
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+
+# Move motor #7 (4310) to +pi rad (~180 deg)
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4310 --motor-id 0x07 --feedback-id 0x17 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+```
+
 Interpretation:
 
 - `vendor=damiao id=<n>` means one Damiao motor is online at motor ID `<n>`.
@@ -158,6 +183,9 @@ RobStride-specific ABI/binding helpers include:
 - For C/C++ on Ubuntu x86_64:
   - Download `motorbridge-abi-<tag>-linux-x86_64.deb`
   - Install: `sudo apt install ./motorbridge-abi-<tag>-linux-x86_64.deb`
+- For C/C++ on Windows x86_64:
+  - Download `motorbridge-abi-<tag>-windows-x86_64.zip`
+  - Extract and link `motor_abi.dll/.lib` with bundled headers/CMake config
 - For C/C++ on other targets:
   - Use ABI archives (`motorbridge-abi-<tag>-linux-*.tar.gz` or `windows-*.zip`)
   - Link against `libmotor_abi` and use headers/CMake config from the package.
@@ -165,4 +193,6 @@ RobStride-specific ABI/binding helpers include:
   - Download the matching wheel (`cp310/cp311/cp312` + correct platform/arch)
   - Install: `pip install ./motorbridge-*.whl`
   - Or use source package: `pip install ./motorbridge-*.tar.gz`
+- Note:
+  - `.deb` is Linux-only; Windows users should use `.zip` and `.whl`.
 - Device matrix: `docs/en/devices.md`

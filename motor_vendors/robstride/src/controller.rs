@@ -4,6 +4,8 @@ use motor_core::controller::CoreController;
 use motor_core::error::{MotorError, Result};
 #[cfg(target_os = "linux")]
 use motor_core::socketcan::SocketCanBus;
+#[cfg(target_os = "windows")]
+use motor_core::pcan::PcanBus;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -26,11 +28,16 @@ impl RobstrideController {
             let bus: Arc<dyn CanBus> = Arc::new(SocketCanBus::open(channel)?);
             return Ok(Self::new(bus));
         }
-        #[cfg(not(target_os = "linux"))]
+        #[cfg(target_os = "windows")]
+        {
+            let bus: Arc<dyn CanBus> = Arc::new(PcanBus::open(channel)?);
+            return Ok(Self::new(bus));
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "windows")))]
         {
             let _ = channel;
             Err(MotorError::InvalidArgument(
-                "SocketCAN backend is only supported on Linux".to_string(),
+                "No CAN backend for current platform".to_string(),
             ))
         }
     }

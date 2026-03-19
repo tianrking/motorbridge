@@ -8,3 +8,6 @@ license.workspace = true
 [lib]
 name = "motor_core"
 path = "src/lib.rs"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+libloading = "0.8"

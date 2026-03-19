@@ -12,6 +12,7 @@ flowchart TD
   IDX --> ABI["abi.md"]
   IDX --> EX["examples.md"]
   IDX --> EXT["extending.md"]
+  IDX --> WIN["windows_distribution.md"]
   IDX --> CAL["tools/motor_calib/README.md"]
   IDX --> INT["integrations/README.md"]
 ```
@@ -24,6 +25,7 @@ flowchart TD
 - Cross-language Examples: [examples.md](examples.md)
 - Supported Devices: [devices.md](devices.md)
 - Vendor Extension Guide: [extending.md](extending.md)
+- Windows Distribution: [windows_distribution.md](windows_distribution.md)
 - Calibration Tool: [`tools/motor_calib/README.md`](../../tools/motor_calib/README.md)
 - Integrations: [`integrations/README.md`](../../integrations/README.md)
 - WS Gateway: [`integrations/ws_gateway/README.md`](../../integrations/ws_gateway/README.md)
@@ -45,3 +47,4 @@ flowchart TD
 4. [abi.md](abi.md)
 5. [examples.md](examples.md)
 6. [extending.md](extending.md)
+7. [windows_distribution.md](windows_distribution.md)

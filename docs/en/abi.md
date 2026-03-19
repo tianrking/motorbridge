@@ -9,7 +9,13 @@ cargo build -p motor_abi --release
 Artifacts:
 
 - Linux: `target/release/libmotor_abi.so`, `libmotor_abi.a`
+- Windows: `target/release/motor_abi.dll`, `motor_abi.lib`
 - Header: `motor_abi/include/motor_abi.h`
+
+Distribution formats:
+
+- Linux x86_64: `.deb` and `.tar.gz`
+- Windows x86_64: `.zip` (no `.deb` on Windows)
 
 ## Vendor Entry Points
 

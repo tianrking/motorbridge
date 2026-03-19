@@ -9,8 +9,10 @@ flowchart TB
   CORE --> DAMIAO["motor_vendors/damiao"]
   CORE --> ROBSTRIDE["motor_vendors/robstride"]
   CORE --> TEMPLATE["motor_vendors/template（接入模板）"]
-  DAMIAO --> CAN["SocketCAN 总线"]
+  DAMIAO --> CAN["CAN 总线后端"]
   ROBSTRIDE --> CAN
+  CAN --> LNX["Linux：SocketCAN"]
+  CAN --> WIN["Windows（实验）：PEAK PCAN"]
   CAN --> HW["真实电机硬件"]
 ```
 
@@ -21,7 +23,7 @@ sequenceDiagram
   participant U as 用户工具
   participant C as CoreController
   participant V as Vendor Motor
-  participant B as SocketCAN
+  participant B as CAN 后端
   U->>C: 发送控制指令（MIT/POS_VEL/VEL/FORCE_POS）
   C->>V: 按电机句柄路由
   V->>B: 编码并发送帧
@@ -72,6 +74,7 @@ motorbridge/
 - `controller.rs`：调度/路由/轮询
 - `model.rs`：型号目录抽象
 - `socketcan.rs`：Linux SocketCAN 后端
+- `pcan.rs`：Windows PEAK PCAN 后端（实验性）
 
 ### 2) `motor_vendors/*`
 

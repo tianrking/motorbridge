@@ -9,8 +9,10 @@ flowchart TB
   CORE --> DAMIAO["motor_vendors/damiao"]
   CORE --> ROBSTRIDE["motor_vendors/robstride"]
   CORE --> TEMPLATE["motor_vendors/template (onboarding scaffold)"]
-  DAMIAO --> CAN["SocketCAN Bus"]
+  DAMIAO --> CAN["CAN Bus Backend"]
   ROBSTRIDE --> CAN
+  CAN --> LNX["Linux: SocketCAN"]
+  CAN --> WIN["Windows (experimental): PEAK PCAN"]
   CAN --> HW["Physical Motors"]
 ```
 
@@ -21,7 +23,7 @@ sequenceDiagram
   participant U as User Tool
   participant C as CoreController
   participant V as Vendor Motor
-  participant B as SocketCAN
+  participant B as CAN Backend
   U->>C: send command (MIT/POS_VEL/VEL/FORCE_POS)
   C->>V: dispatch by motor handle
   V->>B: encode + transmit frame
@@ -72,6 +74,7 @@ motorbridge/
 - `controller.rs`: scheduling/routing/polling
 - `model.rs`: model catalog abstraction
 - `socketcan.rs`: Linux SocketCAN backend
+- `pcan.rs`: Windows PEAK PCAN backend (experimental)
 
 ### 2) `motor_vendors/*`
 

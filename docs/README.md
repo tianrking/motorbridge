@@ -3,7 +3,7 @@
 - English: [en/index.md](en/index.md)
 - 中文: [zh/index.md](zh/index.md)
 
-The bilingual docs under `docs/en` and `docs/zh` are the only maintained documentation structure.
+The bilingual docs under `docs/en` and `docs/zh` are the maintained documentation structure.
 
 ## Docs Map
 
@@ -17,15 +17,19 @@ flowchart LR
   EN --> EN_EX["en/examples.md"]
   EN --> EN_DEV["en/devices.md"]
   EN --> EN_EXT["en/extending.md"]
+  EN --> EN_WIN["en/windows_distribution.md"]
   ZH --> ZH_ARCH["zh/architecture.md"]
   ZH --> ZH_CLI["zh/cli.md"]
   ZH --> ZH_ABI["zh/abi.md"]
   ZH --> ZH_EX["zh/examples.md"]
   ZH --> ZH_DEV["zh/devices.md"]
   ZH --> ZH_EXT["zh/extending.md"]
+  ZH --> ZH_WIN["zh/windows_distribution.md"]
 ```
 
-## Quick Scan Entry
+## Quick Entry
 
 - EN unified scan: [`docs/en/cli.md`](en/cli.md)
-- 中文统一扫描：[`docs/zh/cli.md`](zh/cli.md)
+- 中文统一扫描: [`docs/zh/cli.md`](zh/cli.md)
+- EN Windows distribution: [`docs/en/windows_distribution.md`](en/windows_distribution.md)
+- 中文 Windows 分发: [`docs/zh/windows_distribution.md`](zh/windows_distribution.md)

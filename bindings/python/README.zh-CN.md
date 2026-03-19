@@ -69,6 +69,30 @@ motorbridge-cli robstride-read-param \
 motorbridge-cli scan --vendor all --channel can0 --start-id 0x01 --end-id 0xFF
 ```
 
+## Windows 实验支持（PCAN-USB）
+
+项目主线仍以 Linux 为主。Windows 支持为实验性能力，当前通过 PEAK PCAN 后端实现。
+
+- 安装 PEAK 驱动与 PCAN-Basic 运行时（`PCANBasic.dll`）。
+- Windows 下建议使用 `can0@1000000`（映射到 `PCAN_USBBUS1`，1Mbps）。
+
+建议先用 Rust CLI 做快速验证：
+
+```bash
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode scan --start-id 1 --end-id 16
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4310 --motor-id 0x07 --feedback-id 0x17 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+```
+
+Windows 本地 wheel 构建：
+
+```bash
+python -m pip install --user wheel
+set MOTORBRIDGE_LIB=%CD%\\target\\release\\motor_abi.dll
+python -m pip wheel --no-build-isolation bindings/python -w bindings/python/dist
+python -m pip install bindings/python/dist/motorbridge-*.whl
+```
+
 ## 示例程序
 
 - Damiao wrapper 示例: `examples/python_wrapper_demo.py`

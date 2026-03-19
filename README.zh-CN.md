@@ -24,8 +24,10 @@ flowchart TB
   CORE --> DAMIAO["motor_vendors/damiao"]
   CORE --> ROBSTRIDE["motor_vendors/robstride"]
   CORE --> TEMPLATE["motor_vendors/template（接入模板）"]
-  DAMIAO --> CAN["SocketCAN 总线"]
+  DAMIAO --> CAN["CAN 总线后端"]
   ROBSTRIDE --> CAN
+  CAN --> LNX["Linux：SocketCAN"]
+  CAN --> WIN["Windows（实验）：PEAK PCAN"]
   CAN --> HW["真实电机硬件"]
 ```
 
@@ -49,7 +51,7 @@ flowchart LR
   BIND --> CPP["cpp"]
 ```
 
-- [`motor_core`](motor_core): 与厂商无关的控制器、路由、SocketCAN 总线层
+- [`motor_core`](motor_core): 与厂商无关的控制器、路由、CAN 总线层（Linux SocketCAN / Windows 实验性 PCAN）
 - [`motor_vendors/damiao`](motor_vendors/damiao): Damiao 协议 / 型号 / 寄存器
 - [`motor_vendors/robstride`](motor_vendors/robstride): RobStride 扩展 CAN 协议 / 型号 / 参数
 - [`motor_cli`](motor_cli): 统一 Rust CLI
@@ -120,6 +122,29 @@ cargo run -p motor_cli --release -- \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```
 
+## Windows 实验支持（PCAN-USB）
+
+项目主线仍以 Linux 为主。Windows 支持为实验性能力，当前通过 PEAK PCAN 后端实现。
+
+- 在 Windows 安装 PEAK 驱动与 PCAN-Basic 运行时（`PCANBasic.dll`）。
+- 通道映射：
+  - `can0` -> `PCAN_USBBUS1`
+  - `can1` -> `PCAN_USBBUS2`
+- 可选波特率后缀：`@<bitrate>`，例如 `can0@1000000`。
+
+Windows 验证命令：
+
+```bash
+# 扫描 Damiao 电机 ID
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode scan --start-id 1 --end-id 16
+
+# 1 号电机（4340P）转到 +pi 弧度（约 180 度）
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+
+# 7 号电机（4310）转到 +pi 弧度（约 180 度）
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4310 --motor-id 0x07 --feedback-id 0x17 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+```
+
 结果解读：
 
 - `vendor=damiao id=<n>`：发现一个 Damiao 电机，电机 ID 为 `<n>`。
@@ -158,6 +183,9 @@ RobStride 专属 ABI / binding 能力包括:
 - Ubuntu x86_64 上做 C/C++ 开发：
   - 下载 `motorbridge-abi-<tag>-linux-x86_64.deb`
   - 安装：`sudo apt install ./motorbridge-abi-<tag>-linux-x86_64.deb`
+- Windows x86_64 上做 C/C++ 开发：
+  - 下载 `motorbridge-abi-<tag>-windows-x86_64.zip`
+  - 解压后链接 `motor_abi.dll/.lib`，并使用包内头文件/CMake 配置
 - 其他平台的 C/C++ 开发：
   - 使用 ABI 压缩包（`motorbridge-abi-<tag>-linux-*.tar.gz` 或 `windows-*.zip`）
   - 从包内 include/lib 链接 `libmotor_abi`。
@@ -165,4 +193,6 @@ RobStride 专属 ABI / binding 能力包括:
   - 下载匹配解释器与平台的 wheel（`cp310/cp311/cp312` + 对应 arch）
   - 安装：`pip install ./motorbridge-*.whl`
   - 或安装源码包：`pip install ./motorbridge-*.tar.gz`
+- 说明：
+  - `.deb` 仅用于 Linux；Windows 请使用 `.zip` 和 `.whl`。
 - 设备矩阵: `docs/zh/devices.md`

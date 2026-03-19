@@ -37,6 +37,21 @@ sudo ip link set can0 up
 ip -details link show can0
 ```
 
+## Experimental Windows Support (PCAN-USB)
+
+Linux remains the primary target. Windows support is experimental and currently uses PEAK PCAN.
+
+- Install PEAK PCAN driver + PCAN-Basic runtime (`PCANBasic.dll`).
+- Use `can0@1000000` as the Windows channel form.
+
+Windows quick validation commands:
+
+```bash
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode scan --start-id 1 --end-id 16
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4310 --motor-id 0x07 --feedback-id 0x17 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+```
+
 ## Quick Start
 
 Damiao with Rust CLI:

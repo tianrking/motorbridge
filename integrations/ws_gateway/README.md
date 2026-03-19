@@ -45,6 +45,25 @@ cargo run -p ws_gateway --release -- \
   --bind 0.0.0.0:9002 --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --dt-ms 20
 ```
 
+## Experimental Windows Support (PCAN-USB)
+
+Linux remains the primary target. Windows support is experimental and currently uses PEAK PCAN.
+
+- Install PEAK PCAN driver + PCAN-Basic runtime (`PCANBasic.dll`).
+- Use `can0@1000000` as the channel value on Windows:
+
+```bash
+cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+Quick Windows motor validation commands:
+
+```bash
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode scan --start-id 1 --end-id 16
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4310 --motor-id 0x07 --feedback-id 0x17 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+```
+
 ## Inbound command examples
 
 ```json

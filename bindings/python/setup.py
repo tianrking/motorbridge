@@ -1,4 +1,54 @@
+import os
+import shutil
+import sys
+from pathlib import Path
+
 from setuptools import Distribution, find_packages, setup
+from setuptools.command.build_py import build_py as _build_py
+
+
+def _platform_lib_name() -> str:
+    if sys.platform.startswith("win"):
+        return "motor_abi.dll"
+    if sys.platform == "darwin":
+        return "libmotor_abi.dylib"
+    return "libmotor_abi.so"
+
+
+def _candidate_abi_paths() -> list[Path]:
+    here = Path(__file__).resolve()
+    repo_root = here.parents[2]
+    lib_name = _platform_lib_name()
+    candidates: list[Path] = []
+
+    env = os.getenv("MOTORBRIDGE_LIB")
+    if env:
+        candidates.append(Path(env).expanduser())
+
+    candidates.append(repo_root / "target" / "release" / lib_name)
+    candidates.append(here.parent / "src" / "motorbridge" / "lib" / lib_name)
+    return candidates
+
+
+def _resolve_abi_path() -> Path:
+    for p in _candidate_abi_paths():
+        if p.exists():
+            return p
+    tried = "\n".join(f"- {p}" for p in _candidate_abi_paths())
+    raise RuntimeError(
+        "Cannot locate motor_abi shared library for wheel build.\n"
+        f"Tried:\n{tried}\n"
+        "Build ABI first (`cargo build -p motor_abi --release`) or set MOTORBRIDGE_LIB."
+    )
+
+
+class BuildPyWithAbi(_build_py):
+    def run(self):
+        super().run()
+        abi_src = _resolve_abi_path()
+        dst_dir = Path(self.build_lib) / "motorbridge" / "lib"
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(abi_src, dst_dir / abi_src.name)
 
 
 class BinaryDistribution(Distribution):
@@ -21,5 +71,6 @@ setup(
     include_package_data=True,
     entry_points={"console_scripts": ["motorbridge-cli=motorbridge.cli:main"]},
     distclass=BinaryDistribution,
+    cmdclass={"build_py": BuildPyWithAbi},
     zip_safe=False,
 )

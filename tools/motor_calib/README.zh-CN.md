@@ -60,3 +60,18 @@ cargo run -p motor_calib -- set-id \
 cargo run -p motor_calib -- verify \
   --channel can0 --model 4310 --motor-id 0x05 --feedback-id 0x15
 ```
+
+## Windows 实验支持（PCAN-USB）
+
+项目主线仍以 Linux 为主。Windows 支持为实验性能力，当前通过 PEAK PCAN 后端实现。
+
+- 安装 PEAK 驱动与 PCAN-Basic 运行时（`PCANBasic.dll`）。
+- Windows 下建议使用 `can0@1000000` 做 1Mbps 验证。
+
+Windows 快速验证（使用 `motor_cli`）：
+
+```bash
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode scan --start-id 1 --end-id 16
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4310 --motor-id 0x07 --feedback-id 0x17 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
+```

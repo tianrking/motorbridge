@@ -45,6 +45,11 @@ cargo test --workspace --all-targets
 
 可直接复用根目录 `README` 的 Linux 命令，以及 Windows 实验章节中的 `can0@1000000` 命令。
 
+可靠性辅助脚本：
+
+- [`tools/reliability/README.zh-CN.md`](../../tools/reliability/README.zh-CN.md)
+- `tools/reliability/reliability_runner.py`
+
 ## 下一步增强建议
 
 - 增加长时间稳定性测试（断连恢复/错误注入）

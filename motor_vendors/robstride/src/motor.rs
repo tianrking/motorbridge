@@ -487,3 +487,49 @@ impl MotorDevice for RobstrideMotor {
         self.process_feedback_frame_impl(frame)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    struct SilentBus {
+        sent: Mutex<Vec<CanFrame>>,
+    }
+
+    impl SilentBus {
+        fn new() -> Self {
+            Self {
+                sent: Mutex::new(Vec::new()),
+            }
+        }
+    }
+
+    impl CanBus for SilentBus {
+        fn send(&self, frame: CanFrame) -> Result<()> {
+            self.sent
+                .lock()
+                .map_err(|_| MotorError::Io("sent lock poisoned".to_string()))?
+                .push(frame);
+            Ok(())
+        }
+
+        fn recv(&self, _timeout: Duration) -> Result<Option<CanFrame>> {
+            Ok(None)
+        }
+
+        fn shutdown(&self) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn get_parameter_times_out_when_no_reply_arrives() {
+        let bus: Arc<dyn CanBus> = Arc::new(SilentBus::new());
+        let motor = RobstrideMotor::new(127, 0xFF, "rs-00", bus).expect("create motor");
+        let err = motor
+            .get_parameter(0x7019, Duration::from_millis(5))
+            .expect_err("timeout expected");
+        assert!(matches!(err, MotorError::Timeout(_)));
+    }
+}

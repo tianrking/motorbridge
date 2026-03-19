@@ -522,6 +522,39 @@ impl MotorDevice for DamiaoMotor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use motor_core::bus::CanFrame;
+    use std::sync::Mutex;
+    use std::time::Duration;
+
+    struct SilentBus {
+        sent: Mutex<Vec<CanFrame>>,
+    }
+
+    impl SilentBus {
+        fn new() -> Self {
+            Self {
+                sent: Mutex::new(Vec::new()),
+            }
+        }
+    }
+
+    impl CanBus for SilentBus {
+        fn send(&self, frame: CanFrame) -> Result<()> {
+            self.sent
+                .lock()
+                .map_err(|_| MotorError::Io("sent lock poisoned".to_string()))?
+                .push(frame);
+            Ok(())
+        }
+
+        fn recv(&self, _timeout: Duration) -> Result<Option<CanFrame>> {
+            Ok(None)
+        }
+
+        fn shutdown(&self) -> Result<()> {
+            Ok(())
+        }
+    }
 
     #[test]
     fn model_limits_and_matching_work() {
@@ -540,5 +573,15 @@ mod tests {
         let suggested = suggest_models_by_limits(12.5, 9.9, 28.1, 3);
         assert!(!suggested.is_empty());
         assert!(suggested[0] == "4340" || suggested[0] == "4340P");
+    }
+
+    #[test]
+    fn get_register_u32_times_out_when_no_feedback_arrives() {
+        let bus: Arc<dyn CanBus> = Arc::new(SilentBus::new());
+        let motor = DamiaoMotor::new(0x01, 0x11, "4340P", bus).expect("create motor");
+        let err = motor
+            .get_register_u32(10, Duration::from_millis(1))
+            .expect_err("timeout expected");
+        assert!(matches!(err, MotorError::Timeout(_)));
     }
 }

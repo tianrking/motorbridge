@@ -44,6 +44,11 @@ Automated tests avoid real CAN hardware. For hardware validation, run:
 
 Use the commands in root `README.md` (Linux) and Windows experimental section (`can0@1000000`) for repeatable checks.
 
+Reliability helper scripts:
+
+- [`tools/reliability/README.md`](../../tools/reliability/README.md)
+- `tools/reliability/reliability_runner.py`
+
 ## Next Step Improvements
 
 - Add long-run reliability tests for reconnect/error handling

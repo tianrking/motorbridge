@@ -179,6 +179,7 @@ mod tests {
         rx: Mutex<VecDeque<CanFrame>>,
         sent: Mutex<Vec<CanFrame>>,
         shutdown_count: AtomicUsize,
+        fail_recv: AtomicBool,
     }
 
     impl FakeBus {
@@ -187,11 +188,16 @@ mod tests {
                 rx: Mutex::new(VecDeque::new()),
                 sent: Mutex::new(Vec::new()),
                 shutdown_count: AtomicUsize::new(0),
+                fail_recv: AtomicBool::new(false),
             }
         }
 
         fn push_rx(&self, frame: CanFrame) {
             self.rx.lock().expect("rx lock").push_back(frame);
+        }
+
+        fn set_fail_recv(&self, fail: bool) {
+            self.fail_recv.store(fail, Ordering::SeqCst);
         }
     }
 
@@ -202,6 +208,9 @@ mod tests {
         }
 
         fn recv(&self, _timeout: Duration) -> Result<Option<CanFrame>> {
+            if self.fail_recv.load(Ordering::SeqCst) {
+                return Err(MotorError::Io("injected recv error".to_string()));
+            }
             Ok(self.rx.lock().expect("rx lock").pop_front())
         }
 
@@ -338,5 +347,18 @@ mod tests {
 
         assert_eq!(d1.disable_count.load(Ordering::SeqCst), 1);
         assert_eq!(bus.shutdown_count.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn poll_feedback_once_returns_bus_recv_error() {
+        let bus = Arc::new(FakeBus::new());
+        let ctrl = CoreController::new(bus.clone());
+        let d1: Arc<dyn MotorDevice> = Arc::new(FakeDevice::new(1, 0x11));
+        ctrl.add_device(d1).expect("add d1");
+
+        bus.set_fail_recv(true);
+        let err = ctrl.poll_feedback_once().expect_err("recv should fail");
+        assert!(err.to_string().contains("injected recv error"));
+        ctrl.close_bus().expect("close");
     }
 }

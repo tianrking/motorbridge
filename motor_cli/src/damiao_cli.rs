@@ -6,6 +6,32 @@ use motor_vendor_damiao::{
 use std::collections::HashMap;
 use std::time::Duration;
 
+const DAMIAO_SCAN_MODEL_HINTS: &[&str] = &[
+    "4340P", "4340", "4310", "4310P", "3507", "6006", "8006", "8009", "10010L", "10010",
+    "H3510", "G6215", "H6220", "JH11", "6248P",
+];
+
+fn build_scan_model_hints() -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for m in DAMIAO_SCAN_MODEL_HINTS {
+        if !out.iter().any(|x| x.eq_ignore_ascii_case(m)) {
+            out.push((*m).to_string());
+        }
+    }
+    out
+}
+
+fn build_scan_feedback_hints(base_feedback_id: u16, motor_id: u16) -> Vec<u16> {
+    let mut out = Vec::new();
+    let inferred = motor_id.saturating_add(0x10);
+    for fid in [inferred, base_feedback_id, 0x0011, 0x0017] {
+        if !out.contains(&fid) {
+            out.push(fid);
+        }
+    }
+    out
+}
+
 fn verify_declared_damiao_model(
     motor: &DamiaoMotor,
     declared_model: &str,
@@ -74,30 +100,120 @@ pub fn run_damiao(
         if start_id == 0 || end_id == 0 || start_id > 255 || end_id > 255 || start_id > end_id {
             return Err("invalid scan range: expected 1..255 and start<=end".into());
         }
+        let model_hints = build_scan_model_hints();
         println!(
             "[scan] probing Damiao IDs {}..{} on {}",
             start_id, end_id, channel
         );
         let mut hits = 0usize;
+        let mut fallback_hits = 0usize;
         for id in start_id..=end_id {
-            let candidate = controller.add_motor(id, feedback_id, model)?;
-            let pmax = candidate.get_register_f32(21, Duration::from_millis(80));
-            let vmax = candidate.get_register_f32(22, Duration::from_millis(80));
-            let tmax = candidate.get_register_f32(23, Duration::from_millis(80));
-            if let (Ok(p), Ok(v), Ok(t)) = (pmax, vmax, tmax) {
-                let matched = match_models_by_limits(p, v, t, 0.2);
-                let model_guess = if matched.is_empty() {
-                    "unknown".to_string()
-                } else {
-                    matched.join(",")
-                };
-                println!(
-                    "[hit] vendor=damiao id={} model_guess={} limits=({:.3},{:.3},{:.3})",
-                    id, model_guess, p, v, t
-                );
-                hits += 1;
+            let feedback_hints = build_scan_feedback_hints(feedback_id, id);
+            enum ScanHit {
+                Registers {
+                    p: f32,
+                    v: f32,
+                    t: f32,
+                    fid: u16,
+                },
+                Feedback {
+                    fid: u16,
+                    status: u8,
+                    pos: f32,
+                    vel: f32,
+                    torq: f32,
+                },
+            }
+            let mut found: Option<ScanHit> = None;
+            for fid in &feedback_hints {
+                for mh in &model_hints {
+                    let Ok(candidate) = controller.add_motor(id, *fid, mh) else {
+                        continue;
+                    };
+                    let pmax = candidate.get_register_f32(21, Duration::from_millis(120));
+                    let vmax = candidate.get_register_f32(22, Duration::from_millis(120));
+                    let tmax = candidate.get_register_f32(23, Duration::from_millis(120));
+                    if let (Ok(p), Ok(v), Ok(t)) = (pmax, vmax, tmax) {
+                        found = Some(ScanHit::Registers {
+                            p,
+                            v,
+                            t,
+                            fid: *fid,
+                        });
+                        break;
+                    }
+                }
+                if found.is_some() {
+                    break;
+                }
+            }
+            if found.is_none() {
+                for fid in &feedback_hints {
+                    for mh in &model_hints {
+                        let Ok(candidate) = controller.add_motor(id, *fid, mh) else {
+                            continue;
+                        };
+                        let _ = candidate.request_motor_feedback();
+                        for _ in 0..4 {
+                            let _ = controller.poll_feedback_once();
+                            if let Some(s) = candidate.latest_state() {
+                                found = Some(ScanHit::Feedback {
+                                    fid: *fid,
+                                    status: s.status_code,
+                                    pos: s.pos,
+                                    vel: s.vel,
+                                    torq: s.torq,
+                                });
+                                break;
+                            }
+                            std::thread::sleep(Duration::from_millis(8));
+                        }
+                        if found.is_some() {
+                            break;
+                        }
+                    }
+                    if found.is_some() {
+                        break;
+                    }
+                }
+            }
+            if let Some(hit) = found {
+                match hit {
+                    ScanHit::Registers { p, v, t, fid } => {
+                        let matched = match_models_by_limits(p, v, t, 0.2);
+                        let model_guess = if matched.is_empty() {
+                            "unknown".to_string()
+                        } else {
+                            matched.join(",")
+                        };
+                        println!(
+                            "[hit] vendor=damiao id={} feedback_id=0x{:X} model_guess={} limits=({:.3},{:.3},{:.3})",
+                            id, fid, model_guess, p, v, t
+                        );
+                        hits += 1;
+                    }
+                    ScanHit::Feedback {
+                        fid,
+                        status,
+                        pos,
+                        vel,
+                        torq,
+                    } => {
+                        println!(
+                            "[hit] vendor=damiao id={} feedback_id=0x{:X} detected_by=feedback status={} pos={:+.3} vel={:+.3} torq={:+.3}",
+                            id, fid, status, pos, vel, torq
+                        );
+                        hits += 1;
+                        fallback_hits += 1;
+                    }
+                }
             }
             std::thread::sleep(Duration::from_millis(2));
+        }
+        if fallback_hits > 0 {
+            println!(
+                "[scan] fallback feedback-detection hits={fallback_hits} (register read unavailable on some motors)"
+            );
         }
         println!("[scan] done vendor=damiao hits={hits}");
         controller.close_bus()?;
@@ -226,4 +342,26 @@ pub fn run_damiao(
         controller.shutdown()?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{build_scan_feedback_hints, build_scan_model_hints};
+
+    #[test]
+    fn scan_model_hints_are_unique() {
+        let hints = build_scan_model_hints();
+        assert!(!hints.is_empty());
+        let count_4310 = hints.iter().filter(|m| m.as_str() == "4310").count();
+        assert_eq!(count_4310, 1);
+        assert!(hints.iter().any(|m| m == "4340P"));
+    }
+
+    #[test]
+    fn scan_feedback_hints_include_common_ids() {
+        let fids = build_scan_feedback_hints(0x0017, 0x0007);
+        assert!(fids.contains(&0x0011));
+        assert!(fids.contains(&0x0017));
+        assert_eq!(fids[0], 0x0017);
+    }
 }

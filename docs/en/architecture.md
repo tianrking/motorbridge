@@ -4,10 +4,13 @@
 
 ```mermaid
 flowchart TB
-  APP["User Apps (Rust/C/C++/Python/ROS2/WS)"] --> ABI["motor_abi / SDK wrappers"]
-  ABI --> CORE["motor_core (controller, bus, model, traits)"]
-  CORE --> VENDOR["motor_vendors/* (protocol/register/model mapping)"]
-  VENDOR --> CAN["SocketCAN Bus"]
+  APP["User Apps (Rust/C/C++/Python/ROS2/WS)"] --> SURFACE["CLI / ABI / SDK / Integrations"]
+  SURFACE --> CORE["motor_core (controller, bus, model, traits)"]
+  CORE --> DAMIAO["motor_vendors/damiao"]
+  CORE --> ROBSTRIDE["motor_vendors/robstride"]
+  CORE --> TEMPLATE["motor_vendors/template (onboarding scaffold)"]
+  DAMIAO --> CAN["SocketCAN Bus"]
+  ROBSTRIDE --> CAN
   CAN --> HW["Physical Motors"]
 ```
 
@@ -42,9 +45,15 @@ motorbridge/
 ├── motor_core/                  # Vendor-agnostic runtime
 ├── motor_vendors/
 │   ├── damiao/                  # Production implementation
+│   ├── robstride/               # Production implementation (extended CAN ID / params)
 │   └── template/                # Scaffold for new vendors
 ├── motor_cli/                   # Rust CLI
 ├── motor_abi/                   # C ABI (cdylib + staticlib)
+├── integrations/
+│   ├── ros2_bridge/             # ROS2 bridge
+│   └── ws_gateway/              # Rust WebSocket gateway
+├── tools/
+│   └── motor_calib/             # ID scan/set-id/verify utility
 ├── bindings/
 │   ├── python/                 # Python SDK package + CLI
 │   └── cpp/                    # C++ RAII wrapper + CMake package

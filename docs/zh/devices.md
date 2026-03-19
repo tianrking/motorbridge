@@ -13,14 +13,13 @@ mindmap
         6006 / 8006 / 8009
         10010 / 10010L
         H3510 / G6215 / H6220 / JH11 / 6248P
+        模式
+          MIT / POS_VEL / VEL / FORCE_POS
       RobStride
         rs-00 / rs-01 / rs-02
         rs-03 / rs-04 / rs-05 / rs-06
-      控制模式
-        MIT
-        POS_VEL
-        VEL
-        FORCE_POS
+        模式
+          MIT / VEL / ping / 参数读写
     模板
       template_vendor
         model_a

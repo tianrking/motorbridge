@@ -24,3 +24,8 @@ flowchart LR
   ZH --> ZH_DEV["zh/devices.md"]
   ZH --> ZH_EXT["zh/extending.md"]
 ```
+
+## Quick Scan Entry
+
+- EN unified scan: [`docs/en/cli.md`](en/cli.md)
+- 中文统一扫描：[`docs/zh/cli.md`](zh/cli.md)

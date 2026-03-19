@@ -15,13 +15,47 @@ Unified CAN motor control stack with a vendor-agnostic Rust core, stable C ABI, 
 
 ## Architecture
 
-- `motor_core`: vendor-agnostic controller, routing, SocketCAN bus layer
-- `motor_vendors/damiao`: Damiao protocol / models / registers
-- `motor_vendors/robstride`: RobStride extended CAN protocol / models / parameters
-- `motor_cli`: unified Rust CLI
-- `motor_abi`: stable C ABI
-- `bindings/python`: Python SDK + `motorbridge-cli`
-- `bindings/cpp`: C++ RAII wrapper
+### Layered Runtime View
+
+```mermaid
+flowchart TB
+  APP["User Apps (Rust/C/C++/Python/ROS2/WS)"] --> SURFACE["CLI / ABI / SDK / Integrations"]
+  SURFACE --> CORE["motor_core (controller, bus, model, traits)"]
+  CORE --> DAMIAO["motor_vendors/damiao"]
+  CORE --> ROBSTRIDE["motor_vendors/robstride"]
+  CORE --> TEMPLATE["motor_vendors/template (onboarding scaffold)"]
+  DAMIAO --> CAN["SocketCAN bus"]
+  ROBSTRIDE --> CAN
+  CAN --> HW["Physical motors"]
+```
+
+### Workspace Topology (Latest)
+
+```mermaid
+flowchart LR
+  ROOT["motorbridge workspace"] --> CORE["motor_core"]
+  ROOT --> VENDORS["motor_vendors/*"]
+  ROOT --> CLI["motor_cli"]
+  ROOT --> ABI["motor_abi"]
+  ROOT --> TOOLS["tools/motor_calib"]
+  ROOT --> INTS["integrations/*"]
+  ROOT --> BIND["bindings/*"]
+  VENDORS --> VD["damiao"]
+  VENDORS --> VR["robstride"]
+  VENDORS --> VT["template"]
+  INTS --> ROS["ros2_bridge"]
+  INTS --> WS["ws_gateway"]
+  BIND --> PY["python"]
+  BIND --> CPP["cpp"]
+```
+
+- [`motor_core`](motor_core): vendor-agnostic controller, routing, SocketCAN bus layer
+- [`motor_vendors/damiao`](motor_vendors/damiao): Damiao protocol / models / registers
+- [`motor_vendors/robstride`](motor_vendors/robstride): RobStride extended CAN protocol / models / parameters
+- [`motor_cli`](motor_cli): unified Rust CLI
+- [`motor_abi`](motor_abi): stable C ABI
+- [`bindings/python`](bindings/python): Python SDK + `motorbridge-cli`
+- [`bindings/cpp`](bindings/cpp): C++ RAII wrapper
 
 ## Quick Start
 
@@ -38,6 +72,21 @@ sudo ip link set can0 down 2>/dev/null || true
 sudo ip link set can0 type can bitrate 1000000 restart-ms 100
 sudo ip link set can0 up
 ip -details link show can0
+```
+
+Quick CAN restart (Linux):
+
+```bash
+# default: can0 / 1Mbps / restart-ms=100 / loopback off
+IF=can0; BITRATE=1000000; RESTART_MS=100; LOOPBACK=off
+sudo ip link set "$IF" down 2>/dev/null || true
+if [ "$LOOPBACK" = "on" ]; then
+  sudo ip link set "$IF" type can bitrate "$BITRATE" restart-ms "$RESTART_MS" loopback on
+else
+  sudo ip link set "$IF" type can bitrate "$BITRATE" restart-ms "$RESTART_MS" loopback off
+fi
+sudo ip link set "$IF" up
+ip -details link show "$IF"
 ```
 
 Damiao CLI:
@@ -70,6 +119,12 @@ Unified scan (both vendors):
 cargo run -p motor_cli --release -- \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```
+
+Interpretation:
+
+- `vendor=damiao id=<n>` means one Damiao motor is online at motor ID `<n>`.
+- `vendor=robstride id=<n> responder_id=<m>` means one RobStride motor responded.
+- `hits=<k>` at the end of each scan block is the count of discovered devices.
 
 ## ABI and Bindings
 

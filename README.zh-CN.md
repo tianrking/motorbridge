@@ -15,13 +15,47 @@
 
 ## 架构
 
-- `motor_core`: 与厂商无关的控制器、路由、SocketCAN 总线层
-- `motor_vendors/damiao`: Damiao 协议 / 型号 / 寄存器
-- `motor_vendors/robstride`: RobStride 扩展 CAN 协议 / 型号 / 参数
-- `motor_cli`: 统一 Rust CLI
-- `motor_abi`: 稳定 C ABI
-- `bindings/python`: Python SDK + `motorbridge-cli`
-- `bindings/cpp`: C++ RAII wrapper
+### 分层运行时视图
+
+```mermaid
+flowchart TB
+  APP["上层应用（Rust/C/C++/Python/ROS2/WS）"] --> SURFACE["CLI / ABI / SDK / Integrations"]
+  SURFACE --> CORE["motor_core（controller/bus/model/traits）"]
+  CORE --> DAMIAO["motor_vendors/damiao"]
+  CORE --> ROBSTRIDE["motor_vendors/robstride"]
+  CORE --> TEMPLATE["motor_vendors/template（接入模板）"]
+  DAMIAO --> CAN["SocketCAN 总线"]
+  ROBSTRIDE --> CAN
+  CAN --> HW["真实电机硬件"]
+```
+
+### 工作区拓扑（最新版）
+
+```mermaid
+flowchart LR
+  ROOT["motorbridge workspace"] --> CORE["motor_core"]
+  ROOT --> VENDORS["motor_vendors/*"]
+  ROOT --> CLI["motor_cli"]
+  ROOT --> ABI["motor_abi"]
+  ROOT --> TOOLS["tools/motor_calib"]
+  ROOT --> INTS["integrations/*"]
+  ROOT --> BIND["bindings/*"]
+  VENDORS --> VD["damiao"]
+  VENDORS --> VR["robstride"]
+  VENDORS --> VT["template"]
+  INTS --> ROS["ros2_bridge"]
+  INTS --> WS["ws_gateway"]
+  BIND --> PY["python"]
+  BIND --> CPP["cpp"]
+```
+
+- [`motor_core`](motor_core): 与厂商无关的控制器、路由、SocketCAN 总线层
+- [`motor_vendors/damiao`](motor_vendors/damiao): Damiao 协议 / 型号 / 寄存器
+- [`motor_vendors/robstride`](motor_vendors/robstride): RobStride 扩展 CAN 协议 / 型号 / 参数
+- [`motor_cli`](motor_cli): 统一 Rust CLI
+- [`motor_abi`](motor_abi): 稳定 C ABI
+- [`bindings/python`](bindings/python): Python SDK + `motorbridge-cli`
+- [`bindings/cpp`](bindings/cpp): C++ RAII wrapper
 
 ## 快速开始
 
@@ -38,6 +72,21 @@ sudo ip link set can0 down 2>/dev/null || true
 sudo ip link set can0 type can bitrate 1000000 restart-ms 100
 sudo ip link set can0 up
 ip -details link show can0
+```
+
+Linux 下快速重启 CAN：
+
+```bash
+# 默认：can0 / 1Mbps / restart-ms=100 / loopback 关闭
+IF=can0; BITRATE=1000000; RESTART_MS=100; LOOPBACK=off
+sudo ip link set "$IF" down 2>/dev/null || true
+if [ "$LOOPBACK" = "on" ]; then
+  sudo ip link set "$IF" type can bitrate "$BITRATE" restart-ms "$RESTART_MS" loopback on
+else
+  sudo ip link set "$IF" type can bitrate "$BITRATE" restart-ms "$RESTART_MS" loopback off
+fi
+sudo ip link set "$IF" up
+ip -details link show "$IF"
 ```
 
 Damiao CLI:
@@ -70,6 +119,12 @@ cargo run -p motor_cli --release -- \
 cargo run -p motor_cli --release -- \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```
+
+结果解读：
+
+- `vendor=damiao id=<n>`：发现一个 Damiao 电机，电机 ID 为 `<n>`。
+- `vendor=robstride id=<n> responder_id=<m>`：发现一个 RobStride 电机并返回响应 ID。
+- 每段扫描结尾的 `hits=<k>` 表示该厂商命中的在线设备数量。
 
 ## ABI 与绑定
 

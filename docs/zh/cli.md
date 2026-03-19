@@ -6,6 +6,21 @@
 cargo build -p motor_cli --release
 ```
 
+## Linux 下快速重启 CAN
+
+```bash
+# 默认：can0 / 1Mbps / restart-ms=100 / loopback 关闭
+IF=can0; BITRATE=1000000; RESTART_MS=100; LOOPBACK=off
+sudo ip link set "$IF" down 2>/dev/null || true
+if [ "$LOOPBACK" = "on" ]; then
+  sudo ip link set "$IF" type can bitrate "$BITRATE" restart-ms "$RESTART_MS" loopback on
+else
+  sudo ip link set "$IF" type can bitrate "$BITRATE" restart-ms "$RESTART_MS" loopback off
+fi
+sudo ip link set "$IF" up
+ip -details link show "$IF"
+```
+
 ## 通用参数
 
 - `--vendor damiao|robstride|all`
@@ -55,3 +70,9 @@ cargo run -p motor_cli --release -- \
 cargo run -p motor_cli --release -- \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```
+
+输出解读：
+
+- Damiao 命中行：`vendor=damiao id=<n> ...`
+- RobStride 命中行：`vendor=robstride id=<n> responder_id=<m> ...`
+- 汇总行：`hits=<k>` 表示该厂商扫描到的在线设备数量。

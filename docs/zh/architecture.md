@@ -4,10 +4,13 @@
 
 ```mermaid
 flowchart TB
-  APP["上层应用（Rust/C/C++/Python/ROS2/WS）"] --> ABI["motor_abi / SDK 封装层"]
-  ABI --> CORE["motor_core（controller/bus/model/traits）"]
-  CORE --> VENDOR["motor_vendors/*（协议/寄存器/型号映射）"]
-  VENDOR --> CAN["SocketCAN 总线"]
+  APP["上层应用（Rust/C/C++/Python/ROS2/WS）"] --> SURFACE["CLI / ABI / SDK / Integrations"]
+  SURFACE --> CORE["motor_core（controller/bus/model/traits）"]
+  CORE --> DAMIAO["motor_vendors/damiao"]
+  CORE --> ROBSTRIDE["motor_vendors/robstride"]
+  CORE --> TEMPLATE["motor_vendors/template（接入模板）"]
+  DAMIAO --> CAN["SocketCAN 总线"]
+  ROBSTRIDE --> CAN
   CAN --> HW["真实电机硬件"]
 ```
 
@@ -42,9 +45,15 @@ motorbridge/
 ├── motor_core/                  # 与厂商无关的运行时
 ├── motor_vendors/
 │   ├── damiao/                  # 生产可用实现
+│   ├── robstride/               # 生产可用实现（扩展 ID / 参数协议）
 │   └── template/                # 新厂商模板
 ├── motor_cli/                   # Rust CLI
 ├── motor_abi/                   # C ABI (cdylib + staticlib)
+├── integrations/
+│   ├── ros2_bridge/             # ROS2 桥接
+│   └── ws_gateway/              # Rust WebSocket 网关
+├── tools/
+│   └── motor_calib/             # 扫描/改ID/回读校验工具
 ├── bindings/
 │   ├── python/                 # Python SDK 包 + CLI
 │   └── cpp/                    # C++ RAII 封装 + CMake 包

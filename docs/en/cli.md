@@ -6,6 +6,21 @@
 cargo build -p motor_cli --release
 ```
 
+## Quick CAN Restart (Linux)
+
+```bash
+# default: can0 / 1Mbps / restart-ms=100 / loopback off
+IF=can0; BITRATE=1000000; RESTART_MS=100; LOOPBACK=off
+sudo ip link set "$IF" down 2>/dev/null || true
+if [ "$LOOPBACK" = "on" ]; then
+  sudo ip link set "$IF" type can bitrate "$BITRATE" restart-ms "$RESTART_MS" loopback on
+else
+  sudo ip link set "$IF" type can bitrate "$BITRATE" restart-ms "$RESTART_MS" loopback off
+fi
+sudo ip link set "$IF" up
+ip -details link show "$IF"
+```
+
 ## Common Flag
 
 - `--vendor damiao|robstride|all`
@@ -55,3 +70,9 @@ Unified scan (both vendors):
 cargo run -p motor_cli --release -- \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```
+
+Output reading:
+
+- Damiao hit line: `vendor=damiao id=<n> ...`
+- RobStride hit line: `vendor=robstride id=<n> responder_id=<m> ...`
+- Summary line: `hits=<k>` means discovered online motor count for that vendor.

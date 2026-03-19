@@ -3,6 +3,7 @@
 This page is a practical reference for RobStride control and parameter operations currently supported by `motorbridge`.
 
 > Chinese version: [rs_api_cn.md](rs_api_cn.md)
+> Detailed capability audit (gaps/opportunities): [rs_api_gap_analysis.zh-CN.md](rs_api_gap_analysis.zh-CN.md)
 
 ## 1) Common Device Parameters
 
@@ -45,7 +46,7 @@ cargo run -p motor_cli --release -- \
 
 | Param ID | Name | Type | Meaning |
 |---|---|---|---|
-| `0x7005` | `run_mode` | `u32` | control mode selector |
+| `0x7005` | `run_mode` | `i8` | control mode selector |
 | `0x700A` | `spd_ref` | `f32` | target velocity |
 | `0x7019` | `mechPos` | `f32` | mechanical position |
 | `0x701B` | `mechVel` | `f32` | mechanical velocity |
@@ -66,7 +67,7 @@ Write parameter:
 ```bash
 cargo run -p motor_cli --release -- \
   --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
-  --mode write-param --param-id 0x700A --type f32 --value 0.3 --verify
+  --mode write-param --param-id 0x700A --param-value 0.3
 ```
 
 Python binding read/write:
@@ -96,7 +97,7 @@ Set device ID:
 ```bash
 cargo run -p motor_cli --release -- \
   --vendor robstride --channel can0 --model rs-06 \
-  --motor-id 127 --feedback-id 0xFF --mode set-id --new-id 126 --verify
+  --motor-id 127 --feedback-id 0xFF --set-motor-id 126 --store 1
 ```
 
 ## 6) WS Gateway JSON Examples

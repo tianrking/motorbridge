@@ -18,6 +18,7 @@ Cross-language example entry for the current `motorbridge` stack.
 - RobStride API/parameter reference:
   - `examples/rs_api.md`
   - `examples/rs_api_cn.md`
+  - `examples/rs_api_gap_analysis.zh-CN.md` (detailed gap analysis, zh-CN)
 
 ## Vendor Support in Examples
 

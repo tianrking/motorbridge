@@ -11,7 +11,7 @@ Unified CAN motor control stack with a vendor-agnostic Rust core, stable C ABI, 
   - modes: `scan`, `MIT`, `POS_VEL`, `VEL`, `FORCE_POS`
 - RobStride:
   - models: `rs-00`, `rs-01`, `rs-02`, `rs-03`, `rs-04`, `rs-05`, `rs-06`
-  - modes: `scan`, `scan-manual`, `ping`, `MIT`, `VEL`, parameter read/write
+  - modes: `scan`, `ping`, `MIT`, `VEL`, parameter read/write
 
 ## Architecture
 

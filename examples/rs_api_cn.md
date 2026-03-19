@@ -3,6 +3,7 @@
 本页是 `motorbridge` 当前 RobStride 控制与参数操作的实用总表。
 
 > English version: [rs_api.md](rs_api.md)
+> 详细能力对照审计（含改进空间）: [rs_api_gap_analysis.zh-CN.md](rs_api_gap_analysis.zh-CN.md)
 
 ## 1）通用设备参数
 
@@ -45,7 +46,7 @@ cargo run -p motor_cli --release -- \
 
 | Param ID | 名称 | 类型 | 含义 |
 |---|---|---|---|
-| `0x7005` | `run_mode` | `u32` | 控制模式选择 |
+| `0x7005` | `run_mode` | `i8` | 控制模式选择 |
 | `0x700A` | `spd_ref` | `f32` | 目标速度 |
 | `0x7019` | `mechPos` | `f32` | 机械位置 |
 | `0x701B` | `mechVel` | `f32` | 机械速度 |
@@ -66,7 +67,7 @@ cargo run -p motor_cli --release -- \
 ```bash
 cargo run -p motor_cli --release -- \
   --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
-  --mode write-param --param-id 0x700A --type f32 --value 0.3 --verify
+  --mode write-param --param-id 0x700A --param-value 0.3
 ```
 
 Python binding 读写示例：
@@ -96,7 +97,7 @@ cargo run -p motor_cli --release -- \
 ```bash
 cargo run -p motor_cli --release -- \
   --vendor robstride --channel can0 --model rs-06 \
-  --motor-id 127 --feedback-id 0xFF --mode set-id --new-id 126 --verify
+  --motor-id 127 --feedback-id 0xFF --set-motor-id 126 --store 1
 ```
 
 ## 6）WS 网关 JSON 示例

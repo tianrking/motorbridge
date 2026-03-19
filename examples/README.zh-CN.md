@@ -18,6 +18,7 @@
 - RobStride 参数/API 总表:
   - `examples/rs_api.md`
   - `examples/rs_api_cn.md`
+  - `examples/rs_api_gap_analysis.zh-CN.md`（详细差距审计）
 
 ## 示例支持的厂商
 

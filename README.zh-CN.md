@@ -11,7 +11,7 @@
   - 模式: `scan`, `MIT`, `POS_VEL`, `VEL`, `FORCE_POS`
 - RobStride:
   - 型号: `rs-00`, `rs-01`, `rs-02`, `rs-03`, `rs-04`, `rs-05`, `rs-06`
-  - 模式: `scan`, `scan-manual`, `ping`, `MIT`, `VEL`, 参数读写
+  - 模式: `scan`, `ping`, `MIT`, `VEL`, 参数读写
 
 ## 架构
 

@@ -20,3 +20,55 @@ jobs:
 
       - name: Cargo test
         run: cargo test --workspace --all-targets
+
+  windows-python-smoke:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python build deps
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Build ABI
+        run: cargo build -p motor_abi --release
+
+      - name: Build wheel
+        shell: pwsh
+        env:
+          MOTORBRIDGE_LIB: ${{ github.workspace }}\\target\\release\\motor_abi.dll
+        run: |
+          if (Test-Path bindings/python/dist) { Remove-Item bindings/python/dist -Recurse -Force }
+          python -m pip wheel --no-build-isolation bindings/python -w bindings/python/dist
+
+      - name: Install wheel
+        shell: pwsh
+        run: python -m pip install --force-reinstall bindings/python/dist/*.whl
+
+      - name: ABI import smoke
+        shell: pwsh
+        run: |
+          python -c "from motorbridge.abi import get_abi; a=get_abi(); print('abi_import_ok', bool(a.lib))"
+
+      - name: Controller smoke (driver optional on CI runner)
+        shell: pwsh
+        run: |
+          @'
+          from motorbridge import Controller
+          try:
+              c = Controller("can0@1000000")
+              c.close()
+              print("controller_ok")
+          except Exception as e:
+              msg = str(e)
+              print("controller_init_skipped", msg)
+              assert ("PCAN" in msg) or ("can backend" in msg.lower()) or ("Unsupported" in msg)
+          '@ | python -

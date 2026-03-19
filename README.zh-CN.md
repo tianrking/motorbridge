@@ -55,6 +55,10 @@ flowchart LR
 - [`motor_vendors/damiao`](motor_vendors/damiao): Damiao 协议 / 型号 / 寄存器
 - [`motor_vendors/robstride`](motor_vendors/robstride): RobStride 扩展 CAN 协议 / 型号 / 参数
 - [`motor_cli`](motor_cli): 统一 Rust CLI
+  - 全参数英文文档: [`motor_cli/README.md`](motor_cli/README.md)
+  - 全参数中文文档: [`motor_cli/README.zh-CN.md`](motor_cli/README.zh-CN.md)
+  - Damiao 指令/寄存器文档: [`motor_cli/DAMIAO_API.md`](motor_cli/DAMIAO_API.md), [`motor_cli/DAMIAO_API.zh-CN.md`](motor_cli/DAMIAO_API.zh-CN.md)
+  - RobStride 指令/参数文档: [`motor_cli/ROBSTRIDE_API.md`](motor_cli/ROBSTRIDE_API.md), [`motor_cli/ROBSTRIDE_API.zh-CN.md`](motor_cli/ROBSTRIDE_API.zh-CN.md)
 - [`motor_abi`](motor_abi): 稳定 C ABI
 - [`bindings/python`](bindings/python): Python SDK + `motorbridge-cli`
 - [`bindings/cpp`](bindings/cpp): C++ RAII wrapper

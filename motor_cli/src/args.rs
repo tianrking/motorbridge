@@ -4,11 +4,15 @@ pub fn parse_args() -> HashMap<String, String> {
     let mut out = HashMap::new();
     let mut it = std::env::args().skip(1).peekable();
     while let Some(k) = it.next() {
-        if !k.starts_with("--") {
+        if k == "-h" || k == "--help" || k == "help" {
+            out.insert("help".to_string(), "1".to_string());
             continue;
         }
-        if k == "--help" {
-            out.insert("help".to_string(), "1".to_string());
+        // Ignore common cargo-only flag if user accidentally passes it to binary.
+        if k == "--release" {
+            continue;
+        }
+        if !k.starts_with("--") {
             continue;
         }
         let key = k.trim_start_matches("--").to_string();
@@ -84,6 +88,12 @@ pub fn print_help() {
     println!(
         "motor_cli\n\
 Usage:\n\
+  motor_cli -h | --help\n\
+  motor_cli --vendor damiao --mode scan --start-id 1 --end-id 16\n\
+  motor_cli --vendor robstride --mode ping --motor-id 127 --feedback-id 0xFF\n\n\
+Behavior:\n\
+  no arguments: print this help (no motor command is sent)\n\n\
+Cargo form:\n\
   cargo run -p motor_cli --release -- \\\n\
     --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \\\n\
     --mode mit --pos 0 --vel 0 --kp 30 --kd 1 --tau 0 --loop 200 --dt-ms 20\n\n\

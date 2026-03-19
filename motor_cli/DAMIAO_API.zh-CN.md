@@ -2,7 +2,7 @@
 
 本页是 `motorbridge` 当前 Damiao 可调控制/配置参数的实用总表。
 
-> English version: [dm_api.md](dm_api.md)
+> English version: [DAMIAO_API.md](DAMIAO_API.md)
 
 ## 1）通用设备参数
 
@@ -30,7 +30,7 @@
 示例（`motor_cli`）：
 
 ```bash
-cargo run -p motor_cli --release -- \
+motor_cli \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 200 --dt-ms 20
 ```
@@ -45,7 +45,7 @@ cargo run -p motor_cli --release -- \
 示例：
 
 ```bash
-cargo run -p motor_cli --release -- \
+motor_cli \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode pos-vel --pos 3.10 --vlim 1.50 --loop 300 --dt-ms 20
 ```
@@ -59,7 +59,7 @@ cargo run -p motor_cli --release -- \
 示例：
 
 ```bash
-cargo run -p motor_cli --release -- \
+motor_cli \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode vel --vel 0.5 --loop 100 --dt-ms 20
 ```
@@ -75,7 +75,7 @@ cargo run -p motor_cli --release -- \
 示例：
 
 ```bash
-cargo run -p motor_cli --release -- \
+motor_cli \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode force-pos --pos 0.8 --vlim 2.0 --ratio 0.3 --loop 100 --dt-ms 20
 ```

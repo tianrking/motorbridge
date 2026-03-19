@@ -55,6 +55,10 @@ flowchart LR
 - [`motor_vendors/damiao`](motor_vendors/damiao): Damiao protocol / models / registers
 - [`motor_vendors/robstride`](motor_vendors/robstride): RobStride extended CAN protocol / models / parameters
 - [`motor_cli`](motor_cli): unified Rust CLI
+  - full parameters (English): [`motor_cli/README.md`](motor_cli/README.md)
+  - full parameters (Chinese): [`motor_cli/README.zh-CN.md`](motor_cli/README.zh-CN.md)
+  - Damiao command/register guide: [`motor_cli/DAMIAO_API.md`](motor_cli/DAMIAO_API.md), [`motor_cli/DAMIAO_API.zh-CN.md`](motor_cli/DAMIAO_API.zh-CN.md)
+  - RobStride command/parameter guide: [`motor_cli/ROBSTRIDE_API.md`](motor_cli/ROBSTRIDE_API.md), [`motor_cli/ROBSTRIDE_API.zh-CN.md`](motor_cli/ROBSTRIDE_API.zh-CN.md)
 - [`motor_abi`](motor_abi): stable C ABI
 - [`bindings/python`](bindings/python): Python SDK + `motorbridge-cli`
 - [`bindings/cpp`](bindings/cpp): C++ RAII wrapper

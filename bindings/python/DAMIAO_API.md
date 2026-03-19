@@ -102,5 +102,5 @@ Exported constants:
 
 For a full operation/tuning table and command examples, see:
 
-- [`examples/dm_api.md`](../examples/dm_api.md)
-- [`examples/dm_api_cn.md`](../examples/dm_api_cn.md)
+- [`motor_cli/DAMIAO_API.md`](../../motor_cli/DAMIAO_API.md)
+- [`motor_cli/DAMIAO_API.zh-CN.md`](../../motor_cli/DAMIAO_API.zh-CN.md)

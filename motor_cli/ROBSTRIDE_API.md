@@ -1,9 +1,8 @@
-# RobStride API and Parameter Reference (Practical)
+# RobStride API and Parameter Reference (Complete)
 
-This page is a practical reference for RobStride control and parameter operations currently supported by `motorbridge`.
+Practical and complete reference for RobStride control, parameter access, and current capability boundaries in `motorbridge`.
 
-> Chinese version: [rs_api_cn.md](rs_api_cn.md)
-> Detailed capability audit (gaps/opportunities): [rs_api_gap_analysis.zh-CN.md](rs_api_gap_analysis.zh-CN.md)
+> Chinese version: [ROBSTRIDE_API.zh-CN.md](ROBSTRIDE_API.zh-CN.md)
 
 ## 1) Common Device Parameters
 
@@ -12,37 +11,73 @@ This page is a practical reference for RobStride control and parameter operation
 | `channel` | CAN interface name | `can0` |
 | `model` | RobStride model string | `rs-00`, `rs-06` |
 | `motor-id` | Device ID | e.g. `127` |
-| `feedback-id` | Host/feedback ID used in command frame | typically `0xFF` |
+| `feedback-id` | Host/feedback ID used in command frame | usually `0xFF` |
 | `loop` | Send cycles for periodic control | `20`~`100` |
 | `dt-ms` | Send interval per cycle | `20`~`50` |
 
-## 2) Control Modes
+## 2) `motor_cli` RobStride Modes
 
-## 2.1 Ping
+Supported now:
+
+- `ping`
+- `scan`
+- `enable`
+- `disable`
+- `mit`
+- `vel`
+- `read-param`
+- `write-param`
+
+### 2.1 Ping
 
 ```bash
-cargo run -p motor_cli --release -- \
+motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
   --mode ping
 ```
 
-## 2.2 MIT
+### 2.2 MIT
 
 ```bash
-cargo run -p motor_cli --release -- \
+motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
   --mode mit --pos 0 --vel 0 --kp 8 --kd 0.2 --tau 0 --loop 40 --dt-ms 50
 ```
 
-## 2.3 Velocity
+### 2.3 Velocity
 
 ```bash
-cargo run -p motor_cli --release -- \
+motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
   --mode vel --vel 0.3 --loop 40 --dt-ms 50
 ```
 
-## 3) Frequently Used Parameters
+## 3) Scan and ID Update
+
+### 3.1 Scan
+
+```bash
+motor_cli \
+  --vendor robstride --channel can0 --model rs-06 --mode scan --start-id 1 --end-id 255
+```
+
+Notes:
+
+- Fast pass: ping + query-parameter probe.
+- If no ping replies in full range, CLI auto-falls back to blind pulse probing:
+  - `--manual-vel` (default `0.2`)
+  - `--manual-ms` (default `200`)
+  - `--manual-gap-ms` (default `200`)
+
+### 3.2 Update Device ID
+
+```bash
+motor_cli \
+  --vendor robstride --channel can0 --model rs-06 \
+  --motor-id 127 --feedback-id 0xFF --set-motor-id 126 --store 1
+```
+
+## 4) Frequently Used Parameter IDs
 
 | Param ID | Name | Type | Meaning |
 |---|---|---|---|
@@ -52,12 +87,12 @@ cargo run -p motor_cli --release -- \
 | `0x701B` | `mechVel` | `f32` | mechanical velocity |
 | `0x701C` | `VBUS` | `f32` | bus voltage |
 
-## 4) Parameter Read/Write
+## 5) Parameter Read/Write
 
 Read parameter:
 
 ```bash
-cargo run -p motor_cli --release -- \
+motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
   --mode read-param --param-id 0x7019
 ```
@@ -65,12 +100,12 @@ cargo run -p motor_cli --release -- \
 Write parameter:
 
 ```bash
-cargo run -p motor_cli --release -- \
+motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
   --mode write-param --param-id 0x700A --param-value 0.3
 ```
 
-Python binding read/write:
+Python binding sample:
 
 ```python
 from motorbridge import Controller
@@ -83,24 +118,26 @@ with Controller("can0") as ctrl:
     m.close()
 ```
 
-## 5) Scan and ID Update
+## 6) Protocol Communication Coverage
 
-Unified scan:
+`motorbridge` currently exposes or uses these RobStride protocol communication types:
 
-```bash
-cargo run -p motor_cli --release -- \
-  --vendor robstride --channel can0 --model rs-06 --mode scan --start-id 1 --end-id 255
-```
+- In use directly: `0(GET_DEVICE_ID)`, `1(OPERATION_CONTROL)`, `3(ENABLE)`, `4(DISABLE)`, `6(SET_ZERO_POSITION)`, `7(SET_DEVICE_ID)`, `17(READ_PARAMETER)`, `18(WRITE_PARAMETER)`, `22(SAVE_PARAMETERS)`
+- Receive/parse path: `2(OPERATION_STATUS)`, `21(FAULT_REPORT)`
+- Present in protocol constants but not yet first-class high-level APIs: `23(SET_BAUDRATE)`, `24(ACTIVE_REPORT)`, `25(SET_PROTOCOL)`
 
-Set device ID:
+## 7) Gap Summary and Next Improvements
 
-```bash
-cargo run -p motor_cli --release -- \
-  --vendor robstride --channel can0 --model rs-06 \
-  --motor-id 127 --feedback-id 0xFF --set-motor-id 126 --store 1
-```
+Current status: core control is production-usable (`scan/ping/mit/vel/read/write/set-id/set-zero/store`).
 
-## 6) WS Gateway JSON Examples
+Main improvement opportunities:
+
+1. Add semantic CLI modes for position/current (today possible via write-param, but less ergonomic).
+2. Add multi feedback-host candidate support in scan CLI.
+3. Expose high-level APIs for `SET_BAUDRATE / ACTIVE_REPORT / SET_PROTOCOL`.
+4. Decode and present `FAULT_REPORT` in dedicated structured output.
+
+## 8) WS Gateway JSON Examples
 
 ```json
 {"op":"set_target","vendor":"robstride","channel":"can0","model":"rs-06","motor_id":127,"feedback_id":255}
@@ -112,7 +149,7 @@ cargo run -p motor_cli --release -- \
 {"op":"scan","vendor":"robstride","start_id":1,"end_id":255,"feedback_ids":"0xFF,0xFE,0x00","timeout_ms":120}
 ```
 
-## 7) Safety Notes
+## 9) Safety Notes
 
 - Start with small velocity and short loop count.
 - Confirm CAN wiring/termination and interface state before stress tests.

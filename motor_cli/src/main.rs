@@ -8,7 +8,7 @@ use robstride_cli::run_robstride;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = args::parse_args();
-    if args.contains_key("help") {
+    if args.is_empty() || args.contains_key("help") {
         print_help();
         return Ok(());
     }

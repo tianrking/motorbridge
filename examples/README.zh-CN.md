@@ -13,12 +13,11 @@
 - Python SDK 示例: `bindings/python/examples/*`
 - C++ wrapper 示例: `bindings/cpp/examples/*`
 - Damiao 调参总表:
-  - `examples/dm_api.md`
-  - `examples/dm_api_cn.md`
+  - `../motor_cli/DAMIAO_API.md`
+  - `../motor_cli/DAMIAO_API.zh-CN.md`
 - RobStride 参数/API 总表:
-  - `examples/rs_api.md`
-  - `examples/rs_api_cn.md`
-  - `examples/rs_api_gap_analysis.zh-CN.md`（详细差距审计）
+  - `../motor_cli/ROBSTRIDE_API.md`
+  - `../motor_cli/ROBSTRIDE_API.zh-CN.md`
 
 ## 示例支持的厂商
 

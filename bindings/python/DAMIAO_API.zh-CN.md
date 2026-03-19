@@ -102,5 +102,5 @@ for rid in sorted(DAMIAO_RW_REGISTERS):
 
 完整调参与命令示例见：
 
-- [`examples/dm_api.md`](../examples/dm_api.md)
-- [`examples/dm_api_cn.md`](../examples/dm_api_cn.md)
+- [`motor_cli/DAMIAO_API.md`](../../motor_cli/DAMIAO_API.md)
+- [`motor_cli/DAMIAO_API.zh-CN.md`](../../motor_cli/DAMIAO_API.zh-CN.md)

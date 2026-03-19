@@ -2,7 +2,7 @@
 
 This page is a practical reference for all commonly adjustable control/configuration parameters currently available in `motorbridge` for Damiao motors.
 
-> Chinese version: [dm_api_cn.md](dm_api_cn.md)
+> Chinese version: [DAMIAO_API.zh-CN.md](DAMIAO_API.zh-CN.md)
 
 ## 1) Common Device Parameters
 
@@ -30,7 +30,7 @@ Command fields:
 Example (`motor_cli`):
 
 ```bash
-cargo run -p motor_cli --release -- \
+motor_cli \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 200 --dt-ms 20
 ```
@@ -45,7 +45,7 @@ Command fields:
 Example:
 
 ```bash
-cargo run -p motor_cli --release -- \
+motor_cli \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode pos-vel --pos 3.10 --vlim 1.50 --loop 300 --dt-ms 20
 ```
@@ -59,7 +59,7 @@ Command field:
 Example:
 
 ```bash
-cargo run -p motor_cli --release -- \
+motor_cli \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode vel --vel 0.5 --loop 100 --dt-ms 20
 ```
@@ -75,7 +75,7 @@ Command fields:
 Example:
 
 ```bash
-cargo run -p motor_cli --release -- \
+motor_cli \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode force-pos --pos 0.8 --vlim 2.0 --ratio 0.3 --loop 100 --dt-ms 20
 ```

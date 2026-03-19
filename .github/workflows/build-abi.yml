@@ -255,39 +255,99 @@ jobs:
           path: bindings/python/dist/*.tar.gz
           if-no-files-found: error
 
-  build-motor-cli-linux-x86_64:
-    name: build-motor-cli-linux-x86_64
-    runs-on: ubuntu-latest
+  build-motor-cli:
+    name: build-motor-cli-${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x86_64
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            platform: linux-aarch64
+            target: aarch64-unknown-linux-gnu
+          - os: windows-latest
+            platform: windows-x86_64
+            target: x86_64-pc-windows-msvc
+          - os: macos-13
+            platform: macos-x86_64
+            target: x86_64-apple-darwin
+          - os: macos-14
+            platform: macos-aarch64
+            target: aarch64-apple-darwin
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
-      - name: Build motor_cli (Linux x86_64)
-        run: cargo build -p motor_cli --release
+      - name: Install Linux aarch64 cross linker
+        if: matrix.platform == 'linux-aarch64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
 
-      - name: Package motor_cli
+      - name: Build motor_cli (Linux native)
+        if: matrix.platform == 'linux-x86_64'
+        run: cargo build -p motor_cli --release --target ${{ matrix.target }}
+
+      - name: Build motor_cli (Linux aarch64)
+        if: matrix.platform == 'linux-aarch64'
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: cargo build -p motor_cli --release --target ${{ matrix.target }}
+
+      - name: Build motor_cli (Windows/macOS)
+        if: matrix.platform == 'windows-x86_64' || startsWith(matrix.platform, 'macos-')
+        run: cargo build -p motor_cli --release --target ${{ matrix.target }}
+
+      - name: Package motor_cli (Linux/macOS)
+        if: matrix.platform != 'windows-x86_64'
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME//\//-}"
-          STAGE="dist/motor-cli-${VERSION}-linux-x86_64"
+          STAGE="dist/motor-cli-${VERSION}-${{ matrix.platform }}"
           mkdir -p "${STAGE}/bin"
-          cp -v target/release/motor_cli "${STAGE}/bin/"
+          cp -v "target/${{ matrix.target }}/release/motor_cli" "${STAGE}/bin/"
           {
             echo "version=${VERSION}"
             echo "commit=${GITHUB_SHA}"
             echo "built_at=$(date -Iseconds)"
-            echo "platform=linux-x86_64"
+            echo "platform=${{ matrix.platform }}"
+            echo "target=${{ matrix.target }}"
           } > "${STAGE}/BUILD_INFO.txt"
-          tar -czf "dist/motor-cli-${VERSION}-linux-x86_64.tar.gz" -C dist "$(basename "${STAGE}")"
+          tar -czf "dist/motor-cli-${VERSION}-${{ matrix.platform }}.tar.gz" -C dist "$(basename "${STAGE}")"
+
+      - name: Package motor_cli (Windows)
+        if: matrix.platform == 'windows-x86_64'
+        shell: pwsh
+        run: |
+          $version = "${env:GITHUB_REF_NAME}" -replace '/', '-'
+          $stage = "dist/motor-cli-$version-${{ matrix.platform }}"
+          New-Item -ItemType Directory -Path "$stage/bin" -Force | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/motor_cli.exe" "$stage/bin/" -Force
+          @"
+          version=$version
+          commit=${env:GITHUB_SHA}
+          built_at=$((Get-Date).ToString("o"))
+          platform=${{ matrix.platform }}
+          target=${{ matrix.target }}
+          "@ | Out-File -FilePath "$stage/BUILD_INFO.txt" -Encoding ascii
+          Compress-Archive -Path "$stage/*" -DestinationPath "dist/motor-cli-$version-${{ matrix.platform }}.zip" -Force
 
       - name: Upload motor_cli artifact
         uses: actions/upload-artifact@v4
         with:
-          name: motor-cli-linux-x86_64
-          path: dist/motor-cli-*-linux-x86_64.tar.gz
+          name: motor-cli-${{ matrix.platform }}
+          path: |
+            dist/motor-cli-*.tar.gz
+            dist/motor-cli-*.zip
           if-no-files-found: error
 
   release:
@@ -298,7 +358,7 @@ jobs:
       - build-python-wheel-linux
       - build-python-wheel-windows
       - build-python-sdist
-      - build-motor-cli-linux-x86_64
+      - build-motor-cli
     runs-on: ubuntu-latest
     steps:
       - name: Download all packages
@@ -327,8 +387,9 @@ jobs:
               then link `motor_abi.dll/.lib` in your project.
             - C/C++ development on other platforms:
               use ABI archives (`.tar.gz` / `.zip`) and point CMake to installed include/lib paths.
-            - CLI debugging on Ubuntu x86_64:
-              download `motor-cli-<tag>-linux-x86_64.tar.gz`, extract and run `bin/motor_cli`.
+            - CLI debugging (multi-platform):
+              download the matching `motor-cli-<tag>-<platform>.(tar.gz|zip)`, extract and run:
+              `bin/motor_cli` (Linux/macOS) or `bin/motor_cli.exe` (Windows).
             - Python development:
               pick the matching wheel (`cp310/cp311/cp312`, arch/platform), then:
               `pip install ./motorbridge-*.whl`

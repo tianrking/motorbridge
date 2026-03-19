@@ -13,12 +13,11 @@ Cross-language example entry for the current `motorbridge` stack.
 - Python SDK demos: `bindings/python/examples/*`
 - C++ wrapper demos: `bindings/cpp/examples/*`
 - Damiao tuning reference:
-  - `examples/dm_api.md`
-  - `examples/dm_api_cn.md`
+  - `../motor_cli/DAMIAO_API.md`
+  - `../motor_cli/DAMIAO_API.zh-CN.md`
 - RobStride API/parameter reference:
-  - `examples/rs_api.md`
-  - `examples/rs_api_cn.md`
-  - `examples/rs_api_gap_analysis.zh-CN.md` (detailed gap analysis, zh-CN)
+  - `../motor_cli/ROBSTRIDE_API.md`
+  - `../motor_cli/ROBSTRIDE_API.zh-CN.md`
 
 ## Vendor Support in Examples
 

@@ -6,6 +6,11 @@ This project currently focuses on deterministic unit tests for protocol and pars
 
 - `motor_core`:
   - Windows PCAN channel/bitrate parsing and validation
+  - `CoreController` integration tests with fake `CanBus`:
+    - duplicate device-id rejection
+    - frame routing
+    - enable/disable fan-out
+    - shutdown lifecycle behavior
 - `motor_vendor_damiao`:
   - protocol encode/decode primitives
   - model matching/suggestion logic
@@ -41,6 +46,5 @@ Use the commands in root `README.md` (Linux) and Windows experimental section (`
 
 ## Next Step Improvements
 
-- Add bus-level mock integration tests (`CoreController` + fake `CanBus`)
 - Add long-run reliability tests for reconnect/error handling
 - Add CI matrix stage for Windows runtime smoke (ABI + Python wheel install/import)

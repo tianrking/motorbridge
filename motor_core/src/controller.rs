@@ -166,3 +166,177 @@ impl CoreController {
         self.bus.shutdown()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bus::{CanBus, CanFrame};
+    use crate::device::MotorDevice;
+    use std::collections::VecDeque;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct FakeBus {
+        rx: Mutex<VecDeque<CanFrame>>,
+        sent: Mutex<Vec<CanFrame>>,
+        shutdown_count: AtomicUsize,
+    }
+
+    impl FakeBus {
+        fn new() -> Self {
+            Self {
+                rx: Mutex::new(VecDeque::new()),
+                sent: Mutex::new(Vec::new()),
+                shutdown_count: AtomicUsize::new(0),
+            }
+        }
+
+        fn push_rx(&self, frame: CanFrame) {
+            self.rx.lock().expect("rx lock").push_back(frame);
+        }
+    }
+
+    impl CanBus for FakeBus {
+        fn send(&self, frame: CanFrame) -> Result<()> {
+            self.sent.lock().expect("sent lock").push(frame);
+            Ok(())
+        }
+
+        fn recv(&self, _timeout: Duration) -> Result<Option<CanFrame>> {
+            Ok(self.rx.lock().expect("rx lock").pop_front())
+        }
+
+        fn shutdown(&self) -> Result<()> {
+            self.shutdown_count.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    struct FakeDevice {
+        id: u16,
+        accepts_id: u32,
+        enable_count: AtomicUsize,
+        disable_count: AtomicUsize,
+        processed_count: AtomicUsize,
+    }
+
+    impl FakeDevice {
+        fn new(id: u16, accepts_id: u32) -> Self {
+            Self {
+                id,
+                accepts_id,
+                enable_count: AtomicUsize::new(0),
+                disable_count: AtomicUsize::new(0),
+                processed_count: AtomicUsize::new(0),
+            }
+        }
+    }
+
+    impl MotorDevice for FakeDevice {
+        fn vendor(&self) -> &'static str {
+            "fake"
+        }
+
+        fn model(&self) -> &str {
+            "fake-model"
+        }
+
+        fn motor_id(&self) -> u16 {
+            self.id
+        }
+
+        fn feedback_id(&self) -> u16 {
+            self.accepts_id as u16
+        }
+
+        fn enable(&self) -> Result<()> {
+            self.enable_count.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn disable(&self) -> Result<()> {
+            self.disable_count.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
+        fn accepts_frame(&self, frame: &CanFrame) -> bool {
+            frame.arbitration_id == self.accepts_id
+        }
+
+        fn process_feedback_frame(&self, _frame: CanFrame) -> Result<()> {
+            self.processed_count.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    fn rx_frame(id: u32) -> CanFrame {
+        CanFrame {
+            arbitration_id: id,
+            data: [0; 8],
+            dlc: 8,
+            is_extended: false,
+            is_rx: true,
+        }
+    }
+
+    #[test]
+    fn add_device_rejects_duplicate_motor_id() {
+        let bus = Arc::new(FakeBus::new());
+        let ctrl = CoreController::new(bus);
+        let d1: Arc<dyn MotorDevice> = Arc::new(FakeDevice::new(1, 0x11));
+        let d2: Arc<dyn MotorDevice> = Arc::new(FakeDevice::new(1, 0x12));
+        ctrl.add_device(d1).expect("first add");
+        assert!(ctrl.add_device(d2).is_err());
+        ctrl.close_bus().expect("close");
+    }
+
+    #[test]
+    fn poll_feedback_routes_to_accepting_device() {
+        let bus = Arc::new(FakeBus::new());
+        bus.push_rx(rx_frame(0x12));
+        bus.push_rx(rx_frame(0x11));
+
+        let ctrl = CoreController::new(bus);
+        let d1 = Arc::new(FakeDevice::new(1, 0x11));
+        let d2 = Arc::new(FakeDevice::new(2, 0x12));
+        ctrl.add_device(d1.clone()).expect("add d1");
+        ctrl.add_device(d2.clone()).expect("add d2");
+
+        ctrl.poll_feedback_once().expect("poll");
+
+        assert_eq!(d1.processed_count.load(Ordering::SeqCst), 1);
+        assert_eq!(d2.processed_count.load(Ordering::SeqCst), 1);
+        ctrl.close_bus().expect("close");
+    }
+
+    #[test]
+    fn enable_and_disable_all_touch_each_device_once() {
+        let bus = Arc::new(FakeBus::new());
+        let ctrl = CoreController::new(bus);
+        let d1 = Arc::new(FakeDevice::new(1, 0x11));
+        let d2 = Arc::new(FakeDevice::new(2, 0x12));
+        ctrl.add_device(d1.clone()).expect("add d1");
+        ctrl.add_device(d2.clone()).expect("add d2");
+
+        ctrl.enable_all().expect("enable all");
+        ctrl.disable_all().expect("disable all");
+
+        assert_eq!(d1.enable_count.load(Ordering::SeqCst), 1);
+        assert_eq!(d2.enable_count.load(Ordering::SeqCst), 1);
+        assert_eq!(d1.disable_count.load(Ordering::SeqCst), 1);
+        assert_eq!(d2.disable_count.load(Ordering::SeqCst), 1);
+        ctrl.close_bus().expect("close");
+    }
+
+    #[test]
+    fn shutdown_disables_devices_and_closes_bus() {
+        let bus = Arc::new(FakeBus::new());
+        let ctrl = CoreController::new(bus.clone());
+        let d1 = Arc::new(FakeDevice::new(1, 0x11));
+        ctrl.add_device(d1.clone()).expect("add d1");
+
+        ctrl.shutdown().expect("shutdown");
+
+        assert_eq!(d1.disable_count.load(Ordering::SeqCst), 1);
+        assert_eq!(bus.shutdown_count.load(Ordering::SeqCst), 1);
+    }
+}

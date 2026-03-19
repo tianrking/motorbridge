@@ -6,6 +6,11 @@
 
 - `motor_core`：
   - Windows PCAN 通道/波特率解析与校验
+  - `CoreController` + Fake `CanBus` 集成测试：
+    - 重复设备 ID 拒绝
+    - 反馈帧路由
+    - enable/disable 批量下发
+    - shutdown 生命周期行为
 - `motor_vendor_damiao`：
   - 协议编解码基础逻辑
   - 型号匹配/推荐逻辑
@@ -42,6 +47,5 @@ cargo test --workspace --all-targets
 
 ## 下一步增强建议
 
-- 增加 `CoreController + Fake CanBus` 的集成测试
 - 增加长时间稳定性测试（断连恢复/错误注入）
 - 在 CI 增加 Windows 运行时 smoke（ABI + Python wheel 安装/导入）

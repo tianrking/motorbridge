@@ -255,6 +255,41 @@ jobs:
           path: bindings/python/dist/*.tar.gz
           if-no-files-found: error
 
+  build-motor-cli-linux-x86_64:
+    name: build-motor-cli-linux-x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build motor_cli (Linux x86_64)
+        run: cargo build -p motor_cli --release
+
+      - name: Package motor_cli
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME//\//-}"
+          STAGE="dist/motor-cli-${VERSION}-linux-x86_64"
+          mkdir -p "${STAGE}/bin"
+          cp -v target/release/motor_cli "${STAGE}/bin/"
+          {
+            echo "version=${VERSION}"
+            echo "commit=${GITHUB_SHA}"
+            echo "built_at=$(date -Iseconds)"
+            echo "platform=linux-x86_64"
+          } > "${STAGE}/BUILD_INFO.txt"
+          tar -czf "dist/motor-cli-${VERSION}-linux-x86_64.tar.gz" -C dist "$(basename "${STAGE}")"
+
+      - name: Upload motor_cli artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: motor-cli-linux-x86_64
+          path: dist/motor-cli-*-linux-x86_64.tar.gz
+          if-no-files-found: error
+
   release:
     name: publish-release
     if: startsWith(github.ref, 'refs/tags/v')
@@ -263,6 +298,7 @@ jobs:
       - build-python-wheel-linux
       - build-python-wheel-windows
       - build-python-sdist
+      - build-motor-cli-linux-x86_64
     runs-on: ubuntu-latest
     steps:
       - name: Download all packages
@@ -291,6 +327,8 @@ jobs:
               then link `motor_abi.dll/.lib` in your project.
             - C/C++ development on other platforms:
               use ABI archives (`.tar.gz` / `.zip`) and point CMake to installed include/lib paths.
+            - CLI debugging on Ubuntu x86_64:
+              download `motor-cli-<tag>-linux-x86_64.tar.gz`, extract and run `bin/motor_cli`.
             - Python development:
               pick the matching wheel (`cp310/cp311/cp312`, arch/platform), then:
               `pip install ./motorbridge-*.whl`

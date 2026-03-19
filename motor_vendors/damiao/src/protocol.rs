@@ -179,3 +179,74 @@ pub fn encode_store_params_cmd(motor_id: u16) -> [u8; 8] {
 pub fn encode_feedback_request_cmd(motor_id: u16) -> [u8; 8] {
     [motor_id as u8, (motor_id >> 8) as u8, 0xCC, 0, 0, 0, 0, 0]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn default_limits() -> Limits {
+        Limits {
+            p_min: -12.5,
+            p_max: 12.5,
+            v_min: -30.0,
+            v_max: 30.0,
+            t_min: -10.0,
+            t_max: 10.0,
+        }
+    }
+
+    #[test]
+    fn float_uint_roundtrip_is_close() {
+        let bits = 12;
+        let x = 3.21f32;
+        let u = float_to_uint(x, -10.0, 10.0, bits);
+        let back = uint_to_float(u, -10.0, 10.0, bits);
+        assert!((x - back).abs() < 0.01);
+    }
+
+    #[test]
+    fn encode_and_decode_feedback_preserves_core_fields() {
+        let limits = default_limits();
+        let cmd = encode_mit_cmd(1.5, -2.0, 0.8, 50.0, 0.5, limits);
+        let feedback = decode_sensor_feedback(
+            [
+                0x11, cmd[0], cmd[1], cmd[2], cmd[3], cmd[7], // packed pos/vel/torq
+                55, 44, // temps
+            ],
+            limits,
+        );
+        assert_eq!(feedback.can_id, 0x01);
+        assert_eq!(feedback.status_code, 0x01);
+        assert!((feedback.pos - 1.5).abs() < 0.05);
+        assert!((feedback.vel - (-2.0)).abs() < 0.1);
+        assert_eq!(feedback.t_mos as u8, 55);
+        assert_eq!(feedback.t_rotor as u8, 44);
+    }
+
+    #[test]
+    fn force_pos_clamps_velocity_and_torque_ratio() {
+        let frame = encode_force_pos_cmd(1.0, 999.0, 9.9);
+        let v_des = u16::from_le_bytes([frame[4], frame[5]]);
+        let i_des = u16::from_le_bytes([frame[6], frame[7]]);
+        assert_eq!(v_des, 10_000);
+        assert_eq!(i_des, 10_000);
+    }
+
+    #[test]
+    fn register_reply_decode_validates_marker_and_rid() {
+        let ok = [0x01, 0x01, 0x33, 10, 0x78, 0x56, 0x34, 0x12];
+        let bad = [0x01, 0x01, 0x55, 10, 0x78, 0x56, 0x34, 0x12];
+        let (rid, raw) = decode_register_value(ok).expect("valid register reply");
+        assert_eq!(rid, 10);
+        assert_eq!(raw, [0x78, 0x56, 0x34, 0x12]);
+        assert!(decode_register_value(bad).is_err());
+    }
+
+    #[test]
+    fn fixed_control_frames_match_protocol_constants() {
+        assert_eq!(encode_enable_cmd()[7], 0xFC);
+        assert_eq!(encode_disable_cmd()[7], 0xFD);
+        assert_eq!(encode_set_zero_cmd()[7], 0xFE);
+        assert_eq!(encode_clear_error_cmd()[7], 0xFB);
+    }
+}

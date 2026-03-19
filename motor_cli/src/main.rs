@@ -700,3 +700,47 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         _ => Err(format!("unknown vendor: {vendor}").into()),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use motor_vendor_robstride::ParameterValue;
+
+    #[test]
+    fn parse_u16_hex_or_dec_supports_both_formats() {
+        assert_eq!(parse_u16_hex_or_dec("0x10", "x").expect("hex"), 16);
+        assert_eq!(parse_u16_hex_or_dec("255", "x").expect("dec"), 255);
+    }
+
+    #[test]
+    fn parse_u16_hex_or_dec_rejects_invalid_values() {
+        assert!(parse_u16_hex_or_dec("0xZZ", "x").is_err());
+        assert!(parse_u16_hex_or_dec("-1", "x").is_err());
+    }
+
+    #[test]
+    fn get_u16_hex_or_dec_uses_default_when_missing() {
+        let args = HashMap::new();
+        assert_eq!(get_u16_hex_or_dec(&args, "motor-id", 0x01).expect("default"), 0x01);
+    }
+
+    #[test]
+    fn parse_robstride_param_value_uses_parameter_type() {
+        let mode = parse_robstride_param_value(0x7005, "2").expect("int8 mode");
+        let timeout = parse_robstride_param_value(0x7028, "123").expect("u32 timeout");
+        let mech = parse_robstride_param_value(0x7019, "1.5").expect("f32 mech pos");
+
+        match mode {
+            ParameterValue::I8(v) => assert_eq!(v, 2),
+            _ => panic!("expected I8"),
+        }
+        match timeout {
+            ParameterValue::U32(v) => assert_eq!(v, 123),
+            _ => panic!("expected U32"),
+        }
+        match mech {
+            ParameterValue::F32(v) => assert!((v - 1.5).abs() < 1e-6),
+            _ => panic!("expected F32"),
+        }
+    }
+}

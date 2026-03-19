@@ -179,3 +179,52 @@ pub fn encode_parameter_value(
     };
     Ok(raw)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::motor::ParameterValue;
+
+    #[test]
+    fn ext_id_build_and_parse_roundtrip() {
+        let id = build_ext_id(CommunicationType::READ_PARAMETER, 0xABCD, 0x7F);
+        let (comm, extra, node) = ext_id_parts(id);
+        assert_eq!(comm, CommunicationType::READ_PARAMETER);
+        assert_eq!(extra, 0xABCD);
+        assert_eq!(node, 0x7F);
+    }
+
+    #[test]
+    fn ping_reply_decode_validates_comm_type() {
+        let ok_id = build_ext_id(CommunicationType::GET_DEVICE_ID, 0x007F, 0x55);
+        let bad_id = build_ext_id(CommunicationType::READ_PARAMETER, 0x007F, 0x55);
+        let payload = [1, 2, 3, 4, 5, 6, 7, 8];
+
+        let reply = decode_ping_reply(ok_id, payload).expect("valid ping reply");
+        assert_eq!(reply.device_id, 0x7F);
+        assert_eq!(reply.responder_id, 0x55);
+        assert_eq!(reply.payload, payload);
+        assert!(decode_ping_reply(bad_id, payload).is_err());
+    }
+
+    #[test]
+    fn parameter_encoding_checks_type() {
+        let f = encode_parameter_value(0x7019, ParameterValue::F32(1.25)).expect("f32 param");
+        assert_eq!(f, 1.25f32.to_le_bytes());
+
+        let u32v = 123_456u32;
+        let u = encode_parameter_value(0x7028, ParameterValue::U32(u32v)).expect("u32 param");
+        assert_eq!(u, u32v.to_le_bytes());
+
+        let mismatch = encode_parameter_value(0x7028, ParameterValue::F32(1.0));
+        assert!(mismatch.is_err());
+    }
+
+    #[test]
+    fn read_parameter_decode_rejects_unknown_id() {
+        let payload = [0u8; 8];
+        let ok = decode_read_parameter_value(0x7019, payload).expect("known param");
+        assert_eq!(ok, [0, 0, 0, 0]);
+        assert!(decode_read_parameter_value(0xDEAD, payload).is_err());
+    }
+}

@@ -308,3 +308,43 @@ impl Drop for PcanBus {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bitrate_mapping_has_common_values() {
+        assert_eq!(bitrate_to_btr0btr1(1_000_000), Some(0x0014));
+        assert_eq!(bitrate_to_btr0btr1(500_000), Some(0x001C));
+        assert_eq!(bitrate_to_btr0btr1(125_000), Some(0x031C));
+        assert_eq!(bitrate_to_btr0btr1(123_456), None);
+    }
+
+    #[test]
+    fn parse_channel_supports_can_aliases() {
+        let (h0, b0) = parse_channel_and_bitrate("can0@1000000").expect("can0");
+        let (h1, b1) = parse_channel_and_bitrate("can1@500000").expect("can1");
+        assert_eq!(h0, 0x51);
+        assert_eq!(b0, 0x0014);
+        assert_eq!(h1, 0x52);
+        assert_eq!(b1, 0x001C);
+    }
+
+    #[test]
+    fn parse_channel_supports_pcan_and_hex_and_numeric() {
+        let (a, _) = parse_channel_and_bitrate("PCAN_USBBUS1@1000000").expect("pcan name");
+        let (b, _) = parse_channel_and_bitrate("0x51@1000000").expect("hex");
+        let (c, _) = parse_channel_and_bitrate("81@1000000").expect("numeric");
+        assert_eq!(a, 0x51);
+        assert_eq!(b, 0x51);
+        assert_eq!(c, 81);
+    }
+
+    #[test]
+    fn parse_channel_rejects_invalid_inputs() {
+        assert!(parse_channel_and_bitrate("canX@1000000").is_err());
+        assert!(parse_channel_and_bitrate("PCAN_USBBUS0@1000000").is_err());
+        assert!(parse_channel_and_bitrate("can0@123456").is_err());
+    }
+}

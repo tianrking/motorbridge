@@ -518,3 +518,27 @@ impl MotorDevice for DamiaoMotor {
         self.process_feedback_frame_impl(frame)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn model_limits_and_matching_work() {
+        let (pmax, vmax, tmax) = model_limits("4340P").expect("known model");
+        assert_eq!(pmax, 12.5);
+        assert_eq!(vmax, 10.0);
+        assert_eq!(tmax, 28.0);
+
+        let matched = match_models_by_limits(12.5, 10.0, 28.0, 0.01);
+        assert!(matched.contains(&"4340"));
+        assert!(matched.contains(&"4340P"));
+    }
+
+    #[test]
+    fn suggest_models_returns_closest_first() {
+        let suggested = suggest_models_by_limits(12.5, 9.9, 28.1, 3);
+        assert!(!suggested.is_empty());
+        assert!(suggested[0] == "4340" || suggested[0] == "4340P");
+    }
+}

@@ -52,5 +52,5 @@ cargo test --workspace --all-targets
 
 ## 下一步增强建议
 
-- 增加长时间稳定性测试（断连恢复/错误注入）
-- 在 CI 增加 Windows 运行时 smoke（ABI + Python wheel 安装/导入）
+- 扩展长时间硬件在环矩阵（不同适配器、不同总线负载）
+- 增加跨平台 compare-scan 的周期性任务，并固定容差策略

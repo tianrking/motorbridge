@@ -38,9 +38,9 @@ python tools/reliability/reliability_runner.py endurance \
 
 1. 启动短循环控制（`pos-vel` 或 `vel`）。
 2. 拔掉 PCAN-USB（或 Linux 下 `can0` down）。
-3. 确认命令出现预期 I/O/超时错误。
+3. 确认程序会进入自动重试/重连。
 4. 重新插回设备 / 恢复总线。
-5. 再次执行扫描和控制命令，确认恢复成功。
+5. 确认循环可恢复；如未恢复，再执行扫描和控制命令验证。
 
 ## 4）跨平台一致性（扫描）
 
@@ -49,10 +49,14 @@ python tools/reliability/reliability_runner.py endurance \
 ```bash
 python tools/reliability/reliability_runner.py compare-scan \
   --left-log tools/reliability/reports/linux_scan.log \
-  --right-log tools/reliability/reports/windows_scan.log
+  --right-log tools/reliability/reports/windows_scan.log \
+  --vendors damiao,robstride \
+  --allow-hit-delta 1 \
+  --id-mode intersect-nonempty
 ```
 
 对比项：
 
-- 各 vendor 的 `hits`
-- 各 vendor 发现的 `id` 集合
+- `hits` 可配置容差（`--allow-hit-delta`）
+- vendor 子集比较（`--vendors`）
+- `id` 比较模式（`--id-mode`）：`exact` / `left-subset` / `right-subset` / `intersect-nonempty`

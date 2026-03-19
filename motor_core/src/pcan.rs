@@ -17,6 +17,8 @@ const PCAN_ERROR_QRCVEMPTY: TPCANStatus = 0x00020;
 
 const PCAN_MESSAGE_STANDARD: u8 = 0x00;
 const PCAN_MESSAGE_EXTENDED: u8 = 0x02;
+const RECONNECT_MAX_ATTEMPTS: usize = 3;
+const RECONNECT_BACKOFF_MS: [u64; RECONNECT_MAX_ATTEMPTS] = [20, 100, 300];
 
 #[repr(C)]
 struct TPCANMsg {
@@ -33,8 +35,7 @@ struct TPCANTimestamp {
     micros: u16,
 }
 
-type CanInitializeFn =
-    unsafe extern "system" fn(TPCANHandle, u16, u8, u32, u16) -> TPCANStatus;
+type CanInitializeFn = unsafe extern "system" fn(TPCANHandle, u16, u8, u32, u16) -> TPCANStatus;
 type CanUninitializeFn = unsafe extern "system" fn(TPCANHandle) -> TPCANStatus;
 type CanReadFn =
     unsafe extern "system" fn(TPCANHandle, *mut TPCANMsg, *mut TPCANTimestamp) -> TPCANStatus;
@@ -58,7 +59,9 @@ impl PcanApi {
 
         let can_initialize = unsafe {
             *lib.get::<CanInitializeFn>(b"CAN_Initialize\0")
-                .map_err(|e| MotorError::Unsupported(format!("load symbol CAN_Initialize failed: {e}")))?
+                .map_err(|e| {
+                    MotorError::Unsupported(format!("load symbol CAN_Initialize failed: {e}"))
+                })?
         };
         let can_uninitialize = unsafe {
             *lib.get::<CanUninitializeFn>(b"CAN_Uninitialize\0")
@@ -71,8 +74,9 @@ impl PcanApi {
                 .map_err(|e| MotorError::Unsupported(format!("load symbol CAN_Read failed: {e}")))?
         };
         let can_write = unsafe {
-            *lib.get::<CanWriteFn>(b"CAN_Write\0")
-                .map_err(|e| MotorError::Unsupported(format!("load symbol CAN_Write failed: {e}")))?
+            *lib.get::<CanWriteFn>(b"CAN_Write\0").map_err(|e| {
+                MotorError::Unsupported(format!("load symbol CAN_Write failed: {e}"))
+            })?
         };
 
         Ok(Self {
@@ -182,6 +186,8 @@ fn pcan_status_to_error(prefix: &str, status: TPCANStatus) -> MotorError {
 pub struct PcanBus {
     api: Arc<PcanApi>,
     handle: TPCANHandle,
+    btr0btr1: u16,
+    io_lock: Mutex<()>,
     active: Mutex<bool>,
 }
 
@@ -198,25 +204,30 @@ impl PcanBus {
         Ok(Self {
             api,
             handle,
+            btr0btr1,
+            io_lock: Mutex::new(()),
             active: Mutex::new(true),
         })
     }
 
-    fn ensure_active(&self) -> Result<()> {
-        let active = self
-            .active
-            .lock()
-            .map_err(|_| MotorError::Io("pcan active lock poisoned".to_string()))?;
-        if !*active {
-            return Err(MotorError::Io("pcan bus is already closed".to_string()));
+    fn reconnect_locked(&self, active: &mut bool) -> Result<()> {
+        for attempt in 0..RECONNECT_MAX_ATTEMPTS {
+            let _ = unsafe { (self.api.can_uninitialize)(self.handle) };
+            let status = unsafe { (self.api.can_initialize)(self.handle, self.btr0btr1, 0, 0, 0) };
+            if status == PCAN_ERROR_OK {
+                *active = true;
+                return Ok(());
+            }
+            thread::sleep(Duration::from_millis(RECONNECT_BACKOFF_MS[attempt]));
         }
-        Ok(())
+        Err(MotorError::Io(format!(
+            "pcan reconnect failed after {RECONNECT_MAX_ATTEMPTS} attempts"
+        )))
     }
 }
 
 impl CanBus for PcanBus {
     fn send(&self, frame: CanFrame) -> Result<()> {
-        self.ensure_active()?;
         if frame.dlc > 8 {
             return Err(MotorError::InvalidArgument(format!(
                 "invalid DLC {}, expected <= 8",
@@ -233,20 +244,48 @@ impl CanBus for PcanBus {
             len: frame.dlc,
             data: frame.data,
         };
-        let status = unsafe { (self.api.can_write)(self.handle, &msg) };
-        if status != PCAN_ERROR_OK {
-            return Err(pcan_status_to_error("pcan write failed", status));
+        let _io = self
+            .io_lock
+            .lock()
+            .map_err(|_| MotorError::Io("pcan io lock poisoned".to_string()))?;
+        let mut active = self
+            .active
+            .lock()
+            .map_err(|_| MotorError::Io("pcan active lock poisoned".to_string()))?;
+        if !*active {
+            return Err(MotorError::Io("pcan bus is already closed".to_string()));
         }
-        Ok(())
+
+        for _ in 0..=RECONNECT_MAX_ATTEMPTS {
+            let status = unsafe { (self.api.can_write)(self.handle, &msg) };
+            if status == PCAN_ERROR_OK {
+                return Ok(());
+            }
+            self.reconnect_locked(&mut active)?;
+        }
+        Err(MotorError::Io(
+            "pcan write failed after reconnect retries".to_string(),
+        ))
     }
 
     fn recv(&self, timeout: Duration) -> Result<Option<CanFrame>> {
-        self.ensure_active()?;
         let deadline = Instant::now()
             .checked_add(timeout)
             .unwrap_or_else(|| Instant::now() + Duration::from_secs(3600));
 
         loop {
+            let _io = self
+                .io_lock
+                .lock()
+                .map_err(|_| MotorError::Io("pcan io lock poisoned".to_string()))?;
+            let mut active = self
+                .active
+                .lock()
+                .map_err(|_| MotorError::Io("pcan active lock poisoned".to_string()))?;
+            if !*active {
+                return Err(MotorError::Io("pcan bus is already closed".to_string()));
+            }
+
             let mut msg = TPCANMsg {
                 id: 0,
                 msg_type: 0,
@@ -270,8 +309,16 @@ impl CanBus for PcanBus {
                 }));
             }
             if status != PCAN_ERROR_QRCVEMPTY {
-                return Err(pcan_status_to_error("pcan read failed", status));
+                if let Err(re_err) = self.reconnect_locked(&mut active) {
+                    return Err(MotorError::Io(format!(
+                        "pcan read failed ({}) and reconnect failed ({re_err})",
+                        pcan_status_to_error("pcan read failed", status)
+                    )));
+                }
+                continue;
             }
+            drop(active);
+            drop(_io);
 
             if timeout.is_zero() || Instant::now() >= deadline {
                 return Ok(None);
@@ -281,6 +328,10 @@ impl CanBus for PcanBus {
     }
 
     fn shutdown(&self) -> Result<()> {
+        let _io = self
+            .io_lock
+            .lock()
+            .map_err(|_| MotorError::Io("pcan io lock poisoned".to_string()))?;
         let mut active = self
             .active
             .lock()
@@ -300,10 +351,12 @@ impl CanBus for PcanBus {
 
 impl Drop for PcanBus {
     fn drop(&mut self) {
-        if let Ok(mut active) = self.active.lock() {
-            if *active {
-                let _ = unsafe { (self.api.can_uninitialize)(self.handle) };
-                *active = false;
+        if let Ok(_io) = self.io_lock.lock() {
+            if let Ok(mut active) = self.active.lock() {
+                if *active {
+                    let _ = unsafe { (self.api.can_uninitialize)(self.handle) };
+                    *active = false;
+                }
             }
         }
     }

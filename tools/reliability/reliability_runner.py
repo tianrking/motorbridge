@@ -80,7 +80,33 @@ def parse_scan_log(text: str) -> dict:
     }
 
 
-def compare_scan(left: Path, right: Path) -> int:
+def _split_csv(text: str | None) -> list[str]:
+    if not text:
+        return []
+    return [x.strip() for x in text.split(",") if x.strip()]
+
+
+def _ids_match(left_ids: set[int], right_ids: set[int], mode: str) -> bool:
+    if mode == "exact":
+        return left_ids == right_ids
+    if mode == "left-subset":
+        return left_ids.issubset(right_ids)
+    if mode == "right-subset":
+        return right_ids.issubset(left_ids)
+    if mode == "intersect-nonempty":
+        if not left_ids and not right_ids:
+            return True
+        return bool(left_ids.intersection(right_ids))
+    raise ValueError(f"unsupported id mode: {mode}")
+
+
+def compare_scan(
+    left: Path,
+    right: Path,
+    vendors: list[str],
+    allow_hit_delta: int,
+    id_mode: str,
+) -> int:
     left_text = left.read_text(encoding="utf-8", errors="replace")
     right_text = right.read_text(encoding="utf-8", errors="replace")
     l = parse_scan_log(left_text)
@@ -88,12 +114,34 @@ def compare_scan(left: Path, right: Path) -> int:
 
     print("LEFT :", json.dumps(l, ensure_ascii=False))
     print("RIGHT:", json.dumps(r, ensure_ascii=False))
-
-    if l == r:
-        print("PASS: scan outputs are consistent")
+    selected = set(vendors) if vendors else (
+        set(l["hits_by_vendor"]).union(r["hits_by_vendor"]).union(l["device_ids"]).union(r["device_ids"])
+    )
+    if not selected:
+        print("PASS: no vendors found in either log")
         return 0
 
-    print("FAIL: scan outputs differ")
+    ok = True
+    for vendor in sorted(selected):
+        left_ids = set(l["device_ids"].get(vendor, []))
+        right_ids = set(r["device_ids"].get(vendor, []))
+        left_hits = l["hits_by_vendor"].get(vendor, len(left_ids))
+        right_hits = r["hits_by_vendor"].get(vendor, len(right_ids))
+        hit_ok = abs(left_hits - right_hits) <= allow_hit_delta
+        id_ok = _ids_match(left_ids, right_ids, id_mode)
+        status = "PASS" if (hit_ok and id_ok) else "FAIL"
+        print(
+            f"[{status}] vendor={vendor} left_hits={left_hits} right_hits={right_hits} "
+            f"allow_hit_delta={allow_hit_delta} id_mode={id_mode} "
+            f"left_ids={sorted(left_ids)} right_ids={sorted(right_ids)}"
+        )
+        if not (hit_ok and id_ok):
+            ok = False
+
+    if ok:
+        print("PASS: scan outputs are consistent under configured rules")
+        return 0
+    print("FAIL: scan outputs differ under configured rules")
     return 3
 
 
@@ -114,6 +162,23 @@ def main() -> int:
     c = sub.add_parser("compare-scan", help="compare Linux/Windows scan logs")
     c.add_argument("--left-log", required=True, help="left scan log file")
     c.add_argument("--right-log", required=True, help="right scan log file")
+    c.add_argument(
+        "--vendors",
+        default="",
+        help="comma-separated vendor subset to compare; default compares all vendors found",
+    )
+    c.add_argument(
+        "--allow-hit-delta",
+        type=int,
+        default=0,
+        help="allow absolute hit-count delta per vendor",
+    )
+    c.add_argument(
+        "--id-mode",
+        choices=["exact", "left-subset", "right-subset", "intersect-nonempty"],
+        default="exact",
+        help="ID set comparison mode",
+    )
 
     args = parser.parse_args()
     if args.cmd == "endurance":
@@ -123,7 +188,13 @@ def main() -> int:
             interval_sec=args.interval_sec,
             log_path=Path(args.report),
         )
-    return compare_scan(Path(args.left_log), Path(args.right_log))
+    return compare_scan(
+        left=Path(args.left_log),
+        right=Path(args.right_log),
+        vendors=_split_csv(args.vendors),
+        allow_hit_delta=args.allow_hit_delta,
+        id_mode=args.id_mode,
+    )
 
 
 if __name__ == "__main__":

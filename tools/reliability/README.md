@@ -38,9 +38,9 @@ Manual steps:
 
 1. Start a short control loop (`pos-vel` or `vel`).
 2. Unplug PCAN-USB (or down Linux CAN interface).
-3. Verify command fails with expected I/O/timeout error.
+3. Verify command pauses, then auto-reconnect/retry is attempted.
 4. Re-plug / recover bus.
-5. Re-run scan and control command; verify success resumes.
+5. Verify loop resumes without restarting the process, or re-run scan/control to confirm recovery.
 
 ## 4) Cross-Platform Consistency (Scan)
 
@@ -49,10 +49,18 @@ Save scan stdout logs on Linux and Windows, then compare:
 ```bash
 python tools/reliability/reliability_runner.py compare-scan \
   --left-log tools/reliability/reports/linux_scan.log \
-  --right-log tools/reliability/reports/windows_scan.log
+  --right-log tools/reliability/reports/windows_scan.log \
+  --vendors damiao,robstride \
+  --allow-hit-delta 1 \
+  --id-mode intersect-nonempty
 ```
 
 Comparison checks:
 
-- per-vendor `hits`
-- discovered `id` set per vendor
+- per-vendor `hits` with optional tolerance (`--allow-hit-delta`)
+- vendor subset filtering (`--vendors`)
+- configurable `id` matching mode (`--id-mode`):
+  - `exact`
+  - `left-subset`
+  - `right-subset`
+  - `intersect-nonempty`

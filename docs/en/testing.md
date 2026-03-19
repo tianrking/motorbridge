@@ -51,5 +51,5 @@ Reliability helper scripts:
 
 ## Next Step Improvements
 
-- Add long-run reliability tests for reconnect/error handling
-- Add CI matrix stage for Windows runtime smoke (ABI + Python wheel install/import)
+- Expand long-run HIL matrix (different adapters and bus loads)
+- Add periodic cross-platform compare-scan jobs with explicit tolerance policy

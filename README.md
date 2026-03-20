@@ -15,6 +15,9 @@ Unified CAN motor control stack with a vendor-agnostic Rust core, stable C ABI, 
 - MyActuator:
   - models: `X8` (runtime string; protocol is ID-based)
   - modes: `scan`, `enable`, `disable`, `stop`, `status`, `current`, `vel`, `pos`, `version`, `mode-query`
+- HighTorque:
+  - models: `hightorque` (runtime string; native `ht_can v1.5.5`)
+  - modes: `scan`, `read`, `mit`, `pos-vel`, `vel`, `stop`, `brake`, `rezero`
 
 ## Architecture
 
@@ -186,12 +189,36 @@ Interpretation:
 - C ABI:
   - Damiao: `motor_controller_add_damiao_motor(...)`
   - RobStride: `motor_controller_add_robstride_motor(...)`
+  - MyActuator: `motor_controller_add_myactuator_motor(...)`
+  - HighTorque: `motor_controller_add_hightorque_motor(...)`
 - Python:
   - `Controller.add_damiao_motor(...)`
   - `Controller.add_robstride_motor(...)`
+  - `Controller.add_myactuator_motor(...)`
+  - `Controller.add_hightorque_motor(...)`
 - C++:
   - `Controller::add_damiao_motor(...)`
   - `Controller::add_robstride_motor(...)`
+  - `Controller::add_myactuator_motor(...)`
+  - `Controller::add_hightorque_motor(...)`
+
+Unified mode IDs for ABI/Bindings (`ensure_mode`):
+
+- `1 = MIT`
+- `2 = POS_VEL`
+- `3 = VEL`
+- `4 = FORCE_POS`
+
+Unified control units:
+
+- position: `rad`
+- velocity: `rad/s`
+- torque: `Nm`
+
+Vendor-specific protocol naming/mapping and unsupported operations are documented in:
+
+- [`docs/en/abi.md`](docs/en/abi.md)
+- [`docs/zh/abi.md`](docs/zh/abi.md)
 
 RobStride-specific ABI/binding helpers include:
 

@@ -15,6 +15,9 @@
 - MyActuator:
   - 型号: `X8`（运行时字符串，协议按 ID 通信）
   - 模式: `scan`, `enable`, `disable`, `stop`, `status`, `current`, `vel`, `pos`, `version`, `mode-query`
+- HighTorque:
+  - 型号: `hightorque`（运行时字符串，原生 `ht_can v1.5.5`）
+  - 模式: `scan`, `read`, `mit`, `pos-vel`, `vel`, `stop`, `brake`, `rezero`
 
 ## 架构
 
@@ -186,12 +189,36 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --mod
 - C ABI:
   - Damiao: `motor_controller_add_damiao_motor(...)`
   - RobStride: `motor_controller_add_robstride_motor(...)`
+  - MyActuator: `motor_controller_add_myactuator_motor(...)`
+  - HighTorque: `motor_controller_add_hightorque_motor(...)`
 - Python:
   - `Controller.add_damiao_motor(...)`
   - `Controller.add_robstride_motor(...)`
+  - `Controller.add_myactuator_motor(...)`
+  - `Controller.add_hightorque_motor(...)`
 - C++:
   - `Controller::add_damiao_motor(...)`
   - `Controller::add_robstride_motor(...)`
+  - `Controller::add_myactuator_motor(...)`
+  - `Controller::add_hightorque_motor(...)`
+
+ABI/绑定中的统一模式 ID（`ensure_mode`）：
+
+- `1 = MIT`
+- `2 = POS_VEL`
+- `3 = VEL`
+- `4 = FORCE_POS`
+
+统一控制单位：
+
+- 位置：`rad`
+- 速度：`rad/s`
+- 力矩：`Nm`
+
+各厂商协议原生模式名映射与不支持项详见：
+
+- [`docs/en/abi.md`](docs/en/abi.md)
+- [`docs/zh/abi.md`](docs/zh/abi.md)
 
 RobStride 专属 ABI / binding 能力包括:
 

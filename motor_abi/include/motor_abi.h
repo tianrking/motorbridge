@@ -22,6 +22,17 @@ typedef struct MotorState {
   float t_rotor;
 } MotorState;
 
+// Unified units across all vendors:
+// - position: rad
+// - velocity: rad/s
+// - torque: Nm
+//
+// Unified mode IDs for motor_handle_ensure_mode:
+// - 1: MIT
+// - 2: POS_VEL
+// - 3: VEL
+// - 4: FORCE_POS
+//
 // Vendor support in current ABI:
 // - Damiao
 // - RobStride

@@ -12,43 +12,84 @@ Artifacts:
 - Windows: `target/release/motor_abi.dll`, `motor_abi.lib`
 - Header: `motor_abi/include/motor_abi.h`
 
-Distribution formats:
+## Unified Surface
 
-- Linux x86_64: `.deb` and `.tar.gz`
-- Windows x86_64: `.zip` (no `.deb` on Windows)
+The ABI keeps one unified control surface across vendors.
+
+Unified mode IDs (`motor_handle_ensure_mode`):
+
+- `1 = MIT`
+- `2 = POS_VEL`
+- `3 = VEL`
+- `4 = FORCE_POS`
+
+Unified control units:
+
+- position: `rad`
+- velocity: `rad/s`
+- torque: `Nm`
+
+Common control/state APIs:
+
+- `motor_handle_enable`
+- `motor_handle_disable`
+- `motor_handle_clear_error`
+- `motor_handle_set_zero_position`
+- `motor_handle_ensure_mode`
+- `motor_handle_send_mit`
+- `motor_handle_send_pos_vel`
+- `motor_handle_send_vel`
+- `motor_handle_send_force_pos`
+- `motor_handle_request_feedback`
+- `motor_handle_set_can_timeout_ms`
+- `motor_handle_store_parameters`
+- `motor_handle_get_state`
 
 ## Vendor Entry Points
 
 - Damiao: `motor_controller_add_damiao_motor(...)`
 - RobStride: `motor_controller_add_robstride_motor(...)`
+- MyActuator: `motor_controller_add_myactuator_motor(...)`
+- HighTorque: `motor_controller_add_hightorque_motor(...)`
 
-Both vendor handles share the common control surface:
+## Unified Mode to Native Protocol Mapping
 
-- `motor_handle_enable`
-- `motor_handle_disable`
-- `motor_handle_send_mit`
-- `motor_handle_send_vel`
-- `motor_handle_get_state`
+| Unified mode | Damiao native | RobStride native | MyActuator native | HighTorque native |
+|---|---|---|---|---|
+| `MIT` | `Mit` | `Mit` | not available | mapped to native pos+vel+tqe |
+| `POS_VEL` | `PosVel` | not available | `Position` setpoint flow | mapped to native pos+vel+tqe |
+| `VEL` | `Vel` | `Velocity` | `Velocity` setpoint flow | mapped to native velocity command |
+| `FORCE_POS` | `ForcePos` | not available | not available | not available |
 
-Damiao-only flows keep using:
+Behavior rule:
 
-- `motor_handle_send_pos_vel`
-- `motor_handle_send_force_pos`
-- Damiao register read/write helpers
+- Unsupported calls return non-zero and a readable message via `motor_last_error_message()`.
+- Signatures stay stable even when a vendor ignores part of a signature.
+- Example: HighTorque accepts `send_mit(pos, vel, kp, kd, tau)` for interface consistency, but native protocol does not use `kp/kd`.
 
-RobStride-specific ABI additions:
+## Vendor-Specific Extensions
+
+Damiao register APIs:
+
+- `motor_handle_write_register_f32`
+- `motor_handle_write_register_u32`
+- `motor_handle_get_register_f32`
+- `motor_handle_get_register_u32`
+
+RobStride extensions:
 
 - `motor_handle_robstride_ping`
+- `motor_handle_robstride_set_device_id`
 - `motor_handle_robstride_write_param_i8/u8/u16/u32/f32`
 - `motor_handle_robstride_get_param_i8/u8/u16/u32/f32`
 
 ## Typical Call Flow
 
 1. `motor_controller_new_socketcan`
-2. `motor_controller_add_damiao_motor` or `motor_controller_add_robstride_motor`
+2. `motor_controller_add_<vendor>_motor`
 3. optional: `motor_controller_enable_all`
 4. optional: `motor_handle_ensure_mode`
-5. send commands / read state / read or write vendor params
+5. send control commands / read state / vendor-specific operations
 6. `motor_controller_shutdown`
 7. `motor_handle_free`
 8. `motor_controller_free`

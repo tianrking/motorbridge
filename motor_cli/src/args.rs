@@ -45,6 +45,15 @@ pub fn get_f32(args: &HashMap<String, String>, key: &str, default: f32) -> Resul
     }
 }
 
+pub fn get_i16(args: &HashMap<String, String>, key: &str, default: i16) -> Result<i16, String> {
+    match args.get(key) {
+        Some(v) => v
+            .parse::<i16>()
+            .map_err(|e| format!("invalid --{key}: {e}")),
+        None => Ok(default),
+    }
+}
+
 pub fn get_u64(args: &HashMap<String, String>, key: &str, default: u64) -> Result<u64, String> {
     match args.get(key) {
         Some(v) => v
@@ -100,20 +109,23 @@ Cargo form:\n\
 Vendors:\n\
   --vendor damiao    default\n\
   --vendor robstride\n\
+  --vendor hightorque (native ht_can v1.5.5 direct-CAN mode)\n\
   --vendor myactuator\n\
   --vendor all       scan all vendors\n\n\
 Damiao modes:\n\
   --mode scan | enable | disable | mit | pos-vel | vel | force-pos\n\n\
 RobStride modes:\n\
   --mode ping | scan | enable | disable | mit | vel | read-param | write-param\n\n\
+HighTorque modes:\n\
+  --mode ping | scan | read | mit | pos | vel | tqe | volt | cur | pos-vel-tqe | stop | brake | rezero | conf-write | timed-read\n\n\
 MyActuator modes:\n\
   --mode scan | enable | disable | stop | status | current | vel | pos | version | mode-query\n\n\
 \n\
 Common args:\n\
   --channel      default can0\n\
-  --model        default depends on vendor (damiao=4340, robstride=rs-00, myactuator=X8)\n\
+  --model        default depends on vendor (damiao=4340, robstride=rs-00, hightorque=hightorque[hint only], myactuator=X8)\n\
   --motor-id     default 0x01\n\
-  --feedback-id  default 0x11 for Damiao, 0xFF for RobStride, 0x241 for MyActuator\n\
+  --feedback-id  default 0x11 for Damiao, 0xFF for RobStride, 0x01 for HighTorque, 0x241 for MyActuator\n\
   --loop         send cycles, default 1\n\
   --dt-ms        period ms, default 20\n\
   --ensure-mode  1/0, default 1\n\n\
@@ -136,9 +148,16 @@ MyActuator extras:\n\
   --max-speed <rad/s>    for --mode pos (default 8.726646 ~= 500 deg/s)\n\
   --start-id/--end-id    for --mode scan (range 1..32)\n\
 \n\
+HighTorque extras:\n\
+  unified args: --pos(rad) --vel(rad/s) --tau(Nm)\n\
+  alt args: --pos-deg --vel-deg-s\n\
+  raw args: --raw-pos --raw-vel --raw-tqe (--mode pos/vel/tqe/mit)\n\
+  --kp/--kd are accepted for unified MIT signature but ignored by ht_can v1.5.5\n\
+  --loop/--dt-ms are supported for repeated send cadence\n\
+\n\
 All-vendor scan:\n\
-  --vendor all --mode scan   run Damiao + RobStride + MyActuator scan in one command\n\
-  optional model hints: --damiao-model ... --robstride-model ... --myactuator-model ...\n\
+  --vendor all --mode scan   run Damiao + RobStride + HighTorque + MyActuator scan in one command\n\
+  optional model hints: --damiao-model ... --robstride-model ... --hightorque-model(hint only) ... --myactuator-model ...\n\
 \n\
 Examples:\n\
   cargo run -p motor_cli --release -- \\\n\

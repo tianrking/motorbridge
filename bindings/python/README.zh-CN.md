@@ -12,6 +12,7 @@
   - Damiao: `add_damiao_motor(...)`
   - MyActuator: `add_myactuator_motor(...)`
   - RobStride: `add_robstride_motor(...)`
+  - HighTorque: `add_hightorque_motor(...)`
 
 ## 快速开始
 
@@ -84,6 +85,26 @@ motorbridge-cli robstride-read-param \
 motorbridge-cli scan --vendor all --channel can0 --start-id 0x01 --end-id 0xFF
 ```
 
+通过绑定使用 HighTorque：
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_hightorque_motor(1, 0x01, "hightorque")
+    motor.send_mit(3.1416, 0.8, 0.0, 0.0, 0.8)  # kp/kd 参数保留，但协议本身不使用
+    motor.request_feedback()
+    print(motor.get_state())
+    motor.close()
+```
+
+通过 Rust CLI 使用 HighTorque：
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor hightorque --channel can0 --motor-id 1 --mode read
+```
+
 ## Windows 实验支持（PCAN-USB）
 
 项目主线仍以 Linux 为主。Windows 支持为实验性能力，当前通过 PEAK PCAN 后端实现。
@@ -146,7 +167,7 @@ python3 bindings/python/examples/robstride_wrapper_demo.py \
 
 ## 说明
 
-- `id-dump`、`id-set` 仍是 Damiao 工作流；`scan` 支持 `damiao|myactuator|robstride|all`。
+- `id-dump`、`id-set` 仍是 Damiao 工作流；`scan` 支持 `damiao|myactuator|robstride|hightorque|all`。
 - MyActuator 在 ABI wrapper 中不支持 `Mode.MIT` 与 `send_force_pos`。
 - Damiao 的完整调参参考仍保留在:
   - [DAMIAO_API.md](DAMIAO_API.md)

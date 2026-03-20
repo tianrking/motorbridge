@@ -60,7 +60,30 @@ pub fn run_robstride(
     model: &str,
     motor_id: u16,
     feedback_id: u16,
+    vendor_name: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let model_input = model;
+    let model = if vendor_name == "hightorque" {
+        let m = model_input.trim().to_ascii_lowercase();
+        if m.is_empty() || m == "hightorque" || m == "ht" || m == "auto" || m == "default" {
+            println!(
+                "[info] vendor=hightorque model={} -> compat model=rs-00",
+                model_input
+            );
+            "rs-00"
+        } else if m.starts_with("rs-") {
+            model_input
+        } else {
+            println!(
+                "[warn] vendor=hightorque received unsupported compat model '{}'; fallback to rs-00",
+                model_input
+            );
+            "rs-00"
+        }
+    } else {
+        model_input
+    };
+
     let mode = get_str(args, "mode", "ping");
     let loop_n = get_u64(args, "loop", 1)?;
     let dt_ms = get_u64(args, "dt-ms", 20)?;
@@ -71,8 +94,8 @@ pub fn run_robstride(
 
     if let Some((pmax, vmax, tmax)) = robstride_model_limits(model) {
         println!(
-            "[info] RobStride model {} limits pmax={:.3} vmax={:.3} tmax={:.3}",
-            model, pmax, vmax, tmax
+            "[info] {}(robstride-compatible) model {} limits pmax={:.3} vmax={:.3} tmax={:.3}",
+            vendor_name, model, pmax, vmax, tmax
         );
     }
 
@@ -87,33 +110,60 @@ pub fn run_robstride(
     };
 
     if mode == "scan" {
-        let start_id = get_u16_hex_or_dec(args, "start-id", 1)?;
-        let end_id = get_u16_hex_or_dec(args, "end-id", 255)?;
-        if start_id == 0 || end_id == 0 || start_id > 255 || end_id > 255 || start_id > end_id {
+        let raw_start_id = get_u16_hex_or_dec(args, "start-id", 1)?;
+        let raw_end_id = get_u16_hex_or_dec(args, "end-id", 255)?;
+        if raw_start_id == 0
+            || raw_end_id == 0
+            || raw_start_id > 255
+            || raw_end_id > 255
+            || raw_start_id > raw_end_id
+        {
             return Err("invalid scan range: expected 1..255 and start<=end".into());
+        }
+        let (start_id, end_id) = if vendor_name == "hightorque" {
+            (raw_start_id.clamp(1, 32), raw_end_id.clamp(1, 32))
+        } else {
+            (raw_start_id, raw_end_id)
+        };
+        if start_id > end_id {
+            return Err("invalid scan range after clamping".into());
         }
 
         println!(
-            "[scan] probing RobStride IDs {}..{} on {}",
-            start_id, end_id, channel
+            "[scan] probing {} IDs {}..{} on {}",
+            vendor_name, start_id, end_id, channel
         );
+        if vendor_name == "hightorque" && (raw_start_id != start_id || raw_end_id != end_id) {
+            println!(
+                "[scan] vendor=hightorque range clamped to {}..{} (requested {}..{})",
+                start_id, end_id, raw_start_id, raw_end_id
+            );
+        }
         let mut hits = 0usize;
         for id in start_id..=end_id {
             let probe_ctrl = RobstrideController::new_socketcan(channel)?;
             let candidate = probe_ctrl.add_motor(id, feedback_id, model)?;
             let mut hit = false;
-            if let Ok(reply) = candidate.ping(Duration::from_millis(80)) {
+            if let Ok(reply) =
+                candidate.ping(Duration::from_millis(if vendor_name == "hightorque" {
+                    40
+                } else {
+                    80
+                }))
+            {
                 println!(
-                    "[hit] vendor=robstride id={} responder_id={} model_hint={} payload={:02x?}",
-                    reply.device_id, reply.responder_id, model, reply.payload
+                    "[hit] vendor={} id={} responder_id={} model_hint={} payload={:02x?}",
+                    vendor_name, reply.device_id, reply.responder_id, model, reply.payload
                 );
                 hit = true;
-            } else if let Some(pid) = query_ping(&candidate) {
-                println!(
-                    "[hit] vendor=robstride id={} by=query-param(0x{:04X}) model_hint={}",
-                    id, pid, model
-                );
-                hit = true;
+            } else if vendor_name != "hightorque" {
+                if let Some(pid) = query_ping(&candidate) {
+                    println!(
+                        "[hit] vendor={} id={} by=query-param(0x{:04X}) model_hint={}",
+                        vendor_name, id, pid, model
+                    );
+                    hit = true;
+                }
             }
             if hit {
                 hits += 1;
@@ -128,7 +178,8 @@ pub fn run_robstride(
             let manual_ms = get_u64(args, "manual-ms", 200)?;
             let manual_gap_ms = get_u64(args, "manual-gap-ms", 200)?;
             println!(
-                "[scan] no ping replies; fallback to blind pulse probing (observe motor motion)"
+                "[scan] no ping replies for {}; fallback to blind pulse probing (observe motor motion)",
+                vendor_name
             );
             println!(
                 "[scan] pulse: vel={:.3} for {}ms, gap={}ms",
@@ -159,25 +210,25 @@ pub fn run_robstride(
                     hits += 1;
                     if let Some(s) = candidate.latest_state() {
                         println!(
-                            "[hit] vendor=robstride id={} by=status pos={:+.3} vel={:+.3} torq={:+.3}",
-                            id, s.position, s.velocity, s.torque
+                            "[hit] vendor={} id={} by=status pos={:+.3} vel={:+.3} torq={:+.3}",
+                            vendor_name, id, s.position, s.velocity, s.torque
                         );
                     } else {
-                        println!("[hit] vendor=robstride id={} by=status", id);
+                        println!("[hit] vendor={} id={} by=status", vendor_name, id);
                     }
                 } else {
                     println!(
-                        "[probe] vendor=robstride id={} model_hint={} (if this ID moved, note it)",
-                        id, model
+                        "[probe] vendor={} id={} model_hint={} (if this ID moved, note it)",
+                        vendor_name, id, model
                     );
                 }
                 std::thread::sleep(Duration::from_millis(manual_gap_ms));
             }
             fallback.close_bus()?;
-            println!("[scan] done vendor=robstride hits={hits}");
+            println!("[scan] done vendor={} hits={hits}", vendor_name);
             return Ok(());
         }
-        println!("[scan] done vendor=robstride hits={hits}");
+        println!("[scan] done vendor={} hits={hits}", vendor_name);
         controller.close_bus()?;
         return Ok(());
     }
@@ -194,7 +245,8 @@ pub fn run_robstride(
                 println!("[ok] ping(by query) param 0x{pid:04X} responded");
             } else {
                 return Err(format!(
-                    "robstride ping failed: no response to GET_DEVICE_ID or query parameters"
+                    "{} ping failed: no response to GET_DEVICE_ID or query parameters",
+                    vendor_name
                 )
                 .into());
             }
@@ -227,12 +279,12 @@ pub fn run_robstride(
     if let Some(new_motor_id) = set_motor_id {
         motor.set_device_id(new_motor_id as u8)?;
         println!(
-            "[id-set] RobStride device id update requested: {} -> {}",
-            motor_id, new_motor_id
+            "[id-set] {} device id update requested: {} -> {}",
+            vendor_name, motor_id, new_motor_id
         );
         if store_after_set {
             motor.save_parameters()?;
-            println!("[id-set] RobStride save-parameters sent");
+            println!("[id-set] {} save-parameters sent", vendor_name);
         }
         controller.close_bus()?;
         return Ok(());
@@ -267,7 +319,7 @@ pub fn run_robstride(
             "vel" => {
                 motor.set_velocity_target(get_f32(args, "vel", 0.0)?)?;
             }
-            _ => return Err(format!("unknown RobStride mode: {mode}").into()),
+            _ => return Err(format!("unknown {vendor_name} mode: {mode}").into()),
         }
 
         if let Some(s) = motor.latest_state() {

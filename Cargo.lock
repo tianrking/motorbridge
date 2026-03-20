@@ -193,6 +193,7 @@ dependencies = [
 name = "motor_abi"
 version = "0.1.0"
 dependencies = [
+ "motor_core",
  "motor_vendor_damiao",
  "motor_vendor_myactuator",
  "motor_vendor_robstride",
@@ -209,6 +210,7 @@ dependencies = [
 name = "motor_cli"
 version = "0.1.0"
 dependencies = [
+ "motor_core",
  "motor_vendor_damiao",
  "motor_vendor_myactuator",
  "motor_vendor_robstride",

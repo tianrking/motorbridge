@@ -127,6 +127,14 @@ cargo run -p motor_cli --release -- \
   --mode read-param --param-id 0x7019
 ```
 
+HighTorque CLI（原生 ht_can v1.5.5）:
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor hightorque --channel can0 --model hightorque --motor-id 1 \
+  --mode read
+```
+
 MyActuator CLI:
 
 ```bash
@@ -169,6 +177,7 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --mod
 
 - `vendor=damiao id=<n>`：发现一个 Damiao 电机，电机 ID 为 `<n>`。
 - `vendor=robstride id=<n> responder_id=<m>`：发现一个 RobStride 电机并返回响应 ID。
+- `vendor=hightorque ... [hit] id=<n> ...`：通过原生 ht_can v1.5.5 发现一个 HighTorque 电机。
 - `vendor=myactuator id=<n>`：发现一个 MyActuator 电机并返回版本响应。
 - 每段扫描结尾的 `hits=<k>` 表示该厂商命中的在线设备数量。
 

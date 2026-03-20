@@ -314,6 +314,15 @@ class Controller {
     return Motor(handle_, m);
   }
 
+  Motor add_hightorque_motor(uint16_t motor_id, uint16_t feedback_id, const std::string& model) {
+    MotorHandle* m =
+        motor_controller_add_hightorque_motor(handle_->ptr, motor_id, feedback_id, model.c_str());
+    if (!m) {
+      throw Error("add_hightorque_motor failed: " + last_error_message());
+    }
+    return Motor(handle_, m);
+  }
+
  private:
   std::shared_ptr<detail::ControllerHandle> handle_;
 };

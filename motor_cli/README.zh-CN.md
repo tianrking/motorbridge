@@ -37,6 +37,11 @@ motor_cli -h
 - 中文详表（命令/模式/参数）: `MYACTUATOR_API.zh-CN.md`
 - English version: `MYACTUATOR_API.md`
 
+## HighTorque 补充说明
+
+- 协议深度分析文档：`../docs/zh/hightorque_protocol_analysis.md`
+- 当前 `vendor=hightorque` 为 原生 ht_can v1.5.5 的“直连 CAN”模式，不是官方的“串口->CANboard”传输链路。
+
 ## 1. 参数解析规则
 
 - 仅解析 `--key value` 形式。
@@ -49,12 +54,12 @@ motor_cli -h
 | 参数 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `--help` | flag | 关闭 | 输出帮助并退出 |
-| `--vendor` | string | `damiao` | `damiao` / `robstride` / `myactuator` / `all` |
+| `--vendor` | string | `damiao` | `damiao` / `robstride` / `hightorque` / `myactuator` / `all` |
 | `--channel` | string | `can0` | SocketCAN 通道 |
-| `--model` | string | 按 vendor 决定 | Damiao 默认 `4340`；RobStride 默认 `rs-00`；MyActuator 默认 `X8` |
+| `--model` | string | 按 vendor 决定 | Damiao 默认 `4340`；RobStride 默认 `rs-00`；HighTorque 默认 `hightorque`；MyActuator 默认 `X8` |
 | `--motor-id` | u16(hex/dec) | `0x01` | 电机 CAN ID |
-| `--feedback-id` | u16(hex/dec) | 按 vendor 决定 | Damiao 默认 `0x11`；RobStride 默认 `0xFF`；MyActuator 默认 `0x241`（motor-id=1） |
-| `--mode` | string | 按 vendor 决定 | Damiao 默认 `mit`；RobStride 默认 `ping`；MyActuator 默认 `status`；`all` 默认 `scan` |
+| `--feedback-id` | u16(hex/dec) | 按 vendor 决定 | Damiao 默认 `0x11`；RobStride 默认 `0xFF`；HighTorque 默认 `0x01`；MyActuator 默认 `0x241`（motor-id=1） |
+| `--mode` | string | 按 vendor 决定 | Damiao 默认 `mit`；RobStride 默认 `ping`；HighTorque 默认 `read`；MyActuator 默认 `status`；`all` 默认 `scan` |
 | `--loop` | u64 | `1` | 控制循环次数 |
 | `--dt-ms` | u64 | `20` | 循环间隔毫秒 |
 | `--ensure-mode` | `0/1` | `1` | 控制前自动切模式 |
@@ -207,6 +212,7 @@ motor_cli \
 |---|---|---|
 | `--damiao-model` | `4340P` | 传给 Damiao 扫描流程的 model hint |
 | `--robstride-model` | `rs-00` | 传给 RobStride 扫描流程的 model hint |
+| `--hightorque-model` | `hightorque` | 传给 HighTorque 扫描流程的 model hint |
 | `--myactuator-model` | `X8` | 传给 MyActuator 扫描流程的 model hint |
 | `--start-id` | `1` | 同时传给各扫描流程 |
 | `--end-id` | `255` | 传给 Damiao/RobStride；MyActuator 会自动截断到 `32` |
@@ -217,6 +223,19 @@ motor_cli \
 motor_cli \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```
+
+## 5.3 vendor=`hightorque`（原生 `ht_can` v1.5.5）
+
+- 当前实现走 HighTorque 原生 `ht_can` v1.5.5 直连 CAN 协议路径。
+- 用于 SocketCAN（`can0` 等）直连电机场景。
+- HighTorque 官方 Panthera SDK 的“USB 串口 -> CANboard -> 电机”链路与当前 CLI 直连 CAN 路径相互独立。
+- 支持模式：`scan | read | ping | mit | pos | vel | tqe | pos-vel-tqe | volt | cur | stop | brake | rezero | conf-write | timed-read`。
+- 统一单位接口：
+  - `--pos` 为 `rad`
+  - `--vel` 为 `rad/s`
+  - `--tau` 为 `Nm`
+  - `--kp`、`--kd` 为统一 MIT 参数签名保留，`ht_can` 协议本身不使用。
+  - 原始调试参数：`--raw-pos`、`--raw-vel`、`--raw-tqe`。
 
 ## 6. vendor=`myactuator`
 

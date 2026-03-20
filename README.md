@@ -119,6 +119,14 @@ cargo run -p motor_cli --release -- \
   --mode vel --vel 0.3 --loop 40 --dt-ms 50
 ```
 
+HighTorque CLI (native ht_can v1.5.5):
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor hightorque --channel can0 --model hightorque --motor-id 1 \
+  --mode read
+```
+
 RobStride CLI parameter read:
 
 ```bash
@@ -169,6 +177,7 @@ Interpretation:
 
 - `vendor=damiao id=<n>` means one Damiao motor is online at motor ID `<n>`.
 - `vendor=robstride id=<n> responder_id=<m>` means one RobStride motor responded.
+- `vendor=hightorque ... [hit] id=<n> ...` means one HighTorque motor responded via native ht_can v1.5.5.
 - `vendor=myactuator id=<n>` means one MyActuator motor responded.
 - `hits=<k>` at the end of each scan block is the count of discovered devices.
 

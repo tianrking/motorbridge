@@ -9,6 +9,7 @@ RAII-style C++ wrapper on top of `motor_abi`.
 - `add_damiao_motor(motor_id, feedback_id, model)`
 - `add_myactuator_motor(motor_id, feedback_id, model)`
 - `add_robstride_motor(motor_id, feedback_id, model)`
+- `add_hightorque_motor(motor_id, feedback_id, model)`
 
 ## Quick Start
 
@@ -74,6 +75,29 @@ Unified scan via Rust CLI:
 ```bash
 cargo run -p motor_cli --release -- \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
+```
+
+HighTorque via Rust CLI:
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor hightorque --channel can0 --motor-id 1 --mode read
+```
+
+HighTorque via C++ binding:
+
+```cpp
+#include "motorbridge/motorbridge.hpp"
+
+int main() {
+  motorbridge::Controller ctrl("can0");
+  auto motor = ctrl.add_hightorque_motor(1, 0x01, "hightorque");
+  motor.send_mit(3.1416f, 0.8f, 0.0f, 0.0f, 0.8f);  // kp/kd kept for signature compatibility
+  motor.request_feedback();
+  auto st = motor.get_state();
+  ctrl.shutdown();
+  return st.has_value() ? 0 : 1;
+}
 ```
 
 ## Experimental Windows Support (PCAN-USB)

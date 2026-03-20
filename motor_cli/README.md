@@ -37,6 +37,11 @@ motor_cli -h
 - Detailed MyActuator command + mode guide (English): `MYACTUATOR_API.md`
 - 中文版（命令/模式详表）: `MYACTUATOR_API.zh-CN.md`
 
+## HighTorque Notes
+
+- Protocol analysis (Chinese): `../docs/zh/hightorque_protocol_analysis.md`
+- Current `vendor=hightorque` is a native ht_can v1.5.5 direct-CAN mode, not the official serial-CANboard transport.
+
 ## 1. Argument Parsing Rules
 
 - Only `--key value` style options are parsed.
@@ -49,12 +54,12 @@ motor_cli -h
 | Argument | Type | Default | Notes |
 |---|---|---|---|
 | `--help` | flag | off | Prints CLI help and exits |
-| `--vendor` | string | `damiao` | `damiao`, `robstride`, `myactuator`, `all` |
+| `--vendor` | string | `damiao` | `damiao`, `robstride`, `hightorque`, `myactuator`, `all` |
 | `--channel` | string | `can0` | SocketCAN channel |
-| `--model` | string | vendor dependent | `4340` for Damiao, `rs-00` for RobStride, `X8` for MyActuator |
+| `--model` | string | vendor dependent | `4340` for Damiao, `rs-00` for RobStride, `hightorque` for HighTorque, `X8` for MyActuator |
 | `--motor-id` | u16 (hex/dec) | `0x01` | Motor CAN ID |
-| `--feedback-id` | u16 (hex/dec) | vendor dependent | Damiao `0x11`, RobStride `0xFF`, MyActuator `0x241` (for motor-id `1`) |
-| `--mode` | string | vendor dependent | Damiao `mit`, RobStride `ping`, MyActuator `status`, `all` -> `scan` |
+| `--feedback-id` | u16 (hex/dec) | vendor dependent | Damiao `0x11`, RobStride `0xFF`, HighTorque `0x01`, MyActuator `0x241` (for motor-id `1`) |
+| `--mode` | string | vendor dependent | Damiao `mit`, RobStride `ping`, HighTorque `read`, MyActuator `status`, `all` -> `scan` |
 | `--loop` | u64 | `1` | Control loop cycles |
 | `--dt-ms` | u64 | `20` | Loop interval in ms |
 | `--ensure-mode` | `0/1` | `1` | Auto-switch mode before control |
@@ -207,6 +212,7 @@ motor_cli \
 |---|---|---|
 | `--damiao-model` | `4340P` | Model hint used when invoking Damiao scan path |
 | `--robstride-model` | `rs-00` | Model hint used when invoking RobStride scan path |
+| `--hightorque-model` | `hightorque` | Model hint used when invoking HighTorque scan path |
 | `--myactuator-model` | `X8` | Model hint used when invoking MyActuator scan path |
 | `--start-id` | `1` | Passed to all scans |
 | `--end-id` | `255` | Passed to Damiao/RobStride; MyActuator path auto-clamps to `32` |
@@ -217,6 +223,19 @@ motor_cli \
 motor_cli \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```
+
+## 5.3 Vendor = `hightorque` (native `ht_can` v1.5.5)
+
+- This path uses native HighTorque `ht_can` v1.5.5 direct-CAN protocol.
+- It is intended for setups where motors are exposed directly on SocketCAN (`can0` etc.).
+- Official Panthera/HighTorque SDK serial chain (`USB serial -> CANboard -> motors`) is separate from this CLI direct-CAN path.
+- Supported modes: `scan | read | ping | mit | pos | vel | tqe | pos-vel-tqe | volt | cur | stop | brake | rezero | conf-write | timed-read`.
+- Unified unit interface:
+  - `--pos` in `rad`
+  - `--vel` in `rad/s`
+  - `--tau` in `Nm`
+  - `--kp`, `--kd` are accepted for MIT signature compatibility but ignored by `ht_can`.
+  - Raw debug parameters: `--raw-pos`, `--raw-vel`, `--raw-tqe`.
 
 ## 6. Vendor = `myactuator`
 

@@ -1,4 +1,4 @@
-# CLI 指南 (`motor_cli`)
+# CLI 指南（`motor_cli`）
 
 ## 构建
 
@@ -6,24 +6,12 @@
 cargo build -p motor_cli --release
 ```
 
-## Linux 下快速重启 CAN
-
-```bash
-# 默认：can0 / 1Mbps / restart-ms=100 / loopback 关闭
-IF=can0; BITRATE=1000000; RESTART_MS=100; LOOPBACK=off
-sudo ip link set "$IF" down 2>/dev/null || true
-if [ "$LOOPBACK" = "on" ]; then
-  sudo ip link set "$IF" type can bitrate "$BITRATE" restart-ms "$RESTART_MS" loopback on
-else
-  sudo ip link set "$IF" type can bitrate "$BITRATE" restart-ms "$RESTART_MS" loopback off
-fi
-sudo ip link set "$IF" up
-ip -details link show "$IF"
-```
-
 ## 通用参数
 
-- `--vendor damiao|robstride|myactuator|all`
+- `--vendor damiao|robstride|hightorque|myactuator|all`
+- `--channel can0`
+- `--motor-id <id>`
+- `--loop <n> --dt-ms <ms>`
 
 ## Damiao 示例
 
@@ -33,30 +21,12 @@ cargo run -p motor_cli --release -- \
   --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 50 --dt-ms 20
 ```
 
-```bash
-cargo run -p motor_cli --release -- \
-  --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
-  --mode pos-vel --pos 3.10 --vlim 1.50 --loop 200 --dt-ms 20
-```
-
 ## RobStride 示例
-
-Ping:
 
 ```bash
 cargo run -p motor_cli --release -- \
   --vendor robstride --channel can0 --model rs-00 --motor-id 127 --mode ping
 ```
-
-读参数:
-
-```bash
-cargo run -p motor_cli --release -- \
-  --vendor robstride --channel can0 --model rs-00 --motor-id 127 \
-  --mode read-param --param-id 0x7019
-```
-
-MIT:
 
 ```bash
 cargo run -p motor_cli --release -- \
@@ -64,9 +34,57 @@ cargo run -p motor_cli --release -- \
   --mode mit --pos 0 --vel 0 --kp 8 --kd 0.2 --tau 0 --loop 20 --dt-ms 50
 ```
 
-## MyActuator 示例
+## HighTorque（原生 `ht_can` v1.5.5）
 
-状态读取：
+支持模式：
+
+- `scan`
+- `read` / `ping`
+- `mit`（统一接口）
+- `pos` / `vel` / `tqe`
+- `pos-vel-tqe`
+- `volt` / `cur`
+- `stop` / `brake` / `rezero` / `conf-write` / `timed-read`
+
+统一单位接口（与其他电机保持一致）：
+
+- `--pos`：弧度（rad）
+- `--vel`：弧度每秒（rad/s）
+- `--tau`：扭矩（Nm）
+- `--kp`、`--kd`：为统一 MIT 参数签名保留，`ht_can` 协议本身不使用
+
+底层原始接口（调试）：
+
+- `--raw-pos`、`--raw-vel`、`--raw-tqe`
+
+示例：
+
+```bash
+# 扫描 ID
+cargo run -p motor_cli --release -- \
+  --vendor hightorque --channel can0 --mode scan --start-id 1 --end-id 32
+```
+
+```bash
+# 读状态（输出包含 pos_rad / vel_rad_s）
+cargo run -p motor_cli --release -- \
+  --vendor hightorque --channel can0 --motor-id 1 --mode read
+```
+
+```bash
+# 转到 +180 度（pi 弧度），并限制速度/力矩
+cargo run -p motor_cli --release -- \
+  --vendor hightorque --channel can0 --motor-id 1 \
+  --mode mit --pos 3.1415926 --vel 0.8 --tau 0.8
+```
+
+```bash
+# 停止
+cargo run -p motor_cli --release -- \
+  --vendor hightorque --channel can0 --motor-id 1 --mode stop
+```
+
+## MyActuator 示例
 
 ```bash
 cargo run -p motor_cli --release -- \
@@ -74,32 +92,9 @@ cargo run -p motor_cli --release -- \
   --mode status --loop 20 --dt-ms 50
 ```
 
-速度模式：
-
-```bash
-cargo run -p motor_cli --release -- \
-  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
-  --mode vel --vel 0.5236 --loop 100 --dt-ms 20
-```
-
-位置模式：
-
-```bash
-cargo run -p motor_cli --release -- \
-  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
-  --mode pos --pos 3.1416 --max-speed 5.236 --loop 80 --dt-ms 50
-```
-
-统一扫描（全 vendor）:
+## 全品牌扫描
 
 ```bash
 cargo run -p motor_cli --release -- \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```
-
-输出解读：
-
-- Damiao 命中行：`vendor=damiao id=<n> ...`
-- RobStride 命中行：`vendor=robstride id=<n> responder_id=<m> ...`
-- MyActuator 命中行：`vendor=myactuator id=<n> ...`
-- 汇总行：`hits=<k>` 表示该厂商扫描到的在线设备数量。

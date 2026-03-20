@@ -9,6 +9,7 @@
 - `add_damiao_motor(motor_id, feedback_id, model)`
 - `add_myactuator_motor(motor_id, feedback_id, model)`
 - `add_robstride_motor(motor_id, feedback_id, model)`
+- `add_hightorque_motor(motor_id, feedback_id, model)`
 
 ## 快速开始
 
@@ -74,6 +75,29 @@ int main() {
 ```bash
 cargo run -p motor_cli --release -- \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
+```
+
+通过 Rust CLI 使用 HighTorque：
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor hightorque --channel can0 --motor-id 1 --mode read
+```
+
+通过 C++ 绑定使用 HighTorque：
+
+```cpp
+#include "motorbridge/motorbridge.hpp"
+
+int main() {
+  motorbridge::Controller ctrl("can0");
+  auto motor = ctrl.add_hightorque_motor(1, 0x01, "hightorque");
+  motor.send_mit(3.1416f, 0.8f, 0.0f, 0.0f, 0.8f);  // kp/kd 保留用于统一签名
+  motor.request_feedback();
+  auto st = motor.get_state();
+  ctrl.shutdown();
+  return st.has_value() ? 0 : 1;
+}
 ```
 
 ## Windows 实验支持（PCAN-USB）

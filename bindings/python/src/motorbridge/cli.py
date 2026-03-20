@@ -25,7 +25,11 @@ def _parse_rids(text: str) -> list[int]:
 
 
 def _add_common_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--vendor", default="damiao", choices=["damiao", "myactuator", "robstride"])
+    p.add_argument(
+        "--vendor",
+        default="damiao",
+        choices=["damiao", "myactuator", "robstride", "hightorque"],
+    )
     p.add_argument("--channel", default="can0")
     p.add_argument("--model", default="4340")
     p.add_argument("--motor-id", default="0x01")
@@ -45,6 +49,11 @@ def _vendor_defaults(vendor: str, model: str, feedback_id: str) -> tuple[str, st
             resolved_model = "X8"
         if resolved_feedback == "0x11":
             resolved_feedback = "0x241"
+    elif vendor == "hightorque":
+        if resolved_model == "4340":
+            resolved_model = "hightorque"
+        if resolved_feedback == "0x11":
+            resolved_feedback = "0x01"
     return resolved_model, resolved_feedback
 
 
@@ -53,6 +62,8 @@ def _add_motor(ctrl: Controller, vendor: str, motor_id: int, feedback_id: int, m
         return ctrl.add_myactuator_motor(motor_id, feedback_id, model)
     if vendor == "robstride":
         return ctrl.add_robstride_motor(motor_id, feedback_id, model)
+    if vendor == "hightorque":
+        return ctrl.add_hightorque_motor(motor_id, feedback_id, model)
     return ctrl.add_damiao_motor(motor_id, feedback_id, model)
 
 
@@ -95,7 +106,11 @@ def _build_parser() -> argparse.ArgumentParser:
     set_id.add_argument("--timeout-ms", type=int, default=800)
 
     scan = sub.add_parser("scan", help="scan active motor IDs")
-    scan.add_argument("--vendor", default="damiao", choices=["damiao", "myactuator", "robstride", "all"])
+    scan.add_argument(
+        "--vendor",
+        default="damiao",
+        choices=["damiao", "myactuator", "robstride", "hightorque", "all"],
+    )
     scan.add_argument("--channel", default="can0")
     scan.add_argument("--model", default="4340")
     scan.add_argument("--start-id", default="0x01")
@@ -420,6 +435,40 @@ def _scan_myactuator(args: argparse.Namespace, start_id: int, end_id: int) -> li
     return found
 
 
+def _scan_hightorque(args: argparse.Namespace, start_id: int, end_id: int) -> list[tuple[int, str]]:
+    found: list[tuple[int, str]] = []
+    lo = max(1, start_id)
+    hi = min(127, end_id)
+    print(
+        f"[scan:hightorque] channel={args.channel} model={args.model} "
+        f"id_range=[0x{lo:X},0x{hi:X}] timeout_ms={args.timeout_ms}"
+    )
+    for mid in range(lo, hi + 1):
+        ctrl = Controller(args.channel)
+        try:
+            motor = ctrl.add_hightorque_motor(mid, 0x01, args.model)
+            try:
+                try:
+                    motor.request_feedback()
+                    st = motor.get_state()
+                    if st is None:
+                        raise RuntimeError("no feedback")
+                    meta = (
+                        f"vendor=hightorque pos={st.pos:+.4f}rad "
+                        f"vel={st.vel:+.4f}rad/s torq={st.torq:+.3f}Nm"
+                    )
+                    found.append((mid, meta))
+                    print(f"[hit] probe=0x{mid:02X} {meta}")
+                except Exception:
+                    print(f"[.. ] vendor=hightorque probe=0x{mid:02X} no reply")
+            finally:
+                motor.close()
+        finally:
+            ctrl.close_bus()
+            ctrl.close()
+    return found
+
+
 def _scan_command(args: argparse.Namespace) -> None:
     start_id = _parse_id(args.start_id)
     end_id = _parse_id(args.end_id)
@@ -436,6 +485,7 @@ def _scan_command(args: argparse.Namespace) -> None:
     damiao_model = args.model
     myactuator_model = "X8" if args.model == "4340" else args.model
     robstride_model = "rs-00" if args.model == "4340" else args.model
+    hightorque_model = "hightorque" if args.model == "4340" else args.model
     if args.vendor in ("damiao", "all"):
         args.model = damiao_model
         found.extend(_scan_damiao(args, start_id, end_id))
@@ -445,6 +495,9 @@ def _scan_command(args: argparse.Namespace) -> None:
     if args.vendor in ("robstride", "all"):
         args.model = robstride_model
         found.extend(_scan_robstride(args, start_id, end_id))
+    if args.vendor in ("hightorque", "all"):
+        args.model = hightorque_model
+        found.extend(_scan_hightorque(args, start_id, end_id))
 
     print(f"scan done: {len(found)} motor(s) found")
     for probe, meta in found:

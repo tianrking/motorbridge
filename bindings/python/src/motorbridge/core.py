@@ -69,6 +69,14 @@ class Controller:
             raise CallError(f"add_robstride_motor failed: {_err_text()}")
         return Motor(m)
 
+    def add_hightorque_motor(self, motor_id: int, feedback_id: int, model: str) -> "Motor":
+        m = self._abi.lib.motor_controller_add_hightorque_motor(
+            self._ptr, motor_id, feedback_id, model.encode()
+        )
+        if not m:
+            raise CallError(f"add_hightorque_motor failed: {_err_text()}")
+        return Motor(m)
+
     def __enter__(self) -> "Controller":
         return self
 

@@ -12,6 +12,7 @@ Python binding layer on top of `motor_abi`.
   - Damiao: `add_damiao_motor(...)`
   - MyActuator: `add_myactuator_motor(...)`
   - RobStride: `add_robstride_motor(...)`
+  - HighTorque: `add_hightorque_motor(...)`
 
 ## Quick Start
 
@@ -84,6 +85,26 @@ Unified scan (all vendors):
 motorbridge-cli scan --vendor all --channel can0 --start-id 0x01 --end-id 0xFF
 ```
 
+HighTorque via binding:
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_hightorque_motor(1, 0x01, "hightorque")
+    motor.send_mit(3.1416, 0.8, 0.0, 0.0, 0.8)  # kp/kd are accepted but ignored by protocol
+    motor.request_feedback()
+    print(motor.get_state())
+    motor.close()
+```
+
+HighTorque via Rust CLI:
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor hightorque --channel can0 --motor-id 1 --mode read
+```
+
 ## Experimental Windows Support (PCAN-USB)
 
 Linux remains the primary target. Windows support is experimental and currently uses PEAK PCAN.
@@ -146,7 +167,7 @@ python3 bindings/python/examples/robstride_wrapper_demo.py \
 
 ## Notes
 
-- `id-dump` and `id-set` are Damiao workflows; `scan` supports `damiao|myactuator|robstride|all`.
+- `id-dump` and `id-set` are Damiao workflows; `scan` supports `damiao|myactuator|robstride|hightorque|all`.
 - `Mode.MIT` and `send_force_pos` are not available for MyActuator in ABI wrapper.
 - Full Damiao tuning reference stays in:
   - [DAMIAO_API.md](DAMIAO_API.md)

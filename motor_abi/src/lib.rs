@@ -1,3 +1,6 @@
+mod hightorque;
+
+use hightorque::{HightorqueController, HightorqueMotor};
 use motor_vendor_damiao::{ControlMode as DamiaoControlMode, DamiaoController, DamiaoMotor};
 use motor_vendor_myactuator::{
     ControlMode as MyActuatorControlMode, MyActuatorController, MyActuatorMotor,
@@ -60,12 +63,14 @@ enum ControllerInner {
     Damiao(DamiaoController),
     MyActuator(MyActuatorController),
     Robstride(RobstrideController),
+    Hightorque(HightorqueController),
 }
 
 enum MotorHandleInner {
     Damiao(Arc<DamiaoMotor>),
     MyActuator(Arc<MyActuatorMotor>),
     Robstride(Arc<RobstrideMotor>),
+    Hightorque(Arc<HightorqueMotor>),
 }
 
 #[repr(C)]
@@ -117,6 +122,9 @@ fn ensure_damiao_controller(
         ControllerInner::Robstride(_) => {
             Err("controller already bound to RobStride; use a separate controller".to_string())
         }
+        ControllerInner::Hightorque(_) => {
+            Err("controller already bound to HighTorque; use a separate controller".to_string())
+        }
         ControllerInner::Unbound(_) => Err("controller binding failed".to_string()),
     }
 }
@@ -137,6 +145,9 @@ fn ensure_myactuator_controller(
         ControllerInner::Robstride(_) => {
             Err("controller already bound to RobStride; use a separate controller".to_string())
         }
+        ControllerInner::Hightorque(_) => {
+            Err("controller already bound to HighTorque; use a separate controller".to_string())
+        }
         ControllerInner::Unbound(_) => Err("controller binding failed".to_string()),
     }
 }
@@ -156,6 +167,32 @@ fn ensure_robstride_controller(
         }
         ControllerInner::MyActuator(_) => {
             Err("controller already bound to MyActuator; use a separate controller".to_string())
+        }
+        ControllerInner::Hightorque(_) => {
+            Err("controller already bound to HighTorque; use a separate controller".to_string())
+        }
+        ControllerInner::Unbound(_) => Err("controller binding failed".to_string()),
+    }
+}
+
+fn ensure_hightorque_controller(
+    controller: &mut MotorController,
+) -> Result<&mut HightorqueController, String> {
+    if let ControllerInner::Unbound(channel) = &controller.inner {
+        controller.inner = ControllerInner::Hightorque(
+            HightorqueController::new_socketcan(channel).map_err(|e| e.to_string())?,
+        );
+    }
+    match &mut controller.inner {
+        ControllerInner::Hightorque(ctrl) => Ok(ctrl),
+        ControllerInner::Damiao(_) => {
+            Err("controller already bound to Damiao; use a separate controller".to_string())
+        }
+        ControllerInner::MyActuator(_) => {
+            Err("controller already bound to MyActuator; use a separate controller".to_string())
+        }
+        ControllerInner::Robstride(_) => {
+            Err("controller already bound to RobStride; use a separate controller".to_string())
         }
         ControllerInner::Unbound(_) => Err("controller binding failed".to_string()),
     }
@@ -199,6 +236,7 @@ pub extern "C" fn motor_controller_poll_feedback_once(controller: *mut MotorCont
         ControllerInner::Damiao(ctrl) => ctrl.poll_feedback_once().map_err(|e| e.to_string()),
         ControllerInner::MyActuator(ctrl) => ctrl.poll_feedback_once().map_err(|e| e.to_string()),
         ControllerInner::Robstride(ctrl) => ctrl.poll_feedback_once().map_err(|e| e.to_string()),
+        ControllerInner::Hightorque(ctrl) => ctrl.poll_feedback_once().map_err(|e| e.to_string()),
         ControllerInner::Unbound(_) => Ok(()),
     };
     match rc {
@@ -221,6 +259,7 @@ pub extern "C" fn motor_controller_enable_all(controller: *mut MotorController) 
         ControllerInner::Damiao(ctrl) => ctrl.enable_all().map_err(|e| e.to_string()),
         ControllerInner::MyActuator(ctrl) => ctrl.enable_all().map_err(|e| e.to_string()),
         ControllerInner::Robstride(ctrl) => ctrl.enable_all().map_err(|e| e.to_string()),
+        ControllerInner::Hightorque(ctrl) => ctrl.enable_all().map_err(|e| e.to_string()),
         ControllerInner::Unbound(_) => Ok(()),
     };
     match rc {
@@ -243,6 +282,7 @@ pub extern "C" fn motor_controller_disable_all(controller: *mut MotorController)
         ControllerInner::Damiao(ctrl) => ctrl.disable_all().map_err(|e| e.to_string()),
         ControllerInner::MyActuator(ctrl) => ctrl.disable_all().map_err(|e| e.to_string()),
         ControllerInner::Robstride(ctrl) => ctrl.disable_all().map_err(|e| e.to_string()),
+        ControllerInner::Hightorque(ctrl) => ctrl.disable_all().map_err(|e| e.to_string()),
         ControllerInner::Unbound(_) => Ok(()),
     };
     match rc {
@@ -265,6 +305,7 @@ pub extern "C" fn motor_controller_shutdown(controller: *mut MotorController) ->
         ControllerInner::Damiao(ctrl) => ctrl.shutdown().map_err(|e| e.to_string()),
         ControllerInner::MyActuator(ctrl) => ctrl.shutdown().map_err(|e| e.to_string()),
         ControllerInner::Robstride(ctrl) => ctrl.shutdown().map_err(|e| e.to_string()),
+        ControllerInner::Hightorque(ctrl) => ctrl.shutdown().map_err(|e| e.to_string()),
         ControllerInner::Unbound(_) => Ok(()),
     };
     match rc {
@@ -287,6 +328,7 @@ pub extern "C" fn motor_controller_close_bus(controller: *mut MotorController) -
         ControllerInner::Damiao(ctrl) => ctrl.close_bus().map_err(|e| e.to_string()),
         ControllerInner::MyActuator(ctrl) => ctrl.close_bus().map_err(|e| e.to_string()),
         ControllerInner::Robstride(ctrl) => ctrl.close_bus().map_err(|e| e.to_string()),
+        ControllerInner::Hightorque(ctrl) => ctrl.close_bus().map_err(|e| e.to_string()),
         ControllerInner::Unbound(_) => Ok(()),
     };
     match rc {
@@ -398,6 +440,39 @@ pub extern "C" fn motor_controller_add_myactuator_motor(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn motor_controller_add_hightorque_motor(
+    controller: *mut MotorController,
+    motor_id: u16,
+    feedback_id: u16,
+    model: *const c_char,
+) -> *mut MotorHandle {
+    if controller.is_null() {
+        set_last_error("controller is null");
+        return ptr::null_mut();
+    }
+    let model = match parse_cstr(model, "model") {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(e);
+            return ptr::null_mut();
+        }
+    };
+    let controller = unsafe { &mut *controller };
+    match ensure_hightorque_controller(controller).and_then(|ctrl| {
+        ctrl.add_motor(motor_id, feedback_id, &model)
+            .map_err(|e| e.to_string())
+    }) {
+        Ok(motor) => Box::into_raw(Box::new(MotorHandle {
+            inner: MotorHandleInner::Hightorque(motor),
+        })),
+        Err(e) => {
+            set_last_error(e);
+            ptr::null_mut()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn motor_handle_free(motor: *mut MotorHandle) {
     if motor.is_null() {
         return;
@@ -416,6 +491,7 @@ pub extern "C" fn motor_handle_enable(motor: *mut MotorHandle) -> i32 {
         MotorHandleInner::Damiao(m) => m.enable().map_err(|e| e.to_string()),
         MotorHandleInner::MyActuator(m) => m.release_brake().map_err(|e| e.to_string()),
         MotorHandleInner::Robstride(m) => m.enable().map_err(|e| e.to_string()),
+        MotorHandleInner::Hightorque(m) => m.enable().map_err(|e| e.to_string()),
     };
     match rc {
         Ok(()) => 0,
@@ -437,6 +513,7 @@ pub extern "C" fn motor_handle_disable(motor: *mut MotorHandle) -> i32 {
         MotorHandleInner::Damiao(m) => m.disable().map_err(|e| e.to_string()),
         MotorHandleInner::MyActuator(m) => m.shutdown_motor().map_err(|e| e.to_string()),
         MotorHandleInner::Robstride(m) => m.disable().map_err(|e| e.to_string()),
+        MotorHandleInner::Hightorque(m) => m.disable().map_err(|e| e.to_string()),
     };
     match rc {
         Ok(()) => 0,
@@ -460,6 +537,7 @@ pub extern "C" fn motor_handle_clear_error(motor: *mut MotorHandle) -> i32 {
         MotorHandleInner::Robstride(_) => {
             Err("clear_error is not supported for RobStride ABI yet".to_string())
         }
+        MotorHandleInner::Hightorque(m) => m.clear_error().map_err(|e| e.to_string()),
     };
     match rc {
         Ok(()) => 0,
@@ -483,6 +561,7 @@ pub extern "C" fn motor_handle_set_zero_position(motor: *mut MotorHandle) -> i32
             Err("set_zero_position is not supported for MyActuator".to_string())
         }
         MotorHandleInner::Robstride(m) => m.set_zero_position().map_err(|e| e.to_string()),
+        MotorHandleInner::Hightorque(m) => m.set_zero_position().map_err(|e| e.to_string()),
     };
     match rc {
         Ok(()) => 0,
@@ -537,6 +616,9 @@ pub extern "C" fn motor_handle_ensure_mode(
             };
             m.set_mode(mode).map_err(|e| e.to_string())
         }
+        MotorHandleInner::Hightorque(m) => m
+            .ensure_control_mode(mode, Duration::from_millis(timeout_ms as u64))
+            .map_err(|e| e.to_string()),
     };
     match rc {
         Ok(()) => 0,
@@ -583,6 +665,15 @@ pub extern "C" fn motor_handle_send_mit(
                 feedforward_torque,
             )
             .map_err(|e| e.to_string()),
+        MotorHandleInner::Hightorque(m) => m
+            .send_cmd_mit(
+                target_position,
+                target_velocity,
+                stiffness,
+                damping,
+                feedforward_torque,
+            )
+            .map_err(|e| e.to_string()),
     };
     match rc {
         Ok(()) => 0,
@@ -617,6 +708,9 @@ pub extern "C" fn motor_handle_send_pos_vel(
         MotorHandleInner::Robstride(_) => {
             Err("send_pos_vel is not supported for RobStride".to_string())
         }
+        MotorHandleInner::Hightorque(m) => m
+            .send_cmd_pos_vel(target_position, velocity_limit)
+            .map_err(|e| e.to_string()),
     };
     match rc {
         Ok(()) => 0,
@@ -642,6 +736,9 @@ pub extern "C" fn motor_handle_send_vel(motor: *mut MotorHandle, target_velocity
         MotorHandleInner::Robstride(m) => m
             .set_velocity_target(target_velocity)
             .map_err(|e| e.to_string()),
+        MotorHandleInner::Hightorque(m) => {
+            m.send_cmd_vel(target_velocity).map_err(|e| e.to_string())
+        }
     };
     match rc {
         Ok(()) => 0,
@@ -674,6 +771,9 @@ pub extern "C" fn motor_handle_send_force_pos(
         MotorHandleInner::Robstride(_) => {
             Err("send_force_pos is not supported for RobStride".to_string())
         }
+        MotorHandleInner::Hightorque(m) => m
+            .send_cmd_force_pos(target_position, velocity_limit, torque_limit_ratio)
+            .map_err(|e| e.to_string()),
     };
     match rc {
         Ok(()) => 0,
@@ -697,6 +797,7 @@ pub extern "C" fn motor_handle_store_parameters(motor: *mut MotorHandle) -> i32 
             Err("store_parameters is not supported for MyActuator".to_string())
         }
         MotorHandleInner::Robstride(m) => m.save_parameters().map_err(|e| e.to_string()),
+        MotorHandleInner::Hightorque(m) => m.store_parameters().map_err(|e| e.to_string()),
     };
     match rc {
         Ok(()) => 0,
@@ -718,6 +819,9 @@ pub extern "C" fn motor_handle_request_feedback(motor: *mut MotorHandle) -> i32 
         MotorHandleInner::Damiao(m) => m.request_motor_feedback().map_err(|e| e.to_string()),
         MotorHandleInner::MyActuator(m) => m.request_status().map_err(|e| e.to_string()),
         MotorHandleInner::Robstride(_) => Err("request_feedback is not supported for RobStride; status arrives from operation replies".to_string()),
+        MotorHandleInner::Hightorque(m) => m
+            .request_motor_feedback(Duration::from_millis(500))
+            .map_err(|e| e.to_string()),
     };
     match rc {
         Ok(()) => 0,
@@ -746,6 +850,9 @@ pub extern "C" fn motor_handle_set_can_timeout_ms(motor: *mut MotorHandle, timeo
         MotorHandleInner::Robstride(m) => m
             .write_parameter(0x7028, ParameterValue::U32(timeout_ms))
             .map_err(|e| e.to_string()),
+        MotorHandleInner::Hightorque(_) => {
+            Err("set_can_timeout_ms is not supported for HighTorque".to_string())
+        }
     };
     match rc {
         Ok(()) => 0,
@@ -775,6 +882,9 @@ pub extern "C" fn motor_handle_write_register_f32(
         MotorHandleInner::Robstride(_) => {
             Err("Damiao register write is not available for RobStride".to_string())
         }
+        MotorHandleInner::Hightorque(_) => {
+            Err("register write is not available for HighTorque".to_string())
+        }
     };
     match rc {
         Ok(()) => 0,
@@ -803,6 +913,9 @@ pub extern "C" fn motor_handle_write_register_u32(
         }
         MotorHandleInner::Robstride(_) => {
             Err("Damiao register write is not available for RobStride".to_string())
+        }
+        MotorHandleInner::Hightorque(_) => {
+            Err("register write is not available for HighTorque".to_string())
         }
     };
     match rc {
@@ -838,6 +951,9 @@ pub extern "C" fn motor_handle_get_register_f32(
         MotorHandleInner::Robstride(_) => {
             Err("Damiao register read is not available for RobStride".to_string())
         }
+        MotorHandleInner::Hightorque(_) => {
+            Err("register read is not available for HighTorque".to_string())
+        }
     };
     match rc {
         Ok(()) => 0,
@@ -872,6 +988,9 @@ pub extern "C" fn motor_handle_get_register_u32(
         MotorHandleInner::Robstride(_) => {
             Err("Damiao register read is not available for RobStride".to_string())
         }
+        MotorHandleInner::Hightorque(_) => {
+            Err("register read is not available for HighTorque".to_string())
+        }
     };
     match rc {
         Ok(()) => 0,
@@ -897,7 +1016,9 @@ pub extern "C" fn motor_handle_robstride_ping(
         MotorHandleInner::Robstride(m) => m
             .ping(Duration::from_millis(500))
             .map_err(|e| e.to_string()),
-        MotorHandleInner::Damiao(_) | MotorHandleInner::MyActuator(_) => {
+        MotorHandleInner::Damiao(_)
+        | MotorHandleInner::MyActuator(_)
+        | MotorHandleInner::Hightorque(_) => {
             Err("robstride_ping requires a RobStride motor".to_string())
         }
     };
@@ -928,7 +1049,9 @@ pub extern "C" fn motor_handle_robstride_set_device_id(
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
         MotorHandleInner::Robstride(m) => m.set_device_id(new_device_id).map_err(|e| e.to_string()),
-        MotorHandleInner::Damiao(_) | MotorHandleInner::MyActuator(_) => {
+        MotorHandleInner::Damiao(_)
+        | MotorHandleInner::MyActuator(_)
+        | MotorHandleInner::Hightorque(_) => {
             Err("robstride_set_device_id requires a RobStride motor".to_string())
         }
     };
@@ -959,7 +1082,9 @@ macro_rules! robstride_get_param {
                 MotorHandleInner::Robstride(m) => m
                     .get_parameter(param_id, Duration::from_millis(timeout_ms as u64))
                     .map_err(|e| e.to_string()),
-                MotorHandleInner::Damiao(_) | MotorHandleInner::MyActuator(_) => {
+                MotorHandleInner::Damiao(_)
+                | MotorHandleInner::MyActuator(_)
+                | MotorHandleInner::Hightorque(_) => {
                     Err("RobStride parameter access requires a RobStride motor".to_string())
                 }
             };
@@ -996,7 +1121,9 @@ macro_rules! robstride_write_param {
                 MotorHandleInner::Robstride(m) => m
                     .write_parameter(param_id, ParameterValue::$variant(value))
                     .map_err(|e| e.to_string()),
-                MotorHandleInner::Damiao(_) | MotorHandleInner::MyActuator(_) => {
+                MotorHandleInner::Damiao(_)
+                | MotorHandleInner::MyActuator(_)
+                | MotorHandleInner::Hightorque(_) => {
                     Err("RobStride parameter access requires a RobStride motor".to_string())
                 }
             };
@@ -1120,6 +1247,33 @@ pub extern "C" fn motor_handle_get_state(
                     torq: state.torque,
                     t_mos: state.temperature_c,
                     t_rotor: 0.0,
+                };
+            } else {
+                *out = MotorState {
+                    has_value: 0,
+                    can_id: 0,
+                    arbitration_id: 0,
+                    status_code: 0,
+                    pos: 0.0,
+                    vel: 0.0,
+                    torq: 0.0,
+                    t_mos: 0.0,
+                    t_rotor: 0.0,
+                };
+            }
+        }
+        MotorHandleInner::Hightorque(m) => {
+            if let Some(state) = m.latest_state() {
+                *out = MotorState {
+                    has_value: 1,
+                    can_id: state.can_id,
+                    arbitration_id: state.arbitration_id,
+                    status_code: state.status_code,
+                    pos: state.pos,
+                    vel: state.vel,
+                    torq: state.torq,
+                    t_mos: state.t_mos,
+                    t_rotor: state.t_rotor,
                 };
             } else {
                 *out = MotorState {

@@ -1,6 +1,9 @@
 use crate::args::{get_f32, get_i16, get_str, get_u16_hex_or_dec, get_u64};
-use motor_core::{CanBus, CanFrame};
+#[cfg(target_os = "windows")]
+use motor_core::pcan::PcanBus;
+#[cfg(target_os = "linux")]
 use motor_core::socketcan::SocketCanBus;
+use motor_core::{CanBus, CanFrame};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -147,6 +150,24 @@ fn tqe_raw_from_args(args: &HashMap<String, String>) -> Result<i16, String> {
     Ok(0)
 }
 
+fn open_can_bus(channel: &str) -> Result<Box<dyn CanBus>, Box<dyn std::error::Error>> {
+    #[cfg(target_os = "linux")]
+    {
+        return Ok(Box::new(SocketCanBus::open(channel)?));
+    }
+    #[cfg(target_os = "windows")]
+    {
+        return Ok(Box::new(PcanBus::open(channel)?));
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    {
+        let _ = channel;
+        Err(Box::new(motor_core::error::MotorError::InvalidArgument(
+            "No CAN backend for current platform".to_string(),
+        )))
+    }
+}
+
 pub fn run_hightorque(
     args: &HashMap<String, String>,
     channel: &str,
@@ -155,7 +176,7 @@ pub fn run_hightorque(
     let mode = get_str(args, "mode", "ping");
     let loop_n = get_u64(args, "loop", 1)?;
     let dt_ms = get_u64(args, "dt-ms", 20)?;
-    let bus = SocketCanBus::open(channel)?;
+    let bus = open_can_bus(channel)?;
 
     if mode == "scan" {
         let start_id = get_u16_hex_or_dec(args, "start-id", 1)?.clamp(1, 127);
@@ -169,8 +190,8 @@ pub fn run_hightorque(
         );
         let mut hits = 0usize;
         for id in start_id..=end_id {
-            send_ext(&bus, id, &[0x17, 0x01, 0, 0, 0, 0, 0, 0])?;
-            if let Some(s) = wait_status_for_motor(&bus, id, Duration::from_millis(80))? {
+            send_ext(bus.as_ref(), id, &[0x17, 0x01, 0, 0, 0, 0, 0, 0])?;
+            if let Some(s) = wait_status_for_motor(bus.as_ref(), id, Duration::from_millis(80))? {
                 print_status("[hit]", s);
                 hits += 1;
             }
@@ -200,8 +221,8 @@ pub fn run_hightorque(
     for i in 0..send_count {
         match mode.as_str() {
         "ping" | "read" => {
-            send_ext(&bus, motor_id, &[0x17, 0x01, 0, 0, 0, 0, 0, 0])?;
-            if let Some(s) = wait_status_for_motor(&bus, motor_id, Duration::from_millis(500))? {
+            send_ext(bus.as_ref(), motor_id, &[0x17, 0x01, 0, 0, 0, 0, 0, 0])?;
+            if let Some(s) = wait_status_for_motor(bus.as_ref(), motor_id, Duration::from_millis(500))? {
                 print_status("[ok]", s);
             } else {
                 return Err(format!(
@@ -221,7 +242,7 @@ pub fn run_hightorque(
             let mut data = [0x07, 0x07, 0x0A, 0x05, 0x00, 0x00, 0x80, 0x00];
             data[2..4].copy_from_slice(&pos.to_le_bytes());
             data[6..8].copy_from_slice(&tqe.to_le_bytes());
-            send_ext(&bus, motor_id, &data)?;
+            send_ext(bus.as_ref(), motor_id, &data)?;
         }
         "vel" => {
             let vel = vel_raw_from_args(args)?;
@@ -233,14 +254,14 @@ pub fn run_hightorque(
             let mut data = [0x07, 0x07, 0x00, 0x80, 0x20, 0x00, 0x80, 0x00];
             data[4..6].copy_from_slice(&vel.to_le_bytes());
             data[6..8].copy_from_slice(&tqe.to_le_bytes());
-            send_ext(&bus, motor_id, &data)?;
+            send_ext(bus.as_ref(), motor_id, &data)?;
         }
         "tqe" => {
             let tqe = tqe_raw_from_args(args)?;
             println!("[tx] mode=tqe id={} tqe_raw={}", motor_id, tqe);
             let mut data = [0x05, 0x13, 0x00, 0x80, 0x20, 0x00, 0x80, 0x00];
             data[2..4].copy_from_slice(&tqe.to_le_bytes());
-            send_ext(&bus, motor_id, &data[..4])?;
+            send_ext(bus.as_ref(), motor_id, &data[..4])?;
         }
         "mit" => {
             let pos = pos_raw_from_args(args)?;
@@ -254,19 +275,19 @@ pub fn run_hightorque(
             data[2..4].copy_from_slice(&vel.to_le_bytes());
             data[4..6].copy_from_slice(&tqe.to_le_bytes());
             data[6..8].copy_from_slice(&pos.to_le_bytes());
-            send_ext(&bus, motor_id, &data)?;
+            send_ext(bus.as_ref(), motor_id, &data)?;
         }
         "volt" => {
             let vol = get_i16(args, "raw-vol", 0)?;
             let mut data = [0x01, 0x00, 0x08, 0x05, 0x1B, 0x00, 0x00];
             data[5..7].copy_from_slice(&vol.to_le_bytes());
-            send_ext(&bus, motor_id, &data)?;
+            send_ext(bus.as_ref(), motor_id, &data)?;
         }
         "cur" => {
             let cur = get_i16(args, "raw-cur", 0)?;
             let mut data = [0x01, 0x00, 0x09, 0x05, 0x1C, 0x00, 0x00];
             data[5..7].copy_from_slice(&cur.to_le_bytes());
-            send_ext(&bus, motor_id, &data)?;
+            send_ext(bus.as_ref(), motor_id, &data)?;
         }
         "pos-vel-tqe" => {
             let pos = get_i16(args, "raw-pos", 0)?;
@@ -276,27 +297,27 @@ pub fn run_hightorque(
             data[2..4].copy_from_slice(&vel.to_le_bytes());
             data[4..6].copy_from_slice(&tqe.to_le_bytes());
             data[6..8].copy_from_slice(&pos.to_le_bytes());
-            send_ext(&bus, motor_id, &data)?;
+            send_ext(bus.as_ref(), motor_id, &data)?;
         }
         "stop" => {
-            send_ext(&bus, motor_id, &[0x01, 0x00, 0x00])?;
+            send_ext(bus.as_ref(), motor_id, &[0x01, 0x00, 0x00])?;
         }
         "brake" => {
-            send_ext(&bus, motor_id, &[0x01, 0x00, 0x0F])?;
+            send_ext(bus.as_ref(), motor_id, &[0x01, 0x00, 0x0F])?;
         }
         "conf-write" => {
-            send_ext(&bus, motor_id, &[0x05, 0xB3, 0x02, 0x00, 0x00])?;
+            send_ext(bus.as_ref(), motor_id, &[0x05, 0xB3, 0x02, 0x00, 0x00])?;
         }
         "rezero" => {
-            send_ext(&bus, motor_id, &[0x40, 0x01, 0x04, 0x64, 0x20, 0x63, 0x0A])?;
+            send_ext(bus.as_ref(), motor_id, &[0x40, 0x01, 0x04, 0x64, 0x20, 0x63, 0x0A])?;
             std::thread::sleep(Duration::from_secs(1));
-            send_ext(&bus, motor_id, &[0x05, 0xB3, 0x02, 0x00, 0x00])?;
+            send_ext(bus.as_ref(), motor_id, &[0x05, 0xB3, 0x02, 0x00, 0x00])?;
         }
         "timed-read" => {
             let t_ms = get_i16(args, "period-ms", 100)?;
             let mut data = [0x05, 0xB4, 0x02, 0x00, 0x00];
             data[3..5].copy_from_slice(&t_ms.to_le_bytes());
-            send_ext(&bus, motor_id, &data)?;
+            send_ext(bus.as_ref(), motor_id, &data)?;
         }
         _ => {
             return Err(format!(

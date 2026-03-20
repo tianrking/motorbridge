@@ -1,5 +1,8 @@
 use motor_core::bus::{CanBus, CanFrame};
 use motor_core::error::{MotorError, Result};
+#[cfg(target_os = "windows")]
+use motor_core::pcan::PcanBus;
+#[cfg(target_os = "linux")]
 use motor_core::socketcan::SocketCanBus;
 use std::f32::consts::PI;
 use std::sync::{Arc, Mutex};
@@ -25,8 +28,23 @@ pub struct HightorqueController {
 
 impl HightorqueController {
     pub fn new_socketcan(channel: &str) -> Result<Self> {
-        let bus: Arc<dyn CanBus> = Arc::new(SocketCanBus::open(channel)?);
-        Ok(Self { bus })
+        #[cfg(target_os = "linux")]
+        {
+            let bus: Arc<dyn CanBus> = Arc::new(SocketCanBus::open(channel)?);
+            return Ok(Self { bus });
+        }
+        #[cfg(target_os = "windows")]
+        {
+            let bus: Arc<dyn CanBus> = Arc::new(PcanBus::open(channel)?);
+            return Ok(Self { bus });
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+        {
+            let _ = channel;
+            Err(MotorError::InvalidArgument(
+                "No CAN backend for current platform".to_string(),
+            ))
+        }
     }
 
     pub fn add_motor(

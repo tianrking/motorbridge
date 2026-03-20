@@ -56,10 +56,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
     );
 
-    println!(
-        "vendor={} channel={} model={} motor_id=0x{:X} feedback_id=0x{:X} mode={}",
-        vendor, channel, model, motor_id, feedback_id, mode
-    );
+    let model_is_default = !args.contains_key("model");
+    let motor_id_is_default = !args.contains_key("motor-id");
+    let feedback_id_is_default = !args.contains_key("feedback-id");
+    let start_id_is_default = !args.contains_key("start-id");
+    let end_id_is_default = !args.contains_key("end-id");
+    let default_tag = |is_default: bool| if is_default { " (default)" } else { "" };
+
+    if mode == "scan" {
+        let scan_start = get_u16_hex_or_dec(&args, "start-id", 1)?;
+        let scan_end = get_u16_hex_or_dec(&args, "end-id", 255)?;
+        println!(
+            "vendor={} channel={} mode=scan model_hint={}{} base_feedback_id=0x{:X}{} scan_range={}{}..{}{}",
+            vendor,
+            channel,
+            model,
+            default_tag(model_is_default),
+            feedback_id,
+            default_tag(feedback_id_is_default),
+            scan_start,
+            default_tag(start_id_is_default),
+            scan_end,
+            default_tag(end_id_is_default),
+        );
+    } else {
+        println!(
+            "vendor={} channel={} model={}{} motor_id=0x{:X}{} feedback_id=0x{:X}{} mode={}",
+            vendor,
+            channel,
+            model,
+            default_tag(model_is_default),
+            motor_id,
+            default_tag(motor_id_is_default),
+            feedback_id,
+            default_tag(feedback_id_is_default),
+            mode
+        );
+    }
 
     if vendor == "all" {
         if mode != "scan" {

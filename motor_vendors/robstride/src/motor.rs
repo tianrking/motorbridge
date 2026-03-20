@@ -475,12 +475,17 @@ impl MotorDevice for RobstrideMotor {
             return false;
         }
         let (comm_type, extra_data, responder_id) = ext_id_parts(frame.arbitration_id);
+        let device_id = (extra_data & 0xFF) as u16;
         match comm_type {
-            CommunicationType::GET_DEVICE_ID => (extra_data & 0xFF) == self.motor_id,
-            CommunicationType::READ_PARAMETER
-            | CommunicationType::OPERATION_STATUS
-            | CommunicationType::FAULT_REPORT => {
-                (extra_data & 0xFF) == self.motor_id || responder_id == self.host_id_u8()
+            CommunicationType::GET_DEVICE_ID => device_id == self.motor_id,
+            // READ_PARAMETER responses may use host id in responder_id depending on firmware.
+            CommunicationType::READ_PARAMETER => {
+                device_id == self.motor_id || responder_id == self.host_id_u8()
+            }
+            // Status/fault frames must belong to this motor. Accepting only by responder_id
+            // can pollute state with frames from other motors on the same bus.
+            CommunicationType::OPERATION_STATUS | CommunicationType::FAULT_REPORT => {
+                device_id == self.motor_id
             }
             _ => false,
         }

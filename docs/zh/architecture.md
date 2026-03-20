@@ -8,9 +8,11 @@ flowchart TB
   SURFACE --> CORE["motor_core（controller/bus/model/traits）"]
   CORE --> DAMIAO["motor_vendors/damiao"]
   CORE --> ROBSTRIDE["motor_vendors/robstride"]
+  CORE --> MYACT["motor_vendors/myactuator"]
   CORE --> TEMPLATE["motor_vendors/template（接入模板）"]
   DAMIAO --> CAN["CAN 总线后端"]
   ROBSTRIDE --> CAN
+  MYACT --> CAN
   CAN --> LNX["Linux：SocketCAN"]
   CAN --> WIN["Windows（实验）：PEAK PCAN"]
   CAN --> HW["真实电机硬件"]

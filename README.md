@@ -176,6 +176,25 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --mod
 cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4310 --motor-id 0x07 --feedback-id 0x17 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
 ```
 
+## Linux USB-CAN (`slcan`) Quick Guide
+
+Linux uses SocketCAN interface names directly (for example `can0`, `slcan0`).
+Do not pass bitrate suffix in Linux channel names (for example `can0@1000000` is invalid on Linux SocketCAN).
+
+Bring up an `slcan` adapter as `slcan0`:
+
+```bash
+sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0
+sudo ip link set slcan0 up
+ip -details link show slcan0
+```
+
+Then use `slcan0` as CLI channel:
+
+```bash
+cargo run -p motor_cli --release -- --vendor damiao --channel slcan0 --mode scan --start-id 1 --end-id 255
+```
+
 Interpretation:
 
 - `vendor=damiao id=<n>` means one Damiao motor is online at motor ID `<n>`.

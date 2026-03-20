@@ -176,6 +176,25 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --mod
 cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4310 --motor-id 0x07 --feedback-id 0x17 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
 ```
 
+## Linux USB-CAN（`slcan`）速查
+
+Linux 下直接使用 SocketCAN 网卡名（例如 `can0`、`slcan0`）。
+不要在 Linux 的通道名里加波特率后缀（例如 `can0@1000000` 在 Linux SocketCAN 下无效）。
+
+把 `slcan` 适配器挂成 `slcan0`：
+
+```bash
+sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0
+sudo ip link set slcan0 up
+ip -details link show slcan0
+```
+
+之后在 CLI 里直接使用 `slcan0`：
+
+```bash
+cargo run -p motor_cli --release -- --vendor damiao --channel slcan0 --mode scan --start-id 1 --end-id 255
+```
+
 结果解读：
 
 - `vendor=damiao id=<n>`：发现一个 Damiao 电机，电机 ID 为 `<n>`。

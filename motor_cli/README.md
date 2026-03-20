@@ -55,7 +55,7 @@ motor_cli -h
 |---|---|---|---|
 | `--help` | flag | off | Prints CLI help and exits |
 | `--vendor` | string | `damiao` | `damiao`, `robstride`, `hightorque`, `myactuator`, `all` |
-| `--channel` | string | `can0` | SocketCAN channel |
+| `--channel` | string | `can0` | Linux: SocketCAN interface name (`can0`/`slcan0`); Windows (PCAN backend): `can0`/`can1` with optional `@bitrate` suffix (for example `can0@1000000`) |
 | `--model` | string | vendor dependent | `4340` for Damiao, `rs-00` for RobStride, `hightorque` for HighTorque, `X8` for MyActuator |
 | `--motor-id` | u16 (hex/dec) | `0x01` | Motor CAN ID |
 | `--feedback-id` | u16 (hex/dec) | vendor dependent | Damiao `0x11`, RobStride `0xFF`, HighTorque `0x01`, MyActuator `0x241` (for motor-id `1`) |
@@ -63,6 +63,16 @@ motor_cli -h
 | `--loop` | u64 | `1` | Control loop cycles |
 | `--dt-ms` | u64 | `20` | Loop interval in ms |
 | `--ensure-mode` | `0/1` | `1` | Auto-switch mode before control |
+
+### 2.1 Channel Quick Reference (`--channel`)
+
+- Linux SocketCAN:
+  - Use interface names directly: `can0`, `can1`, `slcan0`.
+  - Configure bitrate at interface setup time (`ip link` / `slcand`), not in `--channel`.
+  - `can0@1000000` is invalid on Linux SocketCAN.
+- Windows PCAN:
+  - `can0` maps to `PCAN_USBBUS1`, `can1` maps to `PCAN_USBBUS2`.
+  - Optional bitrate suffix is supported: `can0@1000000`.
 
 ## 3. Vendor = `damiao`
 

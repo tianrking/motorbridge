@@ -55,7 +55,7 @@ motor_cli -h
 |---|---|---|---|
 | `--help` | flag | 关闭 | 输出帮助并退出 |
 | `--vendor` | string | `damiao` | `damiao` / `robstride` / `hightorque` / `myactuator` / `all` |
-| `--channel` | string | `can0` | SocketCAN 通道 |
+| `--channel` | string | `can0` | Linux：SocketCAN 网卡名（`can0`/`slcan0`）；Windows（PCAN 后端）：`can0`/`can1`，可加 `@bitrate`（如 `can0@1000000`） |
 | `--model` | string | 按 vendor 决定 | Damiao 默认 `4340`；RobStride 默认 `rs-00`；HighTorque 默认 `hightorque`；MyActuator 默认 `X8` |
 | `--motor-id` | u16(hex/dec) | `0x01` | 电机 CAN ID |
 | `--feedback-id` | u16(hex/dec) | 按 vendor 决定 | Damiao 默认 `0x11`；RobStride 默认 `0xFF`；HighTorque 默认 `0x01`；MyActuator 默认 `0x241`（motor-id=1） |
@@ -63,6 +63,16 @@ motor_cli -h
 | `--loop` | u64 | `1` | 控制循环次数 |
 | `--dt-ms` | u64 | `20` | 循环间隔毫秒 |
 | `--ensure-mode` | `0/1` | `1` | 控制前自动切模式 |
+
+### 2.1 通道速查（`--channel`）
+
+- Linux SocketCAN：
+  - 直接使用网卡名：`can0`、`can1`、`slcan0`。
+  - 波特率在网卡初始化阶段设置（`ip link` / `slcand`），不要写到 `--channel`。
+  - `can0@1000000` 在 Linux SocketCAN 下无效。
+- Windows PCAN：
+  - `can0` 映射 `PCAN_USBBUS1`，`can1` 映射 `PCAN_USBBUS2`。
+  - 支持可选波特率后缀：`can0@1000000`。
 
 ## 3. vendor=`damiao`
 

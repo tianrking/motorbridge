@@ -12,6 +12,9 @@
 - RobStride:
   - 型号: `rs-00`, `rs-01`, `rs-02`, `rs-03`, `rs-04`, `rs-05`, `rs-06`
   - 模式: `scan`, `ping`, `MIT`, `VEL`, 参数读写
+- MyActuator:
+  - 型号: `X8`（运行时字符串，协议按 ID 通信）
+  - 模式: `scan`, `enable`, `disable`, `stop`, `status`, `current`, `vel`, `pos`, `version`, `mode-query`
 
 ## 架构
 
@@ -23,9 +26,11 @@ flowchart TB
   SURFACE --> CORE["motor_core（controller/bus/model/traits）"]
   CORE --> DAMIAO["motor_vendors/damiao"]
   CORE --> ROBSTRIDE["motor_vendors/robstride"]
+  CORE --> MYACT["motor_vendors/myactuator"]
   CORE --> TEMPLATE["motor_vendors/template（接入模板）"]
   DAMIAO --> CAN["CAN 总线后端"]
   ROBSTRIDE --> CAN
+  MYACT --> CAN
   CAN --> LNX["Linux：SocketCAN"]
   CAN --> WIN["Windows（实验）：PEAK PCAN"]
   CAN --> HW["真实电机硬件"]
@@ -44,6 +49,7 @@ flowchart LR
   ROOT --> BIND["bindings/*"]
   VENDORS --> VD["damiao"]
   VENDORS --> VR["robstride"]
+  VENDORS --> VM["myactuator"]
   VENDORS --> VT["template"]
   INTS --> ROS["ros2_bridge"]
   INTS --> WS["ws_gateway"]
@@ -54,11 +60,13 @@ flowchart LR
 - [`motor_core`](motor_core): 与厂商无关的控制器、路由、CAN 总线层（Linux SocketCAN / Windows 实验性 PCAN）
 - [`motor_vendors/damiao`](motor_vendors/damiao): Damiao 协议 / 型号 / 寄存器
 - [`motor_vendors/robstride`](motor_vendors/robstride): RobStride 扩展 CAN 协议 / 型号 / 参数
+- [`motor_vendors/myactuator`](motor_vendors/myactuator): MyActuator CAN 协议实现
 - [`motor_cli`](motor_cli): 统一 Rust CLI
   - 全参数英文文档: [`motor_cli/README.md`](motor_cli/README.md)
   - 全参数中文文档: [`motor_cli/README.zh-CN.md`](motor_cli/README.zh-CN.md)
   - Damiao 指令/寄存器文档: [`motor_cli/DAMIAO_API.md`](motor_cli/DAMIAO_API.md), [`motor_cli/DAMIAO_API.zh-CN.md`](motor_cli/DAMIAO_API.zh-CN.md)
   - RobStride 指令/参数文档: [`motor_cli/ROBSTRIDE_API.md`](motor_cli/ROBSTRIDE_API.md), [`motor_cli/ROBSTRIDE_API.zh-CN.md`](motor_cli/ROBSTRIDE_API.zh-CN.md)
+  - MyActuator 指令/模式文档: [`motor_cli/MYACTUATOR_API.md`](motor_cli/MYACTUATOR_API.md), [`motor_cli/MYACTUATOR_API.zh-CN.md`](motor_cli/MYACTUATOR_API.zh-CN.md)
 - [`motor_abi`](motor_abi): 稳定 C ABI
 - [`bindings/python`](bindings/python): Python SDK + `motorbridge-cli`
 - [`bindings/cpp`](bindings/cpp): C++ RAII wrapper
@@ -119,6 +127,14 @@ cargo run -p motor_cli --release -- \
   --mode read-param --param-id 0x7019
 ```
 
+MyActuator CLI:
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode status --loop 20 --dt-ms 50
+```
+
 统一全品牌扫描:
 
 ```bash
@@ -153,6 +169,7 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --mod
 
 - `vendor=damiao id=<n>`：发现一个 Damiao 电机，电机 ID 为 `<n>`。
 - `vendor=robstride id=<n> responder_id=<m>`：发现一个 RobStride 电机并返回响应 ID。
+- `vendor=myactuator id=<n>`：发现一个 MyActuator 电机并返回版本响应。
 - 每段扫描结尾的 `hits=<k>` 表示该厂商命中的在线设备数量。
 
 ## ABI 与绑定

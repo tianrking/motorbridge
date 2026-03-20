@@ -2,10 +2,10 @@ use crate::motor::RobstrideMotor;
 use motor_core::bus::CanBus;
 use motor_core::controller::CoreController;
 use motor_core::error::{MotorError, Result};
-#[cfg(target_os = "linux")]
-use motor_core::socketcan::SocketCanBus;
 #[cfg(target_os = "windows")]
 use motor_core::pcan::PcanBus;
+#[cfg(target_os = "linux")]
+use motor_core::socketcan::SocketCanBus;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

@@ -7,8 +7,8 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 const DAMIAO_SCAN_MODEL_HINTS: &[&str] = &[
-    "4340P", "4340", "4310", "4310P", "3507", "6006", "8006", "8009", "10010L", "10010",
-    "H3510", "G6215", "H6220", "JH11", "6248P",
+    "4340P", "4340", "4310", "4310P", "3507", "6006", "8006", "8009", "10010L", "10010", "H3510",
+    "G6215", "H6220", "JH11", "6248P",
 ];
 
 fn build_scan_model_hints() -> Vec<String> {
@@ -134,12 +134,7 @@ pub fn run_damiao(
                     let vmax = candidate.get_register_f32(22, Duration::from_millis(120));
                     let tmax = candidate.get_register_f32(23, Duration::from_millis(120));
                     if let (Ok(p), Ok(v), Ok(t)) = (pmax, vmax, tmax) {
-                        found = Some(ScanHit::Registers {
-                            p,
-                            v,
-                            t,
-                            fid: *fid,
-                        });
+                        found = Some(ScanHit::Registers { p, v, t, fid: *fid });
                         break;
                     }
                 }
@@ -254,10 +249,10 @@ pub fn run_damiao(
             }
 
             if verify_id {
-            let esc = verify_motor.get_register_u32(8, Duration::from_millis(1000))?;
-            let mst = verify_motor.get_register_u32(7, Duration::from_millis(1000))?;
-            println!("[id-set] verify rid=8 (ESC_ID)=0x{:X}", esc);
-            println!("[id-set] verify rid=7 (MST_ID)=0x{:X}", mst);
+                let esc = verify_motor.get_register_u32(8, Duration::from_millis(1000))?;
+                let mst = verify_motor.get_register_u32(7, Duration::from_millis(1000))?;
+                println!("[id-set] verify rid=8 (ESC_ID)=0x{:X}", esc);
+                println!("[id-set] verify rid=7 (MST_ID)=0x{:X}", mst);
                 if esc != new_motor_id as u32 || mst != new_feedback_id as u32 {
                     verify_ctrl.close_bus()?;
                     return Err(format!(

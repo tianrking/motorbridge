@@ -22,7 +22,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let target = (0.5 * t).sin() * 3.0;
         motor.send_cmd_mit(target, 0.0, 50.0, 1.0, 0.0)?;
         if let Some(s) = motor.latest_state() {
-            println!("target={:+.2} actual={:+.3} vel={:+.3} torq={:+.3}", target, s.pos, s.vel, s.torq);
+            println!(
+                "target={:+.2} actual={:+.3} vel={:+.3} torq={:+.3}",
+                target, s.pos, s.vel, s.torq
+            );
         }
         std::thread::sleep(Duration::from_millis(20));
     }

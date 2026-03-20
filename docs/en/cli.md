@@ -23,7 +23,7 @@ ip -details link show "$IF"
 
 ## Common Flag
 
-- `--vendor damiao|robstride|all`
+- `--vendor damiao|robstride|myactuator|all`
 
 ## Damiao Examples
 
@@ -64,7 +64,33 @@ cargo run -p motor_cli --release -- \
   --mode mit --pos 0 --vel 0 --kp 8 --kd 0.2 --tau 0 --loop 20 --dt-ms 50
 ```
 
-Unified scan (both vendors):
+## MyActuator Examples
+
+Status:
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode status --loop 20 --dt-ms 50
+```
+
+Velocity:
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode vel --vel 0.5236 --loop 100 --dt-ms 20
+```
+
+Position:
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode pos --pos 3.1416 --max-speed 5.236 --loop 80 --dt-ms 50
+```
+
+Unified scan (all vendors):
 
 ```bash
 cargo run -p motor_cli --release -- \
@@ -75,4 +101,5 @@ Output reading:
 
 - Damiao hit line: `vendor=damiao id=<n> ...`
 - RobStride hit line: `vendor=robstride id=<n> responder_id=<m> ...`
+- MyActuator hit line: `vendor=myactuator id=<n> ...`
 - Summary line: `hits=<k>` means discovered online motor count for that vendor.

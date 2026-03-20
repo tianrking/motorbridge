@@ -7,6 +7,7 @@
 ## Controller 入口
 
 - `add_damiao_motor(motor_id, feedback_id, model)`
+- `add_myactuator_motor(motor_id, feedback_id, model)`
 - `add_robstride_motor(motor_id, feedback_id, model)`
 
 ## 快速开始
@@ -39,6 +40,22 @@ int main() {
   float pos = motor.robstride_get_param_f32(0x7019);
   ctrl.shutdown();
   return static_cast<int>(ids.first == 127 && pos > -1000.0f);
+}
+```
+
+MyActuator:
+
+```cpp
+#include "motorbridge/motorbridge.hpp"
+
+int main() {
+  motorbridge::Controller ctrl("can0");
+  auto motor = ctrl.add_myactuator_motor(1, 0x241, "X8");
+  ctrl.enable_all();
+  motor.ensure_mode(motorbridge::Mode::POS_VEL, 1000);
+  motor.send_pos_vel(3.1416f, 2.0f);  // rad / rad/s
+  ctrl.shutdown();
+  return 0;
 }
 ```
 

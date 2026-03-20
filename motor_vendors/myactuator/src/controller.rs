@@ -1,4 +1,4 @@
-use crate::motor::DamiaoMotor;
+use crate::motor::MyActuatorMotor;
 use motor_core::bus::CanBus;
 use motor_core::controller::CoreController;
 use motor_core::error::{MotorError, Result};
@@ -9,12 +9,12 @@ use motor_core::socketcan::SocketCanBus;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-pub struct DamiaoController {
+pub struct MyActuatorController {
     core: CoreController,
-    motors: Mutex<HashMap<u16, Arc<DamiaoMotor>>>,
+    motors: Mutex<HashMap<u16, Arc<MyActuatorMotor>>>,
 }
 
-impl DamiaoController {
+impl MyActuatorController {
     pub fn new(bus: Arc<dyn CanBus>) -> Self {
         Self {
             core: CoreController::new(bus),
@@ -47,8 +47,8 @@ impl DamiaoController {
         motor_id: u16,
         feedback_id: u16,
         model: &str,
-    ) -> Result<Arc<DamiaoMotor>> {
-        let motor = Arc::new(DamiaoMotor::new(
+    ) -> Result<Arc<MyActuatorMotor>> {
+        let motor = Arc::new(MyActuatorMotor::new(
             motor_id,
             feedback_id,
             model,
@@ -63,7 +63,7 @@ impl DamiaoController {
         Ok(motor)
     }
 
-    pub fn get_motor(&self, motor_id: u16) -> Result<Arc<DamiaoMotor>> {
+    pub fn get_motor(&self, motor_id: u16) -> Result<Arc<MyActuatorMotor>> {
         self.motors
             .lock()
             .map_err(|_| MotorError::Io("motors lock poisoned".to_string()))?

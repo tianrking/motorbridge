@@ -59,7 +59,10 @@ fn get_u16_hex_or_dec(
     }
 }
 
-fn get_opt_u16_hex_or_dec(opts: &HashMap<String, String>, key: &str) -> Result<Option<u16>, String> {
+fn get_opt_u16_hex_or_dec(
+    opts: &HashMap<String, String>,
+    key: &str,
+) -> Result<Option<u16>, String> {
     match opts.get(key) {
         Some(v) => Ok(Some(parse_u16_hex_or_dec(v, key)?)),
         None => Ok(None),

@@ -18,6 +18,9 @@
 - RobStride 参数/API 总表:
   - `../motor_cli/ROBSTRIDE_API.md`
   - `../motor_cli/ROBSTRIDE_API.zh-CN.md`
+- MyActuator 指令/模式总表:
+  - `../motor_cli/MYACTUATOR_API.md`
+  - `../motor_cli/MYACTUATOR_API.zh-CN.md`
 
 ## 示例支持的厂商
 
@@ -27,6 +30,9 @@
 - RobStride:
   - 模式: `ping`、`enable`、`disable`、`mit`、`vel`、`read-param`、`write-param`
   - 参数示例走 RobStride 的 ABI / binding 接口
+- MyActuator:
+  - 模式: `scan`、`enable`、`disable`、`stop`、`status`、`current`、`vel`、`pos`、`version`、`mode-query`
+  - CLI 的 `pos`/`vel` 输入统一用弧度制（内部会转换到协议角度）
 
 ## CAN 初始化
 
@@ -78,6 +84,14 @@ cargo run -p motor_cli --release -- \
   --mode read-param --param-id 0x7019
 ```
 
+MyActuator 的 Rust CLI 示例:
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode pos --pos 3.1416 --max-speed 5.236 --loop 1 --dt-ms 50
+```
+
 ## 跨语言 ABI 示例
 
 Python ctypes:
@@ -117,11 +131,12 @@ LD_LIBRARY_PATH=target/release ./cpp_abi_demo --vendor damiao --channel can0 --m
 
 ## 建议验证顺序
 
-1. 先做总线双厂商扫描。
+1. 先做总线全厂商扫描。
 2. 验证 Damiao 控制链路（MIT 或速度）。
 3. 验证 RobStride 控制链路（ping/读参/速度）。
-4. 验证 Python binding 示例（Damiao + RobStride）。
-5. 验证 C++ binding 示例（Damiao + RobStride）。
+4. 验证 MyActuator 控制链路（位置或速度）。
+5. 验证 Python binding 示例（Damiao + RobStride）。
+6. 验证 C++ binding 示例（Damiao + RobStride）。
 
 快速命令：
 
@@ -135,6 +150,9 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0 --model 4340P
 # 3) RobStride ping + 速度
 cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
 cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode vel --vel 0.3 --loop 40 --dt-ms 50
+
+# 4) MyActuator 位置模式（弧度）
+cargo run -p motor_cli --release -- --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 --mode pos --pos 3.1416 --max-speed 5.236 --loop 1 --dt-ms 50
 ```
 
 ## 说明

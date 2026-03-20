@@ -18,6 +18,9 @@ Cross-language example entry for the current `motorbridge` stack.
 - RobStride API/parameter reference:
   - `../motor_cli/ROBSTRIDE_API.md`
   - `../motor_cli/ROBSTRIDE_API.zh-CN.md`
+- MyActuator command/mode reference:
+  - `../motor_cli/MYACTUATOR_API.md`
+  - `../motor_cli/MYACTUATOR_API.zh-CN.md`
 
 ## Vendor Support in Examples
 
@@ -27,6 +30,9 @@ Cross-language example entry for the current `motorbridge` stack.
 - RobStride:
   - modes: `ping`, `enable`, `disable`, `mit`, `vel`, `read-param`, `write-param`
   - parameter examples use the RobStride ABI and binding helpers
+- MyActuator:
+  - modes: `scan`, `enable`, `disable`, `stop`, `status`, `current`, `vel`, `pos`, `version`, `mode-query`
+  - CLI input uses radians/rad-s for `pos`/`vel` (`motor_cli` converts to protocol degrees internally)
 
 ## CAN Setup
 
@@ -78,6 +84,14 @@ cargo run -p motor_cli --release -- \
   --mode read-param --param-id 0x7019
 ```
 
+MyActuator with Rust CLI:
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode pos --pos 3.1416 --max-speed 5.236 --loop 1 --dt-ms 50
+```
+
 ## Cross-language ABI Demos
 
 Python ctypes:
@@ -117,11 +131,12 @@ LD_LIBRARY_PATH=target/release ./cpp_abi_demo --vendor damiao --channel can0 --m
 
 ## Validation Checklist (suggested order)
 
-1. Scan both vendors on the same bus.
+1. Scan all vendors on the same bus.
 2. Verify Damiao control path (MIT or velocity).
 3. Verify RobStride control path (ping/read-param/velocity).
-4. Verify Python binding demos (Damiao + RobStride).
-5. Verify C++ binding demos (Damiao + RobStride).
+4. Verify MyActuator control path (position or velocity).
+5. Verify Python binding demos (Damiao + RobStride).
+6. Verify C++ binding demos (Damiao + RobStride).
 
 Quick commands:
 
@@ -135,6 +150,9 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0 --model 4340P
 # 3) RobStride ping + velocity
 cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
 cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode vel --vel 0.3 --loop 40 --dt-ms 50
+
+# 4) MyActuator position (radians)
+cargo run -p motor_cli --release -- --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 --mode pos --pos 3.1416 --max-speed 5.236 --loop 1 --dt-ms 50
 ```
 
 ## Notes

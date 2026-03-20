@@ -10,6 +10,7 @@
 - CLI: `motorbridge-cli`
 - 厂商入口:
   - Damiao: `add_damiao_motor(...)`
+  - MyActuator: `add_myactuator_motor(...)`
   - RobStride: `add_robstride_motor(...)`
 
 ## 快速开始
@@ -38,6 +39,20 @@ with Controller("can0") as ctrl:
     motor.close()
 ```
 
+MyActuator 快速示例:
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_myactuator_motor(1, 0x241, "X8")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)
+    motor.send_pos_vel(3.1416, 2.0)  # rad / rad/s
+    print(motor.get_state())
+    motor.close()
+```
+
 ## CLI 示例
 
 Damiao:
@@ -63,7 +78,7 @@ motorbridge-cli robstride-read-param \
   --channel can0 --model rs-00 --motor-id 127 --param-id 0x7019 --type f32
 ```
 
-统一扫描（双 vendor）:
+统一扫描（所有 vendor）:
 
 ```bash
 motorbridge-cli scan --vendor all --channel can0 --start-id 0x01 --end-id 0xFF
@@ -131,7 +146,8 @@ python3 bindings/python/examples/robstride_wrapper_demo.py \
 
 ## 说明
 
-- `id-dump`、`id-set` 仍是 Damiao 工作流；`scan` 支持 `damiao|robstride|all`。
+- `id-dump`、`id-set` 仍是 Damiao 工作流；`scan` 支持 `damiao|myactuator|robstride|all`。
+- MyActuator 在 ABI wrapper 中不支持 `Mode.MIT` 与 `send_force_pos`。
 - Damiao 的完整调参参考仍保留在:
   - [DAMIAO_API.md](DAMIAO_API.md)
   - [DAMIAO_API.zh-CN.md](DAMIAO_API.zh-CN.md)

@@ -100,16 +100,20 @@ Cargo form:\n\
 Vendors:\n\
   --vendor damiao    default\n\
   --vendor robstride\n\
-  --vendor all       scan both vendors\n\n\
+  --vendor myactuator\n\
+  --vendor all       scan all vendors\n\n\
 Damiao modes:\n\
   --mode scan | enable | disable | mit | pos-vel | vel | force-pos\n\n\
 RobStride modes:\n\
   --mode ping | scan | enable | disable | mit | vel | read-param | write-param\n\n\
+MyActuator modes:\n\
+  --mode scan | enable | disable | stop | status | current | vel | pos | version | mode-query\n\n\
+\n\
 Common args:\n\
   --channel      default can0\n\
-  --model        default depends on vendor (damiao=4340, robstride=rs-00)\n\
+  --model        default depends on vendor (damiao=4340, robstride=rs-00, myactuator=X8)\n\
   --motor-id     default 0x01\n\
-  --feedback-id  default 0x11 for Damiao, 0xFF for RobStride host-id compatibility\n\
+  --feedback-id  default 0x11 for Damiao, 0xFF for RobStride, 0x241 for MyActuator\n\
   --loop         send cycles, default 1\n\
   --dt-ms        period ms, default 20\n\
   --ensure-mode  1/0, default 1\n\n\
@@ -125,8 +129,16 @@ RobStride extras:\n\
   --end-id <hex|dec>        for scan, default 255\n\
   (scan auto-fallbacks to blind pulse probing if no ping replies)\n\
 \n\
+MyActuator extras:\n\
+  --current <A>          for --mode current\n\
+  --vel <rad/s>          for --mode vel\n\
+  --pos <rad>            for --mode pos\n\
+  --max-speed <rad/s>    for --mode pos (default 8.726646 ~= 500 deg/s)\n\
+  --start-id/--end-id    for --mode scan (range 1..32)\n\
+\n\
 All-vendor scan:\n\
-  --vendor all --mode scan   run Damiao scan + RobStride scan in one command\n\
+  --vendor all --mode scan   run Damiao + RobStride + MyActuator scan in one command\n\
+  optional model hints: --damiao-model ... --robstride-model ... --myactuator-model ...\n\
 \n\
 Examples:\n\
   cargo run -p motor_cli --release -- \\\n\

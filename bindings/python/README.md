@@ -10,6 +10,7 @@ Python binding layer on top of `motor_abi`.
 - CLI: `motorbridge-cli`
 - Vendors:
   - Damiao: `add_damiao_motor(...)`
+  - MyActuator: `add_myactuator_motor(...)`
   - RobStride: `add_robstride_motor(...)`
 
 ## Quick Start
@@ -38,6 +39,20 @@ with Controller("can0") as ctrl:
     motor.close()
 ```
 
+MyActuator quick use:
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_myactuator_motor(1, 0x241, "X8")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)
+    motor.send_pos_vel(3.1416, 2.0)  # rad / rad/s
+    print(motor.get_state())
+    motor.close()
+```
+
 ## CLI Examples
 
 Damiao:
@@ -63,7 +78,7 @@ motorbridge-cli robstride-read-param \
   --channel can0 --model rs-00 --motor-id 127 --param-id 0x7019 --type f32
 ```
 
-Unified scan (both vendors):
+Unified scan (all vendors):
 
 ```bash
 motorbridge-cli scan --vendor all --channel can0 --start-id 0x01 --end-id 0xFF
@@ -131,7 +146,8 @@ python3 bindings/python/examples/robstride_wrapper_demo.py \
 
 ## Notes
 
-- `id-dump` and `id-set` are Damiao workflows; `scan` supports `damiao|robstride|all`.
+- `id-dump` and `id-set` are Damiao workflows; `scan` supports `damiao|myactuator|robstride|all`.
+- `Mode.MIT` and `send_force_pos` are not available for MyActuator in ABI wrapper.
 - Full Damiao tuning reference stays in:
   - [DAMIAO_API.md](DAMIAO_API.md)
   - [DAMIAO_API.zh-CN.md](DAMIAO_API.zh-CN.md)

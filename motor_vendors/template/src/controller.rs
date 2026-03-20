@@ -2,10 +2,10 @@ use crate::motor::TemplateMotor;
 use motor_core::bus::CanBus;
 use motor_core::controller::CoreController;
 use motor_core::error::{MotorError, Result};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 #[cfg(target_os = "linux")]
 use motor_core::socketcan::SocketCanBus;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 pub struct TemplateController {
     core: CoreController,
@@ -35,7 +35,12 @@ impl TemplateController {
         }
     }
 
-    pub fn add_motor(&self, motor_id: u16, feedback_id: u16, model: &str) -> Result<Arc<TemplateMotor>> {
+    pub fn add_motor(
+        &self,
+        motor_id: u16,
+        feedback_id: u16,
+        model: &str,
+    ) -> Result<Arc<TemplateMotor>> {
         let motor = Arc::new(TemplateMotor::new(
             motor_id,
             feedback_id,
@@ -44,8 +49,7 @@ impl TemplateController {
         )?);
         let device: Arc<dyn motor_core::device::MotorDevice> = motor.clone();
         self.core.add_device(device)?;
-        self
-            .motors
+        self.motors
             .lock()
             .map_err(|_| MotorError::Io("motors lock poisoned".to_string()))?
             .insert(motor_id, Arc::clone(&motor));
@@ -53,8 +57,7 @@ impl TemplateController {
     }
 
     pub fn get_motor(&self, motor_id: u16) -> Result<Arc<TemplateMotor>> {
-        self
-            .motors
+        self.motors
             .lock()
             .map_err(|_| MotorError::Io("motors lock poisoned".to_string()))?
             .get(&motor_id)

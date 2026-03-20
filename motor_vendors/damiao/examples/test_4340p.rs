@@ -16,7 +16,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
         eprintln!("[warn] trying direct write register 10 = 1 (MIT)...");
         if let Err(e2) = motor.write_register_u32(10, 1) {
-            eprintln!("[warn] direct write reg10 failed too: {e2}. Continue with MIT command test.");
+            eprintln!(
+                "[warn] direct write reg10 failed too: {e2}. Continue with MIT command test."
+            );
         }
     }
 
@@ -25,7 +27,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     while hold_start.elapsed() < Duration::from_secs(2) {
         motor.send_cmd_mit(0.0, 0.0, 30.0, 1.0, 0.0)?;
         if let Some(s) = motor.latest_state() {
-            println!("hold pos={:+.3} vel={:+.3} torq={:+.3}", s.pos, s.vel, s.torq);
+            println!(
+                "hold pos={:+.3} vel={:+.3} torq={:+.3}",
+                s.pos, s.vel, s.torq
+            );
         }
         std::thread::sleep(Duration::from_millis(10));
     }

@@ -32,6 +32,11 @@ motor_cli -h
 - Detailed RobStride command + parameter guide (English): `ROBSTRIDE_API.md`
 - 中文版（参数/能力边界详表）: `ROBSTRIDE_API.zh-CN.md`
 
+## Additional MyActuator Command/Mode Reference
+
+- Detailed MyActuator command + mode guide (English): `MYACTUATOR_API.md`
+- 中文版（命令/模式详表）: `MYACTUATOR_API.zh-CN.md`
+
 ## 1. Argument Parsing Rules
 
 - Only `--key value` style options are parsed.
@@ -44,12 +49,12 @@ motor_cli -h
 | Argument | Type | Default | Notes |
 |---|---|---|---|
 | `--help` | flag | off | Prints CLI help and exits |
-| `--vendor` | string | `damiao` | `damiao`, `robstride`, `all` |
+| `--vendor` | string | `damiao` | `damiao`, `robstride`, `myactuator`, `all` |
 | `--channel` | string | `can0` | SocketCAN channel |
-| `--model` | string | vendor dependent | `4340` for Damiao, `rs-00` for RobStride |
+| `--model` | string | vendor dependent | `4340` for Damiao, `rs-00` for RobStride, `X8` for MyActuator |
 | `--motor-id` | u16 (hex/dec) | `0x01` | Motor CAN ID |
-| `--feedback-id` | u16 (hex/dec) | vendor dependent | Damiao `0x11`, RobStride `0xFF` |
-| `--mode` | string | vendor dependent | Damiao `mit`, RobStride `ping`, `all` -> `scan` |
+| `--feedback-id` | u16 (hex/dec) | vendor dependent | Damiao `0x11`, RobStride `0xFF`, MyActuator `0x241` (for motor-id `1`) |
+| `--mode` | string | vendor dependent | Damiao `mit`, RobStride `ping`, MyActuator `status`, `all` -> `scan` |
 | `--loop` | u64 | `1` | Control loop cycles |
 | `--dt-ms` | u64 | `20` | Loop interval in ms |
 | `--ensure-mode` | `0/1` | `1` | Auto-switch mode before control |
@@ -202,8 +207,9 @@ motor_cli \
 |---|---|---|
 | `--damiao-model` | `4340P` | Model hint used when invoking Damiao scan path |
 | `--robstride-model` | `rs-00` | Model hint used when invoking RobStride scan path |
-| `--start-id` | `1` | Passed to both scans |
-| `--end-id` | `255` | Passed to both scans |
+| `--myactuator-model` | `X8` | Model hint used when invoking MyActuator scan path |
+| `--start-id` | `1` | Passed to all scans |
+| `--end-id` | `255` | Passed to Damiao/RobStride; MyActuator path auto-clamps to `32` |
 
 ### 5.2 Example
 
@@ -212,8 +218,58 @@ motor_cli \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```
 
-## 6. Practical Notes
+## 6. Vendor = `myactuator`
+
+### 6.1 Supported Modes
+
+- `scan`
+- `enable`
+- `disable`
+- `stop`
+- `status`
+- `current`
+- `vel`
+- `pos`
+- `version`
+- `mode-query`
+
+### 6.2 MyActuator Extra Arguments
+
+| Argument | Type | Default | Used In | Notes |
+|---|---|---|---|---|
+| `--start-id` | u16 | `1` | scan | Scan start, 1..32 |
+| `--end-id` | u16 | `32` | scan | Scan end, 1..32 (input >32 will be clamped) |
+| `--current` | f32 | `0.0` | current | Current setpoint in A |
+| `--vel` | f32 | `0.0` | vel | Velocity setpoint in rad/s (converted to deg/s internally) |
+| `--pos` | f32 | `0.0` | pos | Absolute position in rad (converted to deg internally) |
+| `--max-speed` | f32 | `8.726646` | pos | Position move max speed in rad/s (converted internally) |
+
+### 6.3 MyActuator Examples
+
+```bash
+# Scan IDs in MyActuator range
+motor_cli \
+  --vendor myactuator --channel can0 --mode scan --start-id 1 --end-id 32
+
+# Query status repeatedly
+motor_cli \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode status --loop 40 --dt-ms 50
+
+# Velocity control
+motor_cli \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode vel --vel 0.5236 --loop 100 --dt-ms 20
+
+# Absolute position control
+motor_cli \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode pos --pos 3.1416 --max-speed 5.236 --loop 80 --dt-ms 50
+```
+
+## 7. Practical Notes
 
 - For Damiao ID updates, prefer keeping `--store 1 --verify-id 1`.
 - If scan intermittently misses motors, retry after CAN restart.
 - RobStride `send_pos_vel` is not a CLI mode; use `mit` or `vel`.
+- MyActuator low-voltage protection returns error code `0x0004` in status-1 (`0x9A`) and blocks motion.

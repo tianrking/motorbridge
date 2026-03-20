@@ -1,8 +1,12 @@
 use motor_vendor_damiao::{ControlMode as DamiaoControlMode, DamiaoController, DamiaoMotor};
+use motor_vendor_myactuator::{
+    ControlMode as MyActuatorControlMode, MyActuatorController, MyActuatorMotor,
+};
 use motor_vendor_robstride::{
     ControlMode as RobstrideControlMode, ParameterValue, RobstrideController, RobstrideMotor,
 };
 use std::cell::RefCell;
+use std::f32::consts::PI;
 use std::ffi::{c_char, CStr, CString};
 use std::ptr;
 use std::sync::Arc;
@@ -42,14 +46,25 @@ fn to_robstride_mode(mode: u32) -> Result<RobstrideControlMode, &'static str> {
     }
 }
 
+fn to_myactuator_mode(mode: u32) -> Result<MyActuatorControlMode, &'static str> {
+    match mode {
+        1 => Ok(MyActuatorControlMode::Current),
+        2 => Ok(MyActuatorControlMode::Position),
+        3 => Ok(MyActuatorControlMode::Velocity),
+        _ => Err("MyActuator mode must be 1(CURRENT) / 2(POSITION) / 3(VELOCITY)"),
+    }
+}
+
 enum ControllerInner {
     Unbound(String),
     Damiao(DamiaoController),
+    MyActuator(MyActuatorController),
     Robstride(RobstrideController),
 }
 
 enum MotorHandleInner {
     Damiao(Arc<DamiaoMotor>),
+    MyActuator(Arc<MyActuatorMotor>),
     Robstride(Arc<RobstrideMotor>),
 }
 
@@ -86,7 +101,9 @@ fn parse_cstr(ptr: *const c_char, name: &str) -> Result<String, String> {
         .map_err(|_| format!("{name} must be valid UTF-8"))
 }
 
-fn ensure_damiao_controller(controller: &mut MotorController) -> Result<&mut DamiaoController, String> {
+fn ensure_damiao_controller(
+    controller: &mut MotorController,
+) -> Result<&mut DamiaoController, String> {
     if let ControllerInner::Unbound(channel) = &controller.inner {
         controller.inner = ControllerInner::Damiao(
             DamiaoController::new_socketcan(channel).map_err(|e| e.to_string())?,
@@ -94,6 +111,29 @@ fn ensure_damiao_controller(controller: &mut MotorController) -> Result<&mut Dam
     }
     match &mut controller.inner {
         ControllerInner::Damiao(ctrl) => Ok(ctrl),
+        ControllerInner::MyActuator(_) => {
+            Err("controller already bound to MyActuator; use a separate controller".to_string())
+        }
+        ControllerInner::Robstride(_) => {
+            Err("controller already bound to RobStride; use a separate controller".to_string())
+        }
+        ControllerInner::Unbound(_) => Err("controller binding failed".to_string()),
+    }
+}
+
+fn ensure_myactuator_controller(
+    controller: &mut MotorController,
+) -> Result<&mut MyActuatorController, String> {
+    if let ControllerInner::Unbound(channel) = &controller.inner {
+        controller.inner = ControllerInner::MyActuator(
+            MyActuatorController::new_socketcan(channel).map_err(|e| e.to_string())?,
+        );
+    }
+    match &mut controller.inner {
+        ControllerInner::MyActuator(ctrl) => Ok(ctrl),
+        ControllerInner::Damiao(_) => {
+            Err("controller already bound to Damiao; use a separate controller".to_string())
+        }
         ControllerInner::Robstride(_) => {
             Err("controller already bound to RobStride; use a separate controller".to_string())
         }
@@ -113,6 +153,9 @@ fn ensure_robstride_controller(
         ControllerInner::Robstride(ctrl) => Ok(ctrl),
         ControllerInner::Damiao(_) => {
             Err("controller already bound to Damiao; use a separate controller".to_string())
+        }
+        ControllerInner::MyActuator(_) => {
+            Err("controller already bound to MyActuator; use a separate controller".to_string())
         }
         ControllerInner::Unbound(_) => Err("controller binding failed".to_string()),
     }
@@ -154,6 +197,7 @@ pub extern "C" fn motor_controller_poll_feedback_once(controller: *mut MotorCont
     let controller = unsafe { &mut *controller };
     let rc = match &mut controller.inner {
         ControllerInner::Damiao(ctrl) => ctrl.poll_feedback_once().map_err(|e| e.to_string()),
+        ControllerInner::MyActuator(ctrl) => ctrl.poll_feedback_once().map_err(|e| e.to_string()),
         ControllerInner::Robstride(ctrl) => ctrl.poll_feedback_once().map_err(|e| e.to_string()),
         ControllerInner::Unbound(_) => Ok(()),
     };
@@ -175,6 +219,7 @@ pub extern "C" fn motor_controller_enable_all(controller: *mut MotorController) 
     let controller = unsafe { &mut *controller };
     let rc = match &mut controller.inner {
         ControllerInner::Damiao(ctrl) => ctrl.enable_all().map_err(|e| e.to_string()),
+        ControllerInner::MyActuator(ctrl) => ctrl.enable_all().map_err(|e| e.to_string()),
         ControllerInner::Robstride(ctrl) => ctrl.enable_all().map_err(|e| e.to_string()),
         ControllerInner::Unbound(_) => Ok(()),
     };
@@ -196,6 +241,7 @@ pub extern "C" fn motor_controller_disable_all(controller: *mut MotorController)
     let controller = unsafe { &mut *controller };
     let rc = match &mut controller.inner {
         ControllerInner::Damiao(ctrl) => ctrl.disable_all().map_err(|e| e.to_string()),
+        ControllerInner::MyActuator(ctrl) => ctrl.disable_all().map_err(|e| e.to_string()),
         ControllerInner::Robstride(ctrl) => ctrl.disable_all().map_err(|e| e.to_string()),
         ControllerInner::Unbound(_) => Ok(()),
     };
@@ -217,6 +263,7 @@ pub extern "C" fn motor_controller_shutdown(controller: *mut MotorController) ->
     let controller = unsafe { &mut *controller };
     let rc = match &mut controller.inner {
         ControllerInner::Damiao(ctrl) => ctrl.shutdown().map_err(|e| e.to_string()),
+        ControllerInner::MyActuator(ctrl) => ctrl.shutdown().map_err(|e| e.to_string()),
         ControllerInner::Robstride(ctrl) => ctrl.shutdown().map_err(|e| e.to_string()),
         ControllerInner::Unbound(_) => Ok(()),
     };
@@ -238,6 +285,7 @@ pub extern "C" fn motor_controller_close_bus(controller: *mut MotorController) -
     let controller = unsafe { &mut *controller };
     let rc = match &mut controller.inner {
         ControllerInner::Damiao(ctrl) => ctrl.close_bus().map_err(|e| e.to_string()),
+        ControllerInner::MyActuator(ctrl) => ctrl.close_bus().map_err(|e| e.to_string()),
         ControllerInner::Robstride(ctrl) => ctrl.close_bus().map_err(|e| e.to_string()),
         ControllerInner::Unbound(_) => Ok(()),
     };
@@ -317,6 +365,39 @@ pub extern "C" fn motor_controller_add_robstride_motor(
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn motor_controller_add_myactuator_motor(
+    controller: *mut MotorController,
+    motor_id: u16,
+    feedback_id: u16,
+    model: *const c_char,
+) -> *mut MotorHandle {
+    if controller.is_null() {
+        set_last_error("controller is null");
+        return ptr::null_mut();
+    }
+    let model = match parse_cstr(model, "model") {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(e);
+            return ptr::null_mut();
+        }
+    };
+    let controller = unsafe { &mut *controller };
+    match ensure_myactuator_controller(controller).and_then(|ctrl| {
+        ctrl.add_motor(motor_id, feedback_id, &model)
+            .map_err(|e| e.to_string())
+    }) {
+        Ok(motor) => Box::into_raw(Box::new(MotorHandle {
+            inner: MotorHandleInner::MyActuator(motor),
+        })),
+        Err(e) => {
+            set_last_error(e);
+            ptr::null_mut()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn motor_handle_free(motor: *mut MotorHandle) {
     if motor.is_null() {
         return;
@@ -333,6 +414,7 @@ pub extern "C" fn motor_handle_enable(motor: *mut MotorHandle) -> i32 {
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
         MotorHandleInner::Damiao(m) => m.enable().map_err(|e| e.to_string()),
+        MotorHandleInner::MyActuator(m) => m.release_brake().map_err(|e| e.to_string()),
         MotorHandleInner::Robstride(m) => m.enable().map_err(|e| e.to_string()),
     };
     match rc {
@@ -353,6 +435,7 @@ pub extern "C" fn motor_handle_disable(motor: *mut MotorHandle) -> i32 {
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
         MotorHandleInner::Damiao(m) => m.disable().map_err(|e| e.to_string()),
+        MotorHandleInner::MyActuator(m) => m.shutdown_motor().map_err(|e| e.to_string()),
         MotorHandleInner::Robstride(m) => m.disable().map_err(|e| e.to_string()),
     };
     match rc {
@@ -373,7 +456,10 @@ pub extern "C" fn motor_handle_clear_error(motor: *mut MotorHandle) -> i32 {
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
         MotorHandleInner::Damiao(m) => m.clear_error().map_err(|e| e.to_string()),
-        MotorHandleInner::Robstride(_) => Err("clear_error is not supported for RobStride ABI yet".to_string()),
+        MotorHandleInner::MyActuator(m) => m.stop_motor().map_err(|e| e.to_string()),
+        MotorHandleInner::Robstride(_) => {
+            Err("clear_error is not supported for RobStride ABI yet".to_string())
+        }
     };
     match rc {
         Ok(()) => 0,
@@ -393,6 +479,9 @@ pub extern "C" fn motor_handle_set_zero_position(motor: *mut MotorHandle) -> i32
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
         MotorHandleInner::Damiao(m) => m.set_zero_position().map_err(|e| e.to_string()),
+        MotorHandleInner::MyActuator(_) => {
+            Err("set_zero_position is not supported for MyActuator".to_string())
+        }
         MotorHandleInner::Robstride(m) => m.set_zero_position().map_err(|e| e.to_string()),
     };
     match rc {
@@ -419,21 +508,32 @@ pub extern "C" fn motor_handle_ensure_mode(
         MotorHandleInner::Damiao(m) => {
             let mode = match to_damiao_mode(mode) {
                 Ok(v) => v,
-                Err(e) => return {
-                    set_last_error(e);
-                    -1
-                },
+                Err(e) => {
+                    return {
+                        set_last_error(e);
+                        -1
+                    }
+                }
             };
             m.ensure_control_mode(mode, Duration::from_millis(timeout_ms as u64))
                 .map_err(|e| e.to_string())
         }
+        MotorHandleInner::MyActuator(_m) => match to_myactuator_mode(mode) {
+            Ok(_mode) => Ok(()),
+            Err(e) => {
+                set_last_error(e);
+                return -1;
+            }
+        },
         MotorHandleInner::Robstride(m) => {
             let mode = match to_robstride_mode(mode) {
                 Ok(v) => v,
-                Err(e) => return {
-                    set_last_error(e);
-                    -1
-                },
+                Err(e) => {
+                    return {
+                        set_last_error(e);
+                        -1
+                    }
+                }
             };
             m.set_mode(mode).map_err(|e| e.to_string())
         }
@@ -471,6 +571,9 @@ pub extern "C" fn motor_handle_send_mit(
                 feedforward_torque,
             )
             .map_err(|e| e.to_string()),
+        MotorHandleInner::MyActuator(_) => {
+            Err("send_mit is not supported for MyActuator; use pos-vel or vel".to_string())
+        }
         MotorHandleInner::Robstride(m) => m
             .send_cmd_mit(
                 target_position,
@@ -505,7 +608,15 @@ pub extern "C" fn motor_handle_send_pos_vel(
         MotorHandleInner::Damiao(m) => m
             .send_cmd_pos_vel(target_position, velocity_limit)
             .map_err(|e| e.to_string()),
-        MotorHandleInner::Robstride(_) => Err("send_pos_vel is not supported for RobStride".to_string()),
+        MotorHandleInner::MyActuator(m) => m
+            .send_position_absolute_setpoint(
+                target_position * (180.0 / PI),
+                velocity_limit * (180.0 / PI),
+            )
+            .map_err(|e| e.to_string()),
+        MotorHandleInner::Robstride(_) => {
+            Err("send_pos_vel is not supported for RobStride".to_string())
+        }
     };
     match rc {
         Ok(()) => 0,
@@ -525,7 +636,12 @@ pub extern "C" fn motor_handle_send_vel(motor: *mut MotorHandle, target_velocity
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
         MotorHandleInner::Damiao(m) => m.send_cmd_vel(target_velocity).map_err(|e| e.to_string()),
-        MotorHandleInner::Robstride(m) => m.set_velocity_target(target_velocity).map_err(|e| e.to_string()),
+        MotorHandleInner::MyActuator(m) => m
+            .send_velocity_setpoint(target_velocity * (180.0 / PI))
+            .map_err(|e| e.to_string()),
+        MotorHandleInner::Robstride(m) => m
+            .set_velocity_target(target_velocity)
+            .map_err(|e| e.to_string()),
     };
     match rc {
         Ok(()) => 0,
@@ -552,7 +668,12 @@ pub extern "C" fn motor_handle_send_force_pos(
         MotorHandleInner::Damiao(m) => m
             .send_cmd_force_pos(target_position, velocity_limit, torque_limit_ratio)
             .map_err(|e| e.to_string()),
-        MotorHandleInner::Robstride(_) => Err("send_force_pos is not supported for RobStride".to_string()),
+        MotorHandleInner::MyActuator(_) => {
+            Err("send_force_pos is not supported for MyActuator".to_string())
+        }
+        MotorHandleInner::Robstride(_) => {
+            Err("send_force_pos is not supported for RobStride".to_string())
+        }
     };
     match rc {
         Ok(()) => 0,
@@ -572,6 +693,9 @@ pub extern "C" fn motor_handle_store_parameters(motor: *mut MotorHandle) -> i32 
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
         MotorHandleInner::Damiao(m) => m.store_parameters().map_err(|e| e.to_string()),
+        MotorHandleInner::MyActuator(_) => {
+            Err("store_parameters is not supported for MyActuator".to_string())
+        }
         MotorHandleInner::Robstride(m) => m.save_parameters().map_err(|e| e.to_string()),
     };
     match rc {
@@ -592,6 +716,7 @@ pub extern "C" fn motor_handle_request_feedback(motor: *mut MotorHandle) -> i32 
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
         MotorHandleInner::Damiao(m) => m.request_motor_feedback().map_err(|e| e.to_string()),
+        MotorHandleInner::MyActuator(m) => m.request_status().map_err(|e| e.to_string()),
         MotorHandleInner::Robstride(_) => Err("request_feedback is not supported for RobStride; status arrives from operation replies".to_string()),
     };
     match rc {
@@ -612,12 +737,14 @@ pub extern "C" fn motor_handle_set_can_timeout_ms(motor: *mut MotorHandle, timeo
     let reg_value = timeout_ms.saturating_mul(20);
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
-        MotorHandleInner::Damiao(m) => m.write_register_u32(9, reg_value).map_err(|e| e.to_string()),
+        MotorHandleInner::Damiao(m) => m
+            .write_register_u32(9, reg_value)
+            .map_err(|e| e.to_string()),
+        MotorHandleInner::MyActuator(_) => {
+            Err("set_can_timeout_ms is not supported for MyActuator".to_string())
+        }
         MotorHandleInner::Robstride(m) => m
-            .write_parameter(
-                0x7028,
-                ParameterValue::U32(timeout_ms),
-            )
+            .write_parameter(0x7028, ParameterValue::U32(timeout_ms))
             .map_err(|e| e.to_string()),
     };
     match rc {
@@ -642,7 +769,12 @@ pub extern "C" fn motor_handle_write_register_f32(
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
         MotorHandleInner::Damiao(m) => m.write_register_f32(rid, value).map_err(|e| e.to_string()),
-        MotorHandleInner::Robstride(_) => Err("Damiao register write is not available for RobStride".to_string()),
+        MotorHandleInner::MyActuator(_) => {
+            Err("register write is not available for MyActuator".to_string())
+        }
+        MotorHandleInner::Robstride(_) => {
+            Err("Damiao register write is not available for RobStride".to_string())
+        }
     };
     match rc {
         Ok(()) => 0,
@@ -666,7 +798,12 @@ pub extern "C" fn motor_handle_write_register_u32(
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
         MotorHandleInner::Damiao(m) => m.write_register_u32(rid, value).map_err(|e| e.to_string()),
-        MotorHandleInner::Robstride(_) => Err("Damiao register write is not available for RobStride".to_string()),
+        MotorHandleInner::MyActuator(_) => {
+            Err("register write is not available for MyActuator".to_string())
+        }
+        MotorHandleInner::Robstride(_) => {
+            Err("Damiao register write is not available for RobStride".to_string())
+        }
     };
     match rc {
         Ok(()) => 0,
@@ -695,7 +832,12 @@ pub extern "C" fn motor_handle_get_register_f32(
             .get_register_f32(rid, Duration::from_millis(timeout_ms as u64))
             .map_err(|e| e.to_string())
             .map(|v| *out = v),
-        MotorHandleInner::Robstride(_) => Err("Damiao register read is not available for RobStride".to_string()),
+        MotorHandleInner::MyActuator(_) => {
+            Err("register read is not available for MyActuator".to_string())
+        }
+        MotorHandleInner::Robstride(_) => {
+            Err("Damiao register read is not available for RobStride".to_string())
+        }
     };
     match rc {
         Ok(()) => 0,
@@ -724,7 +866,12 @@ pub extern "C" fn motor_handle_get_register_u32(
             .get_register_u32(rid, Duration::from_millis(timeout_ms as u64))
             .map_err(|e| e.to_string())
             .map(|v| *out = v),
-        MotorHandleInner::Robstride(_) => Err("Damiao register read is not available for RobStride".to_string()),
+        MotorHandleInner::MyActuator(_) => {
+            Err("register read is not available for MyActuator".to_string())
+        }
+        MotorHandleInner::Robstride(_) => {
+            Err("Damiao register read is not available for RobStride".to_string())
+        }
     };
     match rc {
         Ok(()) => 0,
@@ -750,7 +897,9 @@ pub extern "C" fn motor_handle_robstride_ping(
         MotorHandleInner::Robstride(m) => m
             .ping(Duration::from_millis(500))
             .map_err(|e| e.to_string()),
-        MotorHandleInner::Damiao(_) => Err("robstride_ping requires a RobStride motor".to_string()),
+        MotorHandleInner::Damiao(_) | MotorHandleInner::MyActuator(_) => {
+            Err("robstride_ping requires a RobStride motor".to_string())
+        }
     };
     match rc {
         Ok(reply) => {
@@ -779,7 +928,9 @@ pub extern "C" fn motor_handle_robstride_set_device_id(
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
         MotorHandleInner::Robstride(m) => m.set_device_id(new_device_id).map_err(|e| e.to_string()),
-        MotorHandleInner::Damiao(_) => Err("robstride_set_device_id requires a RobStride motor".to_string()),
+        MotorHandleInner::Damiao(_) | MotorHandleInner::MyActuator(_) => {
+            Err("robstride_set_device_id requires a RobStride motor".to_string())
+        }
     };
     match rc {
         Ok(()) => 0,
@@ -808,13 +959,15 @@ macro_rules! robstride_get_param {
                 MotorHandleInner::Robstride(m) => m
                     .get_parameter(param_id, Duration::from_millis(timeout_ms as u64))
                     .map_err(|e| e.to_string()),
-                MotorHandleInner::Damiao(_) => {
+                MotorHandleInner::Damiao(_) | MotorHandleInner::MyActuator(_) => {
                     Err("RobStride parameter access requires a RobStride motor".to_string())
                 }
             };
             match rc {
                 Ok(ParameterValue::$variant(v)) => {
-                    unsafe { *out_value = v; }
+                    unsafe {
+                        *out_value = v;
+                    }
                     0
                 }
                 Ok(_) => {
@@ -843,7 +996,7 @@ macro_rules! robstride_write_param {
                 MotorHandleInner::Robstride(m) => m
                     .write_parameter(param_id, ParameterValue::$variant(value))
                     .map_err(|e| e.to_string()),
-                MotorHandleInner::Damiao(_) => {
+                MotorHandleInner::Damiao(_) | MotorHandleInner::MyActuator(_) => {
                     Err("RobStride parameter access requires a RobStride motor".to_string())
                 }
             };
@@ -894,6 +1047,33 @@ pub extern "C" fn motor_handle_get_state(
                     torq: state.torq,
                     t_mos: state.t_mos,
                     t_rotor: state.t_rotor,
+                };
+            } else {
+                *out = MotorState {
+                    has_value: 0,
+                    can_id: 0,
+                    arbitration_id: 0,
+                    status_code: 0,
+                    pos: 0.0,
+                    vel: 0.0,
+                    torq: 0.0,
+                    t_mos: 0.0,
+                    t_rotor: 0.0,
+                };
+            }
+        }
+        MotorHandleInner::MyActuator(m) => {
+            if let Some(state) = m.latest_state() {
+                *out = MotorState {
+                    has_value: 1,
+                    can_id: m.motor_id as u8,
+                    arbitration_id: state.arbitration_id,
+                    status_code: state.command,
+                    pos: state.shaft_angle_deg * (PI / 180.0),
+                    vel: state.speed_dps * (PI / 180.0),
+                    torq: state.current_a,
+                    t_mos: f32::from(state.temperature_c),
+                    t_rotor: 0.0,
                 };
             } else {
                 *out = MotorState {

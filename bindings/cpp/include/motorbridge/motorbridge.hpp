@@ -296,6 +296,15 @@ class Controller {
     return Motor(handle_, m);
   }
 
+  Motor add_myactuator_motor(uint16_t motor_id, uint16_t feedback_id, const std::string& model) {
+    MotorHandle* m =
+        motor_controller_add_myactuator_motor(handle_->ptr, motor_id, feedback_id, model.c_str());
+    if (!m) {
+      throw Error("add_myactuator_motor failed: " + last_error_message());
+    }
+    return Motor(handle_, m);
+  }
+
   Motor add_robstride_motor(uint16_t motor_id, uint16_t feedback_id, const std::string& model) {
     MotorHandle* m =
         motor_controller_add_robstride_motor(handle_->ptr, motor_id, feedback_id, model.c_str());

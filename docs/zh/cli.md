@@ -23,7 +23,7 @@ ip -details link show "$IF"
 
 ## 通用参数
 
-- `--vendor damiao|robstride|all`
+- `--vendor damiao|robstride|myactuator|all`
 
 ## Damiao 示例
 
@@ -64,7 +64,33 @@ cargo run -p motor_cli --release -- \
   --mode mit --pos 0 --vel 0 --kp 8 --kd 0.2 --tau 0 --loop 20 --dt-ms 50
 ```
 
-统一扫描（双 vendor）:
+## MyActuator 示例
+
+状态读取：
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode status --loop 20 --dt-ms 50
+```
+
+速度模式：
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode vel --vel 0.5236 --loop 100 --dt-ms 20
+```
+
+位置模式：
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode pos --pos 3.1416 --max-speed 5.236 --loop 80 --dt-ms 50
+```
+
+统一扫描（全 vendor）:
 
 ```bash
 cargo run -p motor_cli --release -- \
@@ -75,4 +101,5 @@ cargo run -p motor_cli --release -- \
 
 - Damiao 命中行：`vendor=damiao id=<n> ...`
 - RobStride 命中行：`vendor=robstride id=<n> responder_id=<m> ...`
+- MyActuator 命中行：`vendor=myactuator id=<n> ...`
 - 汇总行：`hits=<k>` 表示该厂商扫描到的在线设备数量。

@@ -55,9 +55,15 @@ unsafe extern "C" {
 fn last_os_error(prefix: &str) -> MotorError {
     let err = std::io::Error::last_os_error();
     let hint = match err.raw_os_error() {
-        Some(100) => " (hint: can interface is down; run `ip -details link show can0` then bring it up)",
-        Some(6) => " (hint: can device/address is unavailable; check USB-CAN adapter and `ip link show`)",
-        Some(19) => " (hint: interface not found; verify channel name like can0 and adapter connection)",
+        Some(100) => {
+            " (hint: can interface is down; run `ip -details link show can0` then bring it up)"
+        }
+        Some(6) => {
+            " (hint: can device/address is unavailable; check USB-CAN adapter and `ip link show`)"
+        }
+        Some(19) => {
+            " (hint: interface not found; verify channel name like can0 and adapter connection)"
+        }
         _ => "",
     };
     MotorError::Io(format!("{prefix}: {err}{hint}"))

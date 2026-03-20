@@ -213,7 +213,10 @@ impl RobstrideMotor {
                 std::thread::sleep(Duration::from_millis(8));
             }
         }
-        Err(MotorError::Timeout(format!("ping {} timed out", self.motor_id)))
+        Err(MotorError::Timeout(format!(
+            "ping {} timed out",
+            self.motor_id
+        )))
     }
 
     pub fn set_mode(&self, mode: ControlMode) -> Result<()> {
@@ -243,21 +246,11 @@ impl RobstrideMotor {
     }
 
     pub fn enable(&self) -> Result<()> {
-        self.send_ext(
-            CommunicationType::ENABLE,
-            self.host_id_u16(),
-            [0u8; 8],
-            8,
-        )
+        self.send_ext(CommunicationType::ENABLE, self.host_id_u16(), [0u8; 8], 8)
     }
 
     pub fn disable(&self) -> Result<()> {
-        self.send_ext(
-            CommunicationType::DISABLE,
-            self.host_id_u16(),
-            [0u8; 8],
-            8,
-        )
+        self.send_ext(CommunicationType::DISABLE, self.host_id_u16(), [0u8; 8], 8)
     }
 
     pub fn send_cmd_mit(
@@ -293,7 +286,12 @@ impl RobstrideMotor {
     pub fn write_parameter(&self, param_id: u16, value: ParameterValue) -> Result<()> {
         let raw = encode_parameter_value(param_id, value)?;
         let data = encode_parameter_write(param_id, raw);
-        self.send_ext(CommunicationType::WRITE_PARAMETER, self.host_id_u16(), data, 8)
+        self.send_ext(
+            CommunicationType::WRITE_PARAMETER,
+            self.host_id_u16(),
+            data,
+            8,
+        )
     }
 
     pub fn request_parameter(&self, param_id: u16) -> Result<()> {
@@ -306,7 +304,12 @@ impl RobstrideMotor {
             .map_err(|_| MotorError::Io("pending param lock poisoned".to_string()))?
             .replace(param_id);
         let data = encode_parameter_read(param_id);
-        self.send_ext(CommunicationType::READ_PARAMETER, self.host_id_u16(), data, 8)
+        self.send_ext(
+            CommunicationType::READ_PARAMETER,
+            self.host_id_u16(),
+            data,
+            8,
+        )
     }
 
     pub fn get_parameter(&self, param_id: u16, timeout: Duration) -> Result<ParameterValue> {

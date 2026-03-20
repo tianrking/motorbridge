@@ -32,6 +32,11 @@ motor_cli -h
 - 中文详表（参数/能力边界）: `ROBSTRIDE_API.zh-CN.md`
 - English version: `ROBSTRIDE_API.md`
 
+## MyActuator 指令与模式进阶文档
+
+- 中文详表（命令/模式/参数）: `MYACTUATOR_API.zh-CN.md`
+- English version: `MYACTUATOR_API.md`
+
 ## 1. 参数解析规则
 
 - 仅解析 `--key value` 形式。
@@ -44,12 +49,12 @@ motor_cli -h
 | 参数 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `--help` | flag | 关闭 | 输出帮助并退出 |
-| `--vendor` | string | `damiao` | `damiao` / `robstride` / `all` |
+| `--vendor` | string | `damiao` | `damiao` / `robstride` / `myactuator` / `all` |
 | `--channel` | string | `can0` | SocketCAN 通道 |
-| `--model` | string | 按 vendor 决定 | Damiao 默认 `4340`；RobStride 默认 `rs-00` |
+| `--model` | string | 按 vendor 决定 | Damiao 默认 `4340`；RobStride 默认 `rs-00`；MyActuator 默认 `X8` |
 | `--motor-id` | u16(hex/dec) | `0x01` | 电机 CAN ID |
-| `--feedback-id` | u16(hex/dec) | 按 vendor 决定 | Damiao 默认 `0x11`；RobStride 默认 `0xFF` |
-| `--mode` | string | 按 vendor 决定 | Damiao 默认 `mit`；RobStride 默认 `ping`；`all` 默认 `scan` |
+| `--feedback-id` | u16(hex/dec) | 按 vendor 决定 | Damiao 默认 `0x11`；RobStride 默认 `0xFF`；MyActuator 默认 `0x241`（motor-id=1） |
+| `--mode` | string | 按 vendor 决定 | Damiao 默认 `mit`；RobStride 默认 `ping`；MyActuator 默认 `status`；`all` 默认 `scan` |
 | `--loop` | u64 | `1` | 控制循环次数 |
 | `--dt-ms` | u64 | `20` | 循环间隔毫秒 |
 | `--ensure-mode` | `0/1` | `1` | 控制前自动切模式 |
@@ -202,8 +207,9 @@ motor_cli \
 |---|---|---|
 | `--damiao-model` | `4340P` | 传给 Damiao 扫描流程的 model hint |
 | `--robstride-model` | `rs-00` | 传给 RobStride 扫描流程的 model hint |
-| `--start-id` | `1` | 同时传给两类扫描 |
-| `--end-id` | `255` | 同时传给两类扫描 |
+| `--myactuator-model` | `X8` | 传给 MyActuator 扫描流程的 model hint |
+| `--start-id` | `1` | 同时传给各扫描流程 |
+| `--end-id` | `255` | 传给 Damiao/RobStride；MyActuator 会自动截断到 `32` |
 
 ### 5.2 示例
 
@@ -212,8 +218,58 @@ motor_cli \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```
 
-## 6. 实用建议
+## 6. vendor=`myactuator`
+
+### 6.1 支持模式
+
+- `scan`
+- `enable`
+- `disable`
+- `stop`
+- `status`
+- `current`
+- `vel`
+- `pos`
+- `version`
+- `mode-query`
+
+### 6.2 MyActuator 专用参数
+
+| 参数 | 类型 | 默认值 | 作用范围 | 说明 |
+|---|---|---|---|---|
+| `--start-id` | u16 | `1` | scan | 扫描起始 ID（1..32） |
+| `--end-id` | u16 | `32` | scan | 扫描结束 ID（1..32，传入大于 32 会自动截断） |
+| `--current` | f32 | `0.0` | current | 电流目标值（A） |
+| `--vel` | f32 | `0.0` | vel | 速度目标值（rad/s，内部转换为 deg/s） |
+| `--pos` | f32 | `0.0` | pos | 绝对位置目标值（rad，内部转换为 deg） |
+| `--max-speed` | f32 | `8.726646` | pos | 位置模式最大速度（rad/s，内部转换） |
+
+### 6.3 MyActuator 示例
+
+```bash
+# 扫描 1..32
+motor_cli \
+  --vendor myactuator --channel can0 --mode scan --start-id 1 --end-id 32
+
+# 连续状态读取
+motor_cli \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode status --loop 40 --dt-ms 50
+
+# 速度模式
+motor_cli \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode vel --vel 0.5236 --loop 100 --dt-ms 20
+
+# 位置模式
+motor_cli \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode pos --pos 3.1416 --max-speed 5.236 --loop 80 --dt-ms 50
+```
+
+## 7. 实用建议
 
 - Damiao 改 ID 建议始终使用 `--store 1 --verify-id 1`。
 - 若扫描偶发漏检，重启 CAN 后重试。
 - RobStride 没有 CLI 的 `send_pos_vel` 模式，请用 `mit` 或 `vel`。
+- MyActuator 若 `0x9A` 返回错误码 `0x0004`（欠压），电机会在线但不转，需要先恢复供电电压。

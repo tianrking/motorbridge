@@ -12,6 +12,9 @@ Unified CAN motor control stack with a vendor-agnostic Rust core, stable C ABI, 
 - RobStride:
   - models: `rs-00`, `rs-01`, `rs-02`, `rs-03`, `rs-04`, `rs-05`, `rs-06`
   - modes: `scan`, `ping`, `MIT`, `VEL`, parameter read/write
+- MyActuator:
+  - models: `X8` (runtime string; protocol is ID-based)
+  - modes: `scan`, `enable`, `disable`, `stop`, `status`, `current`, `vel`, `pos`, `version`, `mode-query`
 
 ## Architecture
 
@@ -23,9 +26,11 @@ flowchart TB
   SURFACE --> CORE["motor_core (controller, bus, model, traits)"]
   CORE --> DAMIAO["motor_vendors/damiao"]
   CORE --> ROBSTRIDE["motor_vendors/robstride"]
+  CORE --> MYACT["motor_vendors/myactuator"]
   CORE --> TEMPLATE["motor_vendors/template (onboarding scaffold)"]
   DAMIAO --> CAN["CAN bus backend"]
   ROBSTRIDE --> CAN
+  MYACT --> CAN
   CAN --> LNX["Linux: SocketCAN"]
   CAN --> WIN["Windows (experimental): PEAK PCAN"]
   CAN --> HW["Physical motors"]
@@ -44,6 +49,7 @@ flowchart LR
   ROOT --> BIND["bindings/*"]
   VENDORS --> VD["damiao"]
   VENDORS --> VR["robstride"]
+  VENDORS --> VM["myactuator"]
   VENDORS --> VT["template"]
   INTS --> ROS["ros2_bridge"]
   INTS --> WS["ws_gateway"]
@@ -54,11 +60,13 @@ flowchart LR
 - [`motor_core`](motor_core): vendor-agnostic controller, routing, CAN bus layer (Linux SocketCAN / Windows experimental PCAN)
 - [`motor_vendors/damiao`](motor_vendors/damiao): Damiao protocol / models / registers
 - [`motor_vendors/robstride`](motor_vendors/robstride): RobStride extended CAN protocol / models / parameters
+- [`motor_vendors/myactuator`](motor_vendors/myactuator): MyActuator CAN protocol implementation
 - [`motor_cli`](motor_cli): unified Rust CLI
   - full parameters (English): [`motor_cli/README.md`](motor_cli/README.md)
   - full parameters (Chinese): [`motor_cli/README.zh-CN.md`](motor_cli/README.zh-CN.md)
   - Damiao command/register guide: [`motor_cli/DAMIAO_API.md`](motor_cli/DAMIAO_API.md), [`motor_cli/DAMIAO_API.zh-CN.md`](motor_cli/DAMIAO_API.zh-CN.md)
   - RobStride command/parameter guide: [`motor_cli/ROBSTRIDE_API.md`](motor_cli/ROBSTRIDE_API.md), [`motor_cli/ROBSTRIDE_API.zh-CN.md`](motor_cli/ROBSTRIDE_API.zh-CN.md)
+  - MyActuator command/mode guide: [`motor_cli/MYACTUATOR_API.md`](motor_cli/MYACTUATOR_API.md), [`motor_cli/MYACTUATOR_API.zh-CN.md`](motor_cli/MYACTUATOR_API.zh-CN.md)
 - [`motor_abi`](motor_abi): stable C ABI
 - [`bindings/python`](bindings/python): Python SDK + `motorbridge-cli`
 - [`bindings/cpp`](bindings/cpp): C++ RAII wrapper
@@ -119,7 +127,15 @@ cargo run -p motor_cli --release -- \
   --mode read-param --param-id 0x7019
 ```
 
-Unified scan (both vendors):
+MyActuator CLI:
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode status --loop 20 --dt-ms 50
+```
+
+Unified scan (all vendors):
 
 ```bash
 cargo run -p motor_cli --release -- \
@@ -153,6 +169,7 @@ Interpretation:
 
 - `vendor=damiao id=<n>` means one Damiao motor is online at motor ID `<n>`.
 - `vendor=robstride id=<n> responder_id=<m>` means one RobStride motor responded.
+- `vendor=myactuator id=<n>` means one MyActuator motor responded.
 - `hits=<k>` at the end of each scan block is the count of discovered devices.
 
 ## ABI and Bindings

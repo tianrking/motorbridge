@@ -25,7 +25,7 @@ def _parse_rids(text: str) -> list[int]:
 
 
 def _add_common_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--vendor", default="damiao", choices=["damiao", "robstride"])
+    p.add_argument("--vendor", default="damiao", choices=["damiao", "myactuator", "robstride"])
     p.add_argument("--channel", default="can0")
     p.add_argument("--model", default="4340")
     p.add_argument("--motor-id", default="0x01")
@@ -40,10 +40,17 @@ def _vendor_defaults(vendor: str, model: str, feedback_id: str) -> tuple[str, st
             resolved_model = "rs-00"
         if resolved_feedback == "0x11":
             resolved_feedback = "0xFF"
+    elif vendor == "myactuator":
+        if resolved_model == "4340":
+            resolved_model = "X8"
+        if resolved_feedback == "0x11":
+            resolved_feedback = "0x241"
     return resolved_model, resolved_feedback
 
 
 def _add_motor(ctrl: Controller, vendor: str, motor_id: int, feedback_id: int, model: str):
+    if vendor == "myactuator":
+        return ctrl.add_myactuator_motor(motor_id, feedback_id, model)
     if vendor == "robstride":
         return ctrl.add_robstride_motor(motor_id, feedback_id, model)
     return ctrl.add_damiao_motor(motor_id, feedback_id, model)
@@ -88,7 +95,7 @@ def _build_parser() -> argparse.ArgumentParser:
     set_id.add_argument("--timeout-ms", type=int, default=800)
 
     scan = sub.add_parser("scan", help="scan active motor IDs")
-    scan.add_argument("--vendor", default="damiao", choices=["damiao", "robstride", "all"])
+    scan.add_argument("--vendor", default="damiao", choices=["damiao", "myactuator", "robstride", "all"])
     scan.add_argument("--channel", default="can0")
     scan.add_argument("--model", default="4340")
     scan.add_argument("--start-id", default="0x01")
@@ -195,6 +202,8 @@ def _run_command(args: argparse.Namespace) -> None:
                     print(f"#{i} ping device_id={device_id} responder_id={responder_id}")
                     break
                 elif args.mode == "mit":
+                    if args.vendor == "myactuator":
+                        raise ValueError("myactuator does not support mit command")
                     motor.send_mit(args.pos, args.vel, args.kp, args.kd, args.tau)
                 elif args.mode == "pos-vel":
                     if args.vendor == "robstride":
@@ -203,8 +212,8 @@ def _run_command(args: argparse.Namespace) -> None:
                 elif args.mode == "vel":
                     motor.send_vel(args.vel)
                 elif args.mode == "force-pos":
-                    if args.vendor == "robstride":
-                        raise ValueError("robstride does not support force-pos command")
+                    if args.vendor in ("robstride", "myactuator"):
+                        raise ValueError(f"{args.vendor} does not support force-pos command")
                     motor.send_force_pos(args.pos, args.vlim, args.ratio)
 
                 if args.print_state:
@@ -374,6 +383,43 @@ def _scan_robstride(args: argparse.Namespace, start_id: int, end_id: int) -> lis
     return found
 
 
+def _scan_myactuator(args: argparse.Namespace, start_id: int, end_id: int) -> list[tuple[int, str]]:
+    found: list[tuple[int, str]] = []
+    lo = max(1, start_id)
+    hi = min(32, end_id)
+    print(
+        f"[scan:myactuator] channel={args.channel} model={args.model} "
+        f"id_range=[0x{lo:X},0x{hi:X}] timeout_ms={args.timeout_ms}"
+    )
+    for mid in range(lo, hi + 1):
+        fid = 0x240 + mid
+        ctrl = Controller(args.channel)
+        try:
+            motor = ctrl.add_myactuator_motor(mid, fid, args.model)
+            try:
+                try:
+                    motor.request_feedback()
+                    time.sleep(min(max(args.timeout_ms, 10), 300) / 1000.0)
+                    ctrl.poll_feedback_once()
+                    st = motor.get_state()
+                    if st is None:
+                        raise RuntimeError("no feedback")
+                    meta = (
+                        f"vendor=myactuator feedback_id=0x{fid:X} "
+                        f"temp={st.t_mos:.1f}C vel={st.vel:+.3f}rad/s angle={st.pos:+.3f}rad"
+                    )
+                    found.append((mid, meta))
+                    print(f"[hit] probe=0x{mid:02X} {meta}")
+                except Exception:
+                    print(f"[.. ] vendor=myactuator probe=0x{mid:02X} no reply")
+            finally:
+                motor.close()
+        finally:
+            ctrl.close_bus()
+            ctrl.close()
+    return found
+
+
 def _scan_command(args: argparse.Namespace) -> None:
     start_id = _parse_id(args.start_id)
     end_id = _parse_id(args.end_id)
@@ -388,10 +434,14 @@ def _scan_command(args: argparse.Namespace) -> None:
 
     found: list[tuple[int, str]] = []
     damiao_model = args.model
+    myactuator_model = "X8" if args.model == "4340" else args.model
     robstride_model = "rs-00" if args.model == "4340" else args.model
     if args.vendor in ("damiao", "all"):
         args.model = damiao_model
         found.extend(_scan_damiao(args, start_id, end_id))
+    if args.vendor in ("myactuator", "all"):
+        args.model = myactuator_model
+        found.extend(_scan_myactuator(args, start_id, end_id))
     if args.vendor in ("robstride", "all"):
         args.model = robstride_model
         found.extend(_scan_robstride(args, start_id, end_id))

@@ -271,12 +271,6 @@ jobs:
           - os: windows-latest
             platform: windows-x86_64
             target: x86_64-pc-windows-msvc
-          - os: macos-13
-            platform: macos-x86_64
-            target: x86_64-apple-darwin
-          - os: macos-14
-            platform: macos-aarch64
-            target: aarch64-apple-darwin
 
     steps:
       - name: Checkout
@@ -303,11 +297,11 @@ jobs:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         run: cargo build -p motor_cli --release --target ${{ matrix.target }}
 
-      - name: Build motor_cli (Windows/macOS)
-        if: matrix.platform == 'windows-x86_64' || startsWith(matrix.platform, 'macos-')
+      - name: Build motor_cli (Windows)
+        if: matrix.platform == 'windows-x86_64'
         run: cargo build -p motor_cli --release --target ${{ matrix.target }}
 
-      - name: Package motor_cli (Linux/macOS)
+      - name: Package motor_cli (Linux)
         if: matrix.platform != 'windows-x86_64'
         shell: bash
         run: |
@@ -387,9 +381,9 @@ jobs:
               then link `motor_abi.dll/.lib` in your project.
             - C/C++ development on other platforms:
               use ABI archives (`.tar.gz` / `.zip`) and point CMake to installed include/lib paths.
-            - CLI debugging (multi-platform):
+            - CLI debugging:
               download the matching `motor-cli-<tag>-<platform>.(tar.gz|zip)`, extract and run:
-              `bin/motor_cli` (Linux/macOS) or `bin/motor_cli.exe` (Windows).
+              `bin/motor_cli` (Linux) or `bin/motor_cli.exe` (Windows).
             - Python development:
               pick the matching wheel (`cp310/cp311/cp312`, arch/platform), then:
               `pip install ./motorbridge-*.whl`

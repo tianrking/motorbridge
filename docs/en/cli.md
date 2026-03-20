@@ -92,6 +92,13 @@ cargo run -p motor_cli --release -- \
   --mode status --loop 20 --dt-ms 50
 ```
 
+```bash
+# Set current position as zero (power-cycle actuator to apply persistently)
+cargo run -p motor_cli --release -- \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode set-zero --loop 1
+```
+
 ## Unified scan
 
 ```bash

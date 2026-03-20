@@ -19,6 +19,7 @@ Practical reference for `motor_cli` MyActuator control in `motorbridge`.
 - `enable`: release brake (`0x77`)
 - `disable`: shutdown motor (`0x80`)
 - `stop`: stop closed loop (`0x81`)
+- `set-zero`: set current position as encoder zero (`0x64`, persistent after power-cycle)
 - `status`: request status-2 (`0x9C`)
 - `current`: current closed loop (`0xA1`)
 - `vel`: speed closed loop (`0xA2`)
@@ -58,7 +59,16 @@ For response commands `0x9C`, `0xA1`, `0xA2`, `0xA4`:
 - `data[1]`: temperature (int8, °C)
 - `data[2..3]`: current (int16 * 0.01 A)
 - `data[4..5]`: speed (int16, deg/s)
-- `data[6..7]`: shaft angle (int16, deg)
+- `data[6..7]`: shaft angle (int16 * 0.01 deg, near-turn angle)
+
+For `0x92` multi-turn angle response:
+
+- `data[4..7]`: multi-turn angle (int32 * 0.01 deg)
+
+CLI status output now prints both:
+
+- `angle=...` from status-2 (`0x9C`)
+- `mt_angle=...` from multi-turn angle (`0x92`) for absolute-position judgement
 
 ## 6) Common Command Examples
 
@@ -76,7 +86,11 @@ motor_cli --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-
 
 # Absolute position control (pi rad = 180 deg, max 5.236 rad/s ~= 300 deg/s)
 motor_cli --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
-  --mode pos --pos 3.1416 --max-speed 5.236 --loop 80 --dt-ms 50
+  --mode pos --pos 3.1416 --max-speed 5.236 --loop 1
+
+# Set current position as zero (requires power-cycle to apply persistently)
+motor_cli --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode set-zero --loop 1
 ```
 
 ## 7) Troubleshooting

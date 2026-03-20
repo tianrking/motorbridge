@@ -245,6 +245,7 @@ motor_cli \
 - `enable`
 - `disable`
 - `stop`
+- `set-zero`
 - `status`
 - `current`
 - `vel`
@@ -262,6 +263,11 @@ motor_cli \
 | `--vel` | f32 | `0.0` | vel | 速度目标值（rad/s，内部转换为 deg/s） |
 | `--pos` | f32 | `0.0` | pos | 绝对位置目标值（rad，内部转换为 deg） |
 | `--max-speed` | f32 | `8.726646` | pos | 位置模式最大速度（rad/s，内部转换） |
+
+状态输出说明：
+
+- `angle` 来自 `0x9C` 状态2近圈角。
+- `mt_angle` 来自 `0x92` 多圈角，绝对位置判定应优先看它。
 
 ### 6.3 MyActuator 示例
 
@@ -283,7 +289,12 @@ motor_cli \
 # 位置模式
 motor_cli \
   --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
-  --mode pos --pos 3.1416 --max-speed 5.236 --loop 80 --dt-ms 50
+  --mode pos --pos 3.1416 --max-speed 5.236 --loop 1
+
+# 将当前位置设为零点（持久生效需断电重启）
+motor_cli \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode set-zero --loop 1
 ```
 
 ## 7. 实用建议

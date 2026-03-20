@@ -11,10 +11,12 @@ pub enum Command {
     TorqueClosedLoopControl = 0xA1,
     SpeedClosedLoopControl = 0xA2,
     AbsolutePositionClosedLoopControl = 0xA4,
+    ReadMultiTurnAngle = 0x92,
     ReadMotorStatus2 = 0x9C,
     ReadSystemOperatingMode = 0x70,
     ReleaseBrake = 0x77,
     ReadVersionDate = 0xB2,
+    WriteCurrentPositionAsZero = 0x64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -29,6 +31,7 @@ pub struct DecodedFeedback {
 #[derive(Debug, Clone, Copy)]
 pub enum DecodedFrame {
     Feedback(DecodedFeedback),
+    MultiTurnAngleDeg(f32),
     VersionDate(u32),
     ControlMode(u8),
     Ack(u8),
@@ -95,6 +98,10 @@ pub fn decode_frame(data: [u8; 8]) -> Result<DecodedFrame> {
             ])))
         }
         x if x == Command::ReadSystemOperatingMode as u8 => Ok(DecodedFrame::ControlMode(data[7])),
+        x if x == Command::ReadMultiTurnAngle as u8 => {
+            let angle_deg = i32::from_le_bytes([data[4], data[5], data[6], data[7]]) as f32 * 0.01;
+            Ok(DecodedFrame::MultiTurnAngleDeg(angle_deg))
+        }
         x if x == Command::ReadMotorStatus2 as u8
             || x == Command::TorqueClosedLoopControl as u8
             || x == Command::SpeedClosedLoopControl as u8
@@ -105,7 +112,8 @@ pub fn decode_frame(data: [u8; 8]) -> Result<DecodedFrame> {
                 temperature_c: data[1] as i8,
                 current_a: f32::from(i16::from_le_bytes([data[2], data[3]])) * 0.01,
                 speed_dps: f32::from(i16::from_le_bytes([data[4], data[5]])),
-                shaft_angle_deg: f32::from(i16::from_le_bytes([data[6], data[7]])),
+                // Status2 reports shaft angle in 0.01 degree units.
+                shaft_angle_deg: f32::from(i16::from_le_bytes([data[6], data[7]])) * 0.01,
             };
             Ok(DecodedFrame::Feedback(feedback))
         }
@@ -146,7 +154,7 @@ mod tests {
                 assert_eq!(fb.temperature_c, 25);
                 assert!((fb.current_a - 100.0).abs() < 1e-6);
                 assert_eq!(fb.speed_dps, 0x1234 as f32);
-                assert_eq!(fb.shaft_angle_deg, -2.0);
+                assert_eq!(fb.shaft_angle_deg, -0.02);
             }
             _ => panic!("expected feedback"),
         }

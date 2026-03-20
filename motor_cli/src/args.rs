@@ -119,7 +119,7 @@ RobStride modes:\n\
 HighTorque modes:\n\
   --mode ping | scan | read | mit | pos | vel | tqe | volt | cur | pos-vel-tqe | stop | brake | rezero | conf-write | timed-read\n\n\
 MyActuator modes:\n\
-  --mode scan | enable | disable | stop | status | current | vel | pos | version | mode-query\n\n\
+  --mode scan | enable | disable | stop | set-zero | status | current | vel | pos | version | mode-query\n\n\
 \n\
 Common args:\n\
   --channel      default can0\n\

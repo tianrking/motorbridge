@@ -92,6 +92,13 @@ cargo run -p motor_cli --release -- \
   --mode status --loop 20 --dt-ms 50
 ```
 
+```bash
+# 将当前位置设为零点（持久生效需断电重启）
+cargo run -p motor_cli --release -- \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode set-zero --loop 1
+```
+
 ## 全品牌扫描
 
 ```bash

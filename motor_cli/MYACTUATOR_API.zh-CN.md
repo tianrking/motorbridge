@@ -19,6 +19,7 @@
 - `enable`：释放刹车（`0x77`）
 - `disable`：关电机（`0x80`）
 - `stop`：停止闭环（`0x81`）
+- `set-zero`：将当前位置写为编码器零点（`0x64`，断电重启后持久生效）
 - `status`：读取状态2（`0x9C`）
 - `current`：电流闭环（`0xA1`）
 - `vel`：速度闭环（`0xA2`）
@@ -58,7 +59,16 @@ CLI 输入统一使用弧度/弧度每秒，再在内部转换为 MyActuator 协
 - `data[1]`：温度（int8, °C）
 - `data[2..3]`：电流（int16 * 0.01 A）
 - `data[4..5]`：速度（int16, deg/s）
-- `data[6..7]`：轴角（int16, deg）
+- `data[6..7]`：轴角（int16 * 0.01 deg，近圈角）
+
+对于 `0x92` 多圈角回包：
+
+- `data[4..7]`：多圈角（int32 * 0.01 deg）
+
+CLI 的状态输出现在同时打印：
+
+- `angle=...`：来自状态2（`0x9C`）
+- `mt_angle=...`：来自多圈角（`0x92`），用于绝对位置判定
 
 ## 6）常用命令示例
 
@@ -76,7 +86,11 @@ motor_cli --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-
 
 # 位置控制（pi rad = 180 度，最大 5.236 rad/s ~= 300 deg/s）
 motor_cli --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
-  --mode pos --pos 3.1416 --max-speed 5.236 --loop 80 --dt-ms 50
+  --mode pos --pos 3.1416 --max-speed 5.236 --loop 1
+
+# 将当前位置设为零点（持久生效需要断电重启）
+motor_cli --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode set-zero --loop 1
 ```
 
 ## 7）故障排查

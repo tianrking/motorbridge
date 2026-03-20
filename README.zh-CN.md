@@ -14,7 +14,7 @@
   - 模式: `scan`, `ping`, `MIT`, `VEL`, 参数读写
 - MyActuator:
   - 型号: `X8`（运行时字符串，协议按 ID 通信）
-  - 模式: `scan`, `enable`, `disable`, `stop`, `status`, `current`, `vel`, `pos`, `version`, `mode-query`
+  - 模式: `scan`, `enable`, `disable`, `stop`, `set-zero`, `status`, `current`, `vel`, `pos`, `version`, `mode-query`
 - HighTorque:
   - 型号: `hightorque`（运行时字符串，原生 `ht_can v1.5.5`）
   - 模式: `scan`, `read`, `mit`, `pos-vel`, `vel`, `stop`, `brake`, `rezero`

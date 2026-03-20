@@ -14,7 +14,7 @@ Unified CAN motor control stack with a vendor-agnostic Rust core, stable C ABI, 
   - modes: `scan`, `ping`, `MIT`, `VEL`, parameter read/write
 - MyActuator:
   - models: `X8` (runtime string; protocol is ID-based)
-  - modes: `scan`, `enable`, `disable`, `stop`, `status`, `current`, `vel`, `pos`, `version`, `mode-query`
+  - modes: `scan`, `enable`, `disable`, `stop`, `set-zero`, `status`, `current`, `vel`, `pos`, `version`, `mode-query`
 - HighTorque:
   - models: `hightorque` (runtime string; native `ht_can v1.5.5`)
   - modes: `scan`, `read`, `mit`, `pos-vel`, `vel`, `stop`, `brake`, `rezero`

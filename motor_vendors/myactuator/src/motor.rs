@@ -32,6 +32,7 @@ pub struct MyActuatorMotor {
     pub model: String,
     bus: Arc<dyn CanBus>,
     state: Mutex<Option<MyActuatorFeedbackState>>,
+    multi_turn_angle_deg: Mutex<Option<f32>>,
     version_date: Mutex<Option<u32>>,
     control_mode: Mutex<Option<u8>>,
 }
@@ -55,6 +56,7 @@ impl MyActuatorMotor {
             model: model.to_string(),
             bus,
             state: Mutex::new(None),
+            multi_turn_angle_deg: Mutex::new(None),
             version_date: Mutex::new(None),
             control_mode: Mutex::new(None),
         })
@@ -76,6 +78,10 @@ impl MyActuatorMotor {
 
     pub fn latest_version_date(&self) -> Option<u32> {
         self.version_date.lock().ok().and_then(|v| *v)
+    }
+
+    pub fn latest_multi_turn_angle_deg(&self) -> Option<f32> {
+        self.multi_turn_angle_deg.lock().ok().and_then(|a| *a)
     }
 
     pub fn latest_control_mode(&self) -> Option<u8> {
@@ -114,12 +120,20 @@ impl MyActuatorMotor {
         self.send_raw(encode_single_command(Command::ReadMotorStatus2))
     }
 
+    pub fn request_multi_turn_angle(&self) -> Result<()> {
+        self.send_raw(encode_single_command(Command::ReadMultiTurnAngle))
+    }
+
     pub fn request_version_date(&self) -> Result<()> {
         self.send_raw(encode_single_command(Command::ReadVersionDate))
     }
 
     pub fn request_control_mode(&self) -> Result<()> {
         self.send_raw(encode_single_command(Command::ReadSystemOperatingMode))
+    }
+
+    pub fn set_current_position_as_zero(&self) -> Result<()> {
+        self.send_raw(encode_single_command(Command::WriteCurrentPositionAsZero))
     }
 
     pub fn send_current_setpoint(&self, current_a: f32) -> Result<()> {
@@ -155,6 +169,12 @@ impl MyActuatorMotor {
                         speed_dps: fb.speed_dps,
                         shaft_angle_deg: fb.shaft_angle_deg,
                     });
+            }
+            DecodedFrame::MultiTurnAngleDeg(angle_deg) => {
+                self.multi_turn_angle_deg
+                    .lock()
+                    .map_err(|_| MotorError::Io("multi-turn-angle lock poisoned".to_string()))?
+                    .replace(angle_deg);
             }
             DecodedFrame::VersionDate(version) => {
                 self.version_date

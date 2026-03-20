@@ -245,6 +245,7 @@ motor_cli \
 - `enable`
 - `disable`
 - `stop`
+- `set-zero`
 - `status`
 - `current`
 - `vel`
@@ -262,6 +263,11 @@ motor_cli \
 | `--vel` | f32 | `0.0` | vel | Velocity setpoint in rad/s (converted to deg/s internally) |
 | `--pos` | f32 | `0.0` | pos | Absolute position in rad (converted to deg internally) |
 | `--max-speed` | f32 | `8.726646` | pos | Position move max speed in rad/s (converted internally) |
+
+Status output note:
+
+- `angle` comes from `0x9C` status-2 near-turn angle.
+- `mt_angle` comes from `0x92` multi-turn angle and should be used for absolute-position judgement.
 
 ### 6.3 MyActuator Examples
 
@@ -283,7 +289,12 @@ motor_cli \
 # Absolute position control
 motor_cli \
   --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
-  --mode pos --pos 3.1416 --max-speed 5.236 --loop 80 --dt-ms 50
+  --mode pos --pos 3.1416 --max-speed 5.236 --loop 1
+
+# Set current position as zero (persistent after power-cycle)
+motor_cli \
+  --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
+  --mode set-zero --loop 1
 ```
 
 ## 7. Practical Notes

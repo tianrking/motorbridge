@@ -7,6 +7,16 @@ Versioning.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-03-23
+
+### Changed
+
+- Release version bump from `0.1.1` to `0.1.2` for clean tag progression.
+- Damiao `dm-serial` documentation rollout remains aligned across:
+  - CLI README (full interface section)
+  - root README
+  - bindings/examples/integrations/tools related READMEs.
+
 ## [0.1.1] - 2026-03-23
 
 ### Added

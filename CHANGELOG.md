@@ -7,13 +7,28 @@ Versioning.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-03-23
+
 ### Added
 
-- Generic architecture split: `motor_core`, vendor crates, and ABI crate.
-- Damiao vendor implementation with multi-model support.
-- Unified CLI (`motor_cli`) with mode-based parameter control.
-- C/C++/Python examples for ABI integration.
-- Vendor template scaffold (`motor_vendors/template`) for onboarding new brands.
+- Damiao serial-bridge transport (`dm-serial`) for unix-like systems:
+  - CLI transport selection: `--transport auto|socketcan|dm-serial`
+  - Serial options: `--serial-port`, `--serial-baud`
+  - Damiao controller serial constructor and transport runtime wiring.
+- C ABI constructor for Damiao serial bridge:
+  - `motor_controller_new_dm_serial(serial_port, baud)`
+- SDK support for Damiao serial bridge:
+  - Python: `Controller.from_dm_serial(...)`
+  - C++: `Controller::from_dm_serial(...)`
+- New Chinese operation manual for deployment/runtime usage:
+  - `docs/zh/operation_manual.md`
+
+### Changed
+
+- README alignment across examples/bindings/integrations/tools:
+  - All Damiao-related READMEs now mention `dm-serial` availability.
+  - Added explicit pointer to complete interface/command section in
+    `motor_cli/README.zh-CN.md` (`3.6`) and `motor_cli/README.md`.
 
 ## [0.1.0] - 2026-03-20
 

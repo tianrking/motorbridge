@@ -1,0 +1,13 @@
+{
+  "name": "linux_slcan_endurance_4340p",
+  "platform": "linux",
+  "channel": "slcan0",
+  "command": "cargo run -p motor_cli --release -- --vendor damiao --channel slcan0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20",
+  "duration_sec": 1800,
+  "interval_sec": 0.5,
+  "report": "tools/reliability/reports/linux_slcan_endurance_4340p.json",
+  "thresholds": {
+    "min_success_rate": 0.999,
+    "max_fail": 0
+  }
+}

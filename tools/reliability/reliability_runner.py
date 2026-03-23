@@ -11,7 +11,21 @@ SCAN_DONE_RE = re.compile(r"\[scan\]\s+done\s+vendor=(\w+)\s+hits=(\d+)")
 HIT_RE = re.compile(r"\[hit\]\s+vendor=(\w+)\s+id=(\d+)")
 
 
-def run_endurance(command: str, duration_sec: int, interval_sec: float, log_path: Path) -> int:
+def load_endurance_template(path: Path) -> dict:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"template must be a JSON object: {path}")
+    return data
+
+
+def run_endurance(
+    command: str,
+    duration_sec: int,
+    interval_sec: float,
+    log_path: Path,
+    min_success_rate: float | None = None,
+    max_fail: int | None = None,
+) -> int:
     start = time.time()
     iteration = 0
     ok = 0
@@ -50,18 +64,40 @@ def run_endurance(command: str, duration_sec: int, interval_sec: float, log_path
         "command": command,
         "duration_sec": duration_sec,
         "interval_sec": interval_sec,
+        "thresholds": {
+            "min_success_rate": min_success_rate,
+            "max_fail": max_fail,
+        },
         "iterations": iteration,
         "ok": ok,
         "fail": fail,
         "success_rate": 0.0 if iteration == 0 else round(ok / iteration, 4),
         "records": records,
     }
+    pass_ok = True
+    reasons = []
+    if max_fail is not None and fail > max_fail:
+        pass_ok = False
+        reasons.append(f"fail={fail} > max_fail={max_fail}")
+    if min_success_rate is not None and summary["success_rate"] < min_success_rate:
+        pass_ok = False
+        reasons.append(
+            f"success_rate={summary['success_rate']} < min_success_rate={min_success_rate}"
+        )
+    summary["pass"] = pass_ok
+    summary["fail_reasons"] = reasons
     log_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Saved endurance report to: {log_path}")
     print(
         f"iterations={summary['iterations']} ok={summary['ok']} fail={summary['fail']} success_rate={summary['success_rate']}"
     )
-    return 0 if fail == 0 else 2
+    if pass_ok:
+        print("PASS: endurance thresholds satisfied")
+        return 0
+    print("FAIL: endurance thresholds not satisfied")
+    for item in reasons:
+        print(f"- {item}")
+    return 2
 
 
 def parse_scan_log(text: str) -> dict:
@@ -150,11 +186,26 @@ def main() -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     e = sub.add_parser("endurance", help="run one command repeatedly and record results")
-    e.add_argument("--command", required=True, help="command to execute")
-    e.add_argument("--duration-sec", type=int, default=600, help="total duration")
-    e.add_argument("--interval-sec", type=float, default=0.5, help="sleep between iterations")
+    e.add_argument("--template", help="optional JSON template for endurance config")
+    e.add_argument("--command", help="command to execute")
+    e.add_argument("--duration-sec", type=int, help="total duration")
+    e.add_argument("--interval-sec", type=float, help="sleep between iterations")
     e.add_argument(
         "--report",
+        help="output JSON report path",
+    )
+    e.add_argument(
+        "--min-success-rate",
+        type=float,
+        help="minimum acceptable success rate (0.0~1.0)",
+    )
+    e.add_argument(
+        "--max-fail",
+        type=int,
+        help="maximum acceptable fail count",
+    )
+    e.add_argument(
+        "--default-report",
         default="tools/reliability/reports/endurance.json",
         help="output JSON report path",
     )
@@ -182,11 +233,39 @@ def main() -> int:
 
     args = parser.parse_args()
     if args.cmd == "endurance":
+        template = {}
+        if args.template:
+            template = load_endurance_template(Path(args.template))
+
+        command = args.command or template.get("command")
+        if not command:
+            raise SystemExit("endurance requires --command or --template with `command`")
+
+        duration_sec = (
+            args.duration_sec
+            if args.duration_sec is not None
+            else int(template.get("duration_sec", 600))
+        )
+        interval_sec = (
+            args.interval_sec
+            if args.interval_sec is not None
+            else float(template.get("interval_sec", 0.5))
+        )
+        report = args.report or template.get("report") or args.default_report
+        thresholds = template.get("thresholds", {}) if isinstance(template.get("thresholds", {}), dict) else {}
+        min_success_rate = (
+            args.min_success_rate
+            if args.min_success_rate is not None
+            else thresholds.get("min_success_rate")
+        )
+        max_fail = args.max_fail if args.max_fail is not None else thresholds.get("max_fail")
         return run_endurance(
-            command=args.command,
-            duration_sec=args.duration_sec,
-            interval_sec=args.interval_sec,
-            log_path=Path(args.report),
+            command=command,
+            duration_sec=duration_sec,
+            interval_sec=interval_sec,
+            log_path=Path(report),
+            min_success_rate=min_success_rate,
+            max_fail=max_fail,
         )
     return compare_scan(
         left=Path(args.left_log),

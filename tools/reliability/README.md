@@ -20,6 +20,8 @@ This folder provides practical checks for:
 
 Run one command repeatedly and generate a JSON report:
 
+Windows (PCAN) example:
+
 ```bash
 python tools/reliability/reliability_runner.py endurance \
   --command "cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20" \
@@ -28,10 +30,37 @@ python tools/reliability/reliability_runner.py endurance \
   --report tools/reliability/reports/windows_endurance_4340p.json
 ```
 
+Linux (SocketCAN) example (`can0` or `slcan0`):
+
+```bash
+python tools/reliability/reliability_runner.py endurance \
+  --command "cargo run -p motor_cli --release -- --vendor damiao --channel slcan0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20" \
+  --duration-sec 1800 \
+  --interval-sec 0.5 \
+  --report tools/reliability/reports/linux_endurance_4340p.json
+```
+
+Template-driven `slcan0` regression (recommended):
+
+```bash
+python tools/reliability/reliability_runner.py endurance \
+  --template tools/reliability/templates/linux_slcan_endurance_4340p.json
+```
+
+Available templates:
+
+- `tools/reliability/templates/linux_slcan_endurance_4340p.json`
+- `tools/reliability/templates/linux_slcan_endurance_rs00_vel.json`
+
 Pass criteria:
 
 - `fail == 0`
 - `success_rate == 1.0`
+
+Template thresholds are evaluated automatically:
+
+- `thresholds.max_fail`
+- `thresholds.min_success_rate`
 
 ## 2) Error/Timeout Injection
 

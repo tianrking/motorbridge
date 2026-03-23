@@ -52,25 +52,32 @@ unsafe extern "C" {
     fn if_nametoindex(ifname: *const c_char) -> c_uint;
 }
 
-fn last_os_error(prefix: &str) -> MotorError {
+fn last_os_error(prefix: &str, interface: Option<&str>) -> MotorError {
     let err = std::io::Error::last_os_error();
-    let hint = match err.raw_os_error() {
-        Some(100) => {
-            " (hint: can interface is down; run `ip -details link show can0` then bring it up)"
-        }
+    let iface = interface.unwrap_or("can0");
+    let hint = socketcan_hint(err.raw_os_error(), iface);
+    MotorError::Io(format!("{prefix}: {err}{hint}"))
+}
+
+fn socketcan_hint(raw_os_error: Option<i32>, iface: &str) -> String {
+    match raw_os_error {
+        Some(100) => format!(
+            " (hint: can interface is down; run `ip -details link show {iface}` then bring it up)"
+        ),
         Some(6) => {
             " (hint: can device/address is unavailable; check USB-CAN adapter and `ip link show`)"
+                .to_string()
         }
-        Some(19) => {
-            " (hint: interface not found; verify channel name like can0 and adapter connection)"
-        }
-        _ => "",
-    };
-    MotorError::Io(format!("{prefix}: {err}{hint}"))
+        Some(19) => format!(
+            " (hint: interface not found; verify channel name like {iface} and adapter connection)"
+        ),
+        _ => String::new(),
+    }
 }
 
 pub struct SocketCanBus {
     fd: Mutex<Option<RawFd>>,
+    interface: String,
 }
 
 impl SocketCanBus {
@@ -80,14 +87,18 @@ impl SocketCanBus {
 
         let index = unsafe { if_nametoindex(iface.as_ptr()) };
         if index == 0 {
-            return Err(last_os_error(&format!(
-                "if_nametoindex failed for {interface}"
-            )));
+            return Err(last_os_error(
+                &format!("if_nametoindex failed for {interface}"),
+                Some(interface),
+            ));
         }
 
         let fd = unsafe { socket(PF_CAN, SOCK_RAW, CAN_RAW) };
         if fd < 0 {
-            return Err(last_os_error("socket(PF_CAN, SOCK_RAW, CAN_RAW) failed"));
+            return Err(last_os_error(
+                "socket(PF_CAN, SOCK_RAW, CAN_RAW) failed",
+                Some(interface),
+            ));
         }
 
         let addr = SockAddrCan {
@@ -105,11 +116,15 @@ impl SocketCanBus {
         };
         if bind_rc < 0 {
             let _ = unsafe { close(fd) };
-            return Err(last_os_error(&format!("bind on {interface} failed")));
+            return Err(last_os_error(
+                &format!("bind on {interface} failed"),
+                Some(interface),
+            ));
         }
 
         Ok(Self {
             fd: Mutex::new(Some(fd)),
+            interface: interface.to_string(),
         })
     }
 
@@ -169,7 +184,7 @@ impl CanBus for SocketCanBus {
                 )
             };
             if n != size_of::<CanFrameRaw>() as isize {
-                return Err(last_os_error("socketcan write failed"));
+                return Err(last_os_error("socketcan write failed", Some(&self.interface)));
             }
             Ok(())
         })
@@ -191,7 +206,7 @@ impl CanBus for SocketCanBus {
 
             let rc = unsafe { poll(&mut pfd as *mut PollFd, 1, timeout_ms) };
             if rc < 0 {
-                return Err(last_os_error("poll failed"));
+                return Err(last_os_error("poll failed", Some(&self.interface)));
             }
             if rc == 0 {
                 return Ok(None);
@@ -214,7 +229,7 @@ impl CanBus for SocketCanBus {
                 )
             };
             if n != size_of::<CanFrameRaw>() as isize {
-                return Err(last_os_error("socketcan read failed"));
+                return Err(last_os_error("socketcan read failed", Some(&self.interface)));
             }
 
             Ok(Some(CanFrame {
@@ -239,7 +254,10 @@ impl CanBus for SocketCanBus {
         if let Some(fd) = guard.take() {
             let rc = unsafe { close(fd) };
             if rc < 0 {
-                return Err(last_os_error("close socketcan fd failed"));
+                return Err(last_os_error(
+                    "close socketcan fd failed",
+                    Some(&self.interface),
+                ));
             }
         }
         Ok(())
@@ -253,5 +271,24 @@ impl Drop for SocketCanBus {
                 let _ = unsafe { close(fd) };
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::socketcan_hint;
+
+    #[test]
+    fn socketcan_hint_covers_enetdown_with_interface_name() {
+        let hint = socketcan_hint(Some(100), "slcan0");
+        assert!(hint.contains("interface is down"));
+        assert!(hint.contains("slcan0"));
+    }
+
+    #[test]
+    fn socketcan_hint_covers_enodev_with_interface_name() {
+        let hint = socketcan_hint(Some(19), "can9");
+        assert!(hint.contains("interface not found"));
+        assert!(hint.contains("can9"));
     }
 }

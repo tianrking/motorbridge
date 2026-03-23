@@ -20,6 +20,8 @@
 
 反复执行同一命令并生成 JSON 报告：
 
+Windows（PCAN）示例：
+
 ```bash
 python tools/reliability/reliability_runner.py endurance \
   --command "cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20" \
@@ -28,10 +30,37 @@ python tools/reliability/reliability_runner.py endurance \
   --report tools/reliability/reports/windows_endurance_4340p.json
 ```
 
+Linux（SocketCAN）示例（`can0` 或 `slcan0`）：
+
+```bash
+python tools/reliability/reliability_runner.py endurance \
+  --command "cargo run -p motor_cli --release -- --vendor damiao --channel slcan0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20" \
+  --duration-sec 1800 \
+  --interval-sec 0.5 \
+  --report tools/reliability/reports/linux_endurance_4340p.json
+```
+
+推荐使用模板执行 `slcan0` 专项回归：
+
+```bash
+python tools/reliability/reliability_runner.py endurance \
+  --template tools/reliability/templates/linux_slcan_endurance_4340p.json
+```
+
+可用模板：
+
+- `tools/reliability/templates/linux_slcan_endurance_4340p.json`
+- `tools/reliability/templates/linux_slcan_endurance_rs00_vel.json`
+
 通过标准：
 
 - `fail == 0`
 - `success_rate == 1.0`
+
+模板中的阈值会自动判定：
+
+- `thresholds.max_fail`
+- `thresholds.min_success_rate`
 
 ## 2）异常/超时注入
 

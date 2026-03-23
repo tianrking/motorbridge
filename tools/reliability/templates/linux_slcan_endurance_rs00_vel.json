@@ -1,0 +1,13 @@
+{
+  "name": "linux_slcan_endurance_rs00_vel",
+  "platform": "linux",
+  "channel": "slcan0",
+  "command": "cargo run -p motor_cli --release -- --vendor robstride --channel slcan0 --model rs-00 --motor-id 127 --feedback-id 0xFF --mode vel --vel 0.3 --loop 1 --dt-ms 50",
+  "duration_sec": 1800,
+  "interval_sec": 0.5,
+  "report": "tools/reliability/reports/linux_slcan_endurance_rs00_vel.json",
+  "thresholds": {
+    "min_success_rate": 0.999,
+    "max_fail": 0
+  }
+}

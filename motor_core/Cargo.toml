@@ -10,7 +10,7 @@ name = "motor_core"
 path = "src/lib.rs"
 
 [target.'cfg(unix)'.dependencies]
-serialport = "4.6"
+serialport = { version = "4.6", default-features = false }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 libloading = "0.8"

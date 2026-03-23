@@ -205,26 +205,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "libudev"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78b324152da65df7bb95acfcaab55e3097ceaab02fb19b228a9eb74d55f135e0"
-dependencies = [
- "libc",
- "libudev-sys",
-]
-
-[[package]]
-name = "libudev-sys"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c8469b4a23b962c1396b9b451dda50ef5b283e8dd309d69033475fa9b334324"
-dependencies = [
- "libc",
- "pkg-config",
-]
-
-[[package]]
 name = "log"
 version = "0.4.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -258,7 +238,7 @@ dependencies = [
 
 [[package]]
 name = "motor_abi"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "motor_core",
  "motor_vendor_damiao",
@@ -268,14 +248,14 @@ dependencies = [
 
 [[package]]
 name = "motor_calib"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "motor_vendor_damiao",
 ]
 
 [[package]]
 name = "motor_cli"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "motor_core",
  "motor_vendor_damiao",
@@ -285,7 +265,7 @@ dependencies = [
 
 [[package]]
 name = "motor_core"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "libloading",
  "serialport",
@@ -293,28 +273,28 @@ dependencies = [
 
 [[package]]
 name = "motor_vendor_damiao"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "motor_core",
 ]
 
 [[package]]
 name = "motor_vendor_myactuator"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "motor_core",
 ]
 
 [[package]]
 name = "motor_vendor_robstride"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "motor_core",
 ]
 
 [[package]]
 name = "motor_vendor_template"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "motor_core",
 ]
@@ -335,12 +315,6 @@ name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
-
-[[package]]
-name = "pkg-config"
-version = "0.3.32"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 
 [[package]]
 name = "ppv-lite86"
@@ -459,7 +433,6 @@ dependencies = [
  "core-foundation",
  "core-foundation-sys",
  "io-kit-sys",
- "libudev",
  "mach2",
  "nix",
  "scopeguard",
@@ -730,7 +703,7 @@ checksum = "589f6da84c646204747d1270a2a5661ea66ed1cced2631d546fdfb155959f9ec"
 
 [[package]]
 name = "ws_gateway"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "futures-util",
  "motor_vendor_damiao",

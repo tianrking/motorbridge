@@ -87,6 +87,7 @@ motor_cli -h
 - 该链路为适配器私有路径，面向 Damiao 电机。
 - 常用参数：`--transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600`。
 - `dm-serial` 模式下，传输层创建会忽略 `--channel`。
+- `dm-serial` 仅改变“传输层”（走串口桥），Damiao 的业务参数与模式接口保持一致（`--mode`、`--motor-id`、`--feedback-id`、`--verify-model`、`--ensure-mode` 等）。
 
 ## 3. vendor=`damiao`
 
@@ -159,6 +160,76 @@ motor_cli \
   --vendor damiao --channel can0 --model 4310 --motor-id 0x01 --feedback-id 0x11 \
   --set-motor-id 0x04 --set-feedback-id 0x14 --store 1 --verify-id 1
 ```
+
+### 3.6 Damiao 串口桥完整接口与用法（`--transport dm-serial`）
+
+先定义公共前缀（建议）：
+
+```bash
+DM_SERIAL="--vendor damiao --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 --model 4310"
+```
+
+#### 3.6.1 串口桥下必用/常用参数
+
+| 参数 | 是否建议显式传入 | 说明 |
+|---|---|---|
+| `--transport dm-serial` | 必须 | 切到 Damiao 串口桥链路 |
+| `--serial-port` | 必须 | 串口设备，如 `/dev/ttyACM1` |
+| `--serial-baud` | 必须 | 串口波特率，常用 `921600` |
+| `--channel` | 可省略 | 该模式下会被忽略 |
+| `--motor-id` / `--feedback-id` | 控制时必须 | 与扫描命中结果一致 |
+| `--verify-model` | 建议按现场开关 | 若握手链路不稳定可先设 `0` 做联通验证 |
+| `--ensure-mode` | 建议按现场开关 | 若电机模式切换流程不稳定可先设 `0` |
+
+#### 3.6.2 串口桥下全模式命令模板
+
+```bash
+# 1) 扫描
+motor_cli $DM_SERIAL --mode scan --start-id 1 --end-id 16
+
+# 2) 使能
+motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 --mode enable --verify-model 0 --loop 1
+
+# 3) 失能
+motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 --mode disable --verify-model 0 --loop 1
+
+# 4) MIT
+motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 \
+  --mode mit --verify-model 0 --ensure-mode 0 \
+  --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
+
+# 5) POS_VEL
+motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 \
+  --mode pos-vel --verify-model 0 --ensure-mode 0 \
+  --pos 1.0 --vlim 2.0 --loop 80 --dt-ms 20
+
+# 6) VEL
+motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 \
+  --mode vel --verify-model 0 --ensure-mode 0 \
+  --vel 1.0 --loop 80 --dt-ms 20
+
+# 7) FORCE_POS
+motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 \
+  --mode force-pos --verify-model 0 --ensure-mode 0 \
+  --pos 1.0 --vlim 2.0 --ratio 0.1 --loop 80 --dt-ms 20
+```
+
+#### 3.6.3 串口桥下改 ID（含保存与校验）
+
+```bash
+# 把 0x01/0x11 改成 0x04/0x14
+motor_cli $DM_SERIAL \
+  --motor-id 0x01 --feedback-id 0x11 \
+  --set-motor-id 0x04 --set-feedback-id 0x14 \
+  --store 1 --verify-id 1 --verify-model 0
+```
+
+#### 3.6.4 推荐测试顺序
+
+1. `scan` 先确认在线 ID。
+2. `enable --loop 1` 做最小动作验证。
+3. `mit` 小步参数（小 `pos`、中低 `kp/kd`）验证控制闭环。
+4. 最后再上业务参数与连续循环。
 
 ## 4. vendor=`robstride`
 

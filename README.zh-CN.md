@@ -195,12 +195,34 @@ ip -details link show slcan0
 cargo run -p motor_cli --release -- --vendor damiao --channel slcan0 --mode scan --start-id 1 --end-id 255
 ```
 
+## Damiao 串口桥速查（`dm-serial`）
+
+当你的 Damiao 转接板提供串口桥（例如 `/dev/ttyACM1`）且希望走这条私有链路时，可使用：
+
+```bash
+# Damiao 串口桥扫描
+cargo run -p motor_cli --release -- --vendor damiao \
+  --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 \
+  --model 4310 --mode scan --start-id 1 --end-id 16
+
+# Damiao 串口桥 MIT 控制
+cargo run -p motor_cli --release -- --vendor damiao \
+  --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 \
+  --model 4310 --motor-id 0x04 --feedback-id 0x14 \
+  --mode mit --verify-model 0 --ensure-mode 0 \
+  --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
+```
+
 ## CAN 专业调试手册
 
 如需系统化排查 Linux `slcan` 与 Windows `pcan`，请直接使用：
 
 - [`docs/zh/can_debugging.md`](docs/zh/can_debugging.md)
 - [`docs/en/can_debugging.md`](docs/en/can_debugging.md)
+
+最终用户完整链路操作（默认 PCAN/SocketCAN，Damiao 串口桥备用）请看：
+
+- [`docs/zh/operation_manual.md`](docs/zh/operation_manual.md)
 
 结果解读：
 
@@ -213,16 +235,22 @@ cargo run -p motor_cli --release -- --vendor damiao --channel slcan0 --mode scan
 ## ABI 与绑定
 
 - C ABI:
+  - `motor_controller_new_socketcan(channel)`
+  - `motor_controller_new_dm_serial(serial_port, baud)`（仅 Damiao；unix-like 系统）
   - Damiao: `motor_controller_add_damiao_motor(...)`
   - RobStride: `motor_controller_add_robstride_motor(...)`
   - MyActuator: `motor_controller_add_myactuator_motor(...)`
   - HighTorque: `motor_controller_add_hightorque_motor(...)`
 - Python:
+  - `Controller(channel="can0")`
+  - `Controller.from_dm_serial("/dev/ttyACM0", 921600)`（仅 Damiao）
   - `Controller.add_damiao_motor(...)`
   - `Controller.add_robstride_motor(...)`
   - `Controller.add_myactuator_motor(...)`
   - `Controller.add_hightorque_motor(...)`
 - C++:
+  - `Controller("can0")`
+  - `Controller::from_dm_serial("/dev/ttyACM0", 921600)`（仅 Damiao）
   - `Controller::add_damiao_motor(...)`
   - `Controller::add_robstride_motor(...)`
   - `Controller::add_myactuator_motor(...)`

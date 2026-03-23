@@ -9,5 +9,8 @@ license.workspace = true
 name = "motor_core"
 path = "src/lib.rs"
 
+[target.'cfg(unix)'.dependencies]
+serialport = "4.6"
+
 [target.'cfg(target_os = "windows")'.dependencies]
 libloading = "0.8"

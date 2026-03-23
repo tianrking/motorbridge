@@ -74,6 +74,33 @@ If intentional, run with --verify-model 0",
     ))
 }
 
+fn open_damiao_controller(
+    transport: &str,
+    channel: &str,
+    serial_port: &str,
+    serial_baud: u32,
+) -> Result<DamiaoController, Box<dyn std::error::Error>> {
+    match transport {
+        "auto" | "socketcan" => Ok(DamiaoController::new_socketcan(channel)?),
+        "dm-serial" => {
+            #[cfg(unix)]
+            {
+                Ok(DamiaoController::new_dm_serial(serial_port, serial_baud)?)
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = (serial_port, serial_baud);
+                Err("dm-serial transport is only supported on unix-like systems".into())
+            }
+        }
+        _ => Err(format!(
+            "unknown Damiao transport: {} (expected auto|socketcan|dm-serial)",
+            transport
+        )
+        .into()),
+    }
+}
+
 pub fn run_damiao(
     args: &HashMap<String, String>,
     channel: &str,
@@ -92,8 +119,23 @@ pub fn run_damiao(
     let verify_model = get_u64(args, "verify-model", 1)? != 0;
     let verify_timeout_ms = get_u64(args, "verify-timeout-ms", 500)?;
     let verify_tol = get_f32(args, "verify-tol", 0.2)?;
+    let transport = get_str(args, "transport", "auto");
+    let serial_port = get_str(args, "serial-port", "/dev/ttyACM0");
+    let serial_baud_u64 = get_u64(args, "serial-baud", 921600)?;
+    let serial_baud = u32::try_from(serial_baud_u64)
+        .map_err(|_| format!("invalid --serial-baud (too large): {serial_baud_u64}"))?;
 
-    let controller = DamiaoController::new_socketcan(channel)?;
+    if transport == "dm-serial" {
+        println!(
+            "[note] transport=dm-serial uses adapter-specific serial bridge; intended for Damiao motors only"
+        );
+        println!(
+            "[note] dm-serial options: --serial-port {} --serial-baud {}",
+            serial_port, serial_baud
+        );
+    }
+
+    let controller = open_damiao_controller(&transport, channel, &serial_port, serial_baud)?;
     if mode == "scan" {
         let start_id = get_u16_hex_or_dec(args, "start-id", 1)?;
         let end_id = get_u16_hex_or_dec(args, "end-id", 255)?;
@@ -239,7 +281,8 @@ pub fn run_damiao(
         // Otherwise a store sent via an old-ID handle may be lost.
         if store_after_set || verify_id {
             std::thread::sleep(Duration::from_millis(120));
-            let verify_ctrl = DamiaoController::new_socketcan(channel)?;
+            let verify_ctrl =
+                open_damiao_controller(&transport, channel, &serial_port, serial_baud)?;
             let verify_motor = verify_ctrl.add_motor(new_motor_id, new_feedback_id, model)?;
 
             if store_after_set {

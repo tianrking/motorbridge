@@ -60,7 +60,10 @@ motor_cli -h
 |---|---|---|---|
 | `--help` | flag | 关闭 | 输出帮助并退出 |
 | `--vendor` | string | `damiao` | `damiao` / `robstride` / `hightorque` / `myactuator` / `all` |
+| `--transport` | string | `auto` | `auto` / `socketcan` / `dm-serial`（`dm-serial` 仅 Damiao） |
 | `--channel` | string | `can0` | Linux：SocketCAN 网卡名（`can0`/`slcan0`）；Windows（PCAN 后端）：`can0`/`can1`，可加 `@bitrate`（如 `can0@1000000`） |
+| `--serial-port` | string | `/dev/ttyACM0` | `--transport dm-serial` 时使用 |
+| `--serial-baud` | u64 | `921600` | `--transport dm-serial` 时使用 |
 | `--model` | string | 按 vendor 决定 | Damiao 默认 `4340`；RobStride 默认 `rs-00`；HighTorque 默认 `hightorque`；MyActuator 默认 `X8` |
 | `--motor-id` | u16(hex/dec) | `0x01` | 电机 CAN ID |
 | `--feedback-id` | u16(hex/dec) | 按 vendor 决定 | Damiao 默认 `0x11`；RobStride 默认 `0xFF`；HighTorque 默认 `0x01`；MyActuator 默认 `0x241`（motor-id=1） |
@@ -78,6 +81,12 @@ motor_cli -h
 - Windows PCAN：
   - `can0` 映射 `PCAN_USBBUS1`，`can1` 映射 `PCAN_USBBUS2`。
   - 支持可选波特率后缀：`can0@1000000`。
+
+### 2.2 Damiao 串口桥速查（`--transport dm-serial`）
+
+- 该链路为适配器私有路径，面向 Damiao 电机。
+- 常用参数：`--transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600`。
+- `dm-serial` 模式下，传输层创建会忽略 `--channel`。
 
 ## 3. vendor=`damiao`
 
@@ -132,6 +141,13 @@ motor_cli \
 motor_cli \
   --vendor damiao --channel can0 --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode mit --pos 1.57 --vel 2.0 --kp 35 --kd 1.2 --tau 0.3 --loop 120 --dt-ms 20
+
+# 通过 Damiao 串口桥执行 MIT
+motor_cli \
+  --vendor damiao --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 \
+  --model 4310 --motor-id 0x04 --feedback-id 0x14 \
+  --mode mit --verify-model 0 --ensure-mode 0 \
+  --pos 1.0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
 
 # 位置速度控制
 motor_cli \

@@ -1,11 +1,12 @@
 # CLI Guide (`motor_cli`)
 
 <!-- channel-compat-note -->
-## Channel Compatibility (PCAN + slcan)
+## Channel Compatibility (PCAN + slcan + Damiao Serial Bridge)
 
-- Linux uses SocketCAN channel names directly: `can0`, `can1`, `slcan0`.
+- Linux SocketCAN uses interface names directly: `can0`, `can1`, `slcan0`.
 - For USB-serial CAN adapters, bring up `slcan0` first: `sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`.
-- On Linux, do not append bitrate in `--channel` (for example `can0@1000000` is invalid on SocketCAN).
+- Damiao-only serial bridge transport is also available in CLI (`--transport dm-serial --serial-port /dev/ttyACM0 --serial-baud 921600`).
+- On Linux SocketCAN, do not append bitrate in `--channel` (for example `can0@1000000` is invalid).
 - On Windows (PCAN backend), `can0/can1` map to `PCAN_USBBUS1/2`; optional `@bitrate` suffix is supported.
 
 ## Debugging Guide
@@ -21,7 +22,9 @@ cargo build -p motor_cli --release
 ## Common
 
 - `--vendor damiao|robstride|hightorque|myactuator|all`
+- `--transport auto|socketcan|dm-serial` (`dm-serial` is Damiao-only)
 - `--channel can0`
+- `--serial-port /dev/ttyACM0 --serial-baud 921600` (used with `--transport dm-serial`)
 - `--motor-id <id>`
 - `--loop <n> --dt-ms <ms>`
 
@@ -31,6 +34,15 @@ cargo build -p motor_cli --release
 cargo run -p motor_cli --release -- \
   --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 50 --dt-ms 20
+```
+
+```bash
+# Damiao over serial bridge
+cargo run -p motor_cli --release -- \
+  --vendor damiao --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 \
+  --model 4310 --motor-id 0x04 --feedback-id 0x14 \
+  --mode mit --verify-model 0 --ensure-mode 0 \
+  --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
 ```
 
 ## RobStride

@@ -1,6 +1,8 @@
 pub mod bus;
 pub mod controller;
 pub mod device;
+#[cfg(unix)]
+pub mod dm_serial;
 pub mod error;
 pub mod model;
 #[cfg(target_os = "windows")]

@@ -274,6 +274,15 @@ class Controller {
     handle_ = std::make_shared<detail::ControllerHandle>(raw);
   }
 
+  static Controller from_dm_serial(const std::string& serial_port = "/dev/ttyACM0",
+                                   uint32_t baud = 921600) {
+    MotorController* raw = motor_controller_new_dm_serial(serial_port.c_str(), baud);
+    if (!raw) {
+      throw Error("new_dm_serial failed: " + last_error_message());
+    }
+    return Controller(raw);
+  }
+
   Controller(Controller&&) noexcept = default;
   Controller& operator=(Controller&&) noexcept = default;
   Controller(const Controller&) = delete;
@@ -324,6 +333,10 @@ class Controller {
   }
 
  private:
+  explicit Controller(MotorController* raw) {
+    handle_ = std::make_shared<detail::ControllerHandle>(raw);
+  }
+
   std::shared_ptr<detail::ControllerHandle> handle_;
 };
 

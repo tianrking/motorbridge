@@ -1,11 +1,12 @@
 # motorbridge Python SDK
 
 <!-- channel-compat-note -->
-## Channel Compatibility (PCAN + slcan)
+## Channel Compatibility (PCAN + slcan + Damiao Serial Bridge)
 
-- Linux uses SocketCAN channel names directly: `can0`, `can1`, `slcan0`.
+- Linux SocketCAN uses interface names directly: `can0`, `can1`, `slcan0`.
 - For USB-serial CAN adapters, bring up `slcan0` first: `sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`.
-- On Linux, do not append bitrate in `--channel` (for example `can0@1000000` is invalid on SocketCAN).
+- Damiao-only serial bridge transport is also available in CLI (`--transport dm-serial --serial-port /dev/ttyACM0 --serial-baud 921600`).
+- On Linux SocketCAN, do not append bitrate in `--channel` (for example `can0@1000000` is invalid).
 - On Windows (PCAN backend), `can0/can1` map to `PCAN_USBBUS1/2`; optional `@bitrate` suffix is supported.
 
 
@@ -17,6 +18,9 @@ Python binding layer on top of `motor_abi`.
 
 - High-level API: `Controller`, `Motor`, `Mode`
 - CLI: `motorbridge-cli`
+- Controller constructors:
+  - `Controller(channel="can0")` (SocketCAN/PCAN path)
+  - `Controller.from_dm_serial(serial_port="/dev/ttyACM0", baud=921600)` (Damiao-only serial bridge)
 - Vendors:
   - Damiao: `add_damiao_motor(...)`
   - MyActuator: `add_myactuator_motor(...)`
@@ -34,6 +38,19 @@ with Controller("can0") as ctrl:
     motor.ensure_mode(Mode.MIT, 1000)
     motor.send_mit(0.0, 0.0, 20.0, 1.0, 0.0)
     print(motor.get_state())
+    motor.close()
+```
+
+Damiao over serial bridge:
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller.from_dm_serial("/dev/ttyACM1", 921600) as ctrl:
+    motor = ctrl.add_damiao_motor(0x04, 0x14, "4310")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 20.0, 1.0, 0.0)
     motor.close()
 ```
 

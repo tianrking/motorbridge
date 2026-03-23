@@ -35,6 +35,8 @@ lib.motor_last_error_message.restype = c_char_p
 
 lib.motor_controller_new_socketcan.argtypes = [c_char_p]
 lib.motor_controller_new_socketcan.restype = c_void_p
+lib.motor_controller_new_dm_serial.argtypes = [c_char_p, c_uint32]
+lib.motor_controller_new_dm_serial.restype = c_void_p
 lib.motor_controller_enable_all.argtypes = [c_void_p]
 lib.motor_controller_enable_all.restype = c_int32
 lib.motor_controller_shutdown.argtypes = [c_void_p]
@@ -190,7 +192,10 @@ def print_state(prefix: str, motor: int) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="motor_abi ctypes demo (Damiao + RobStride)")
+    parser.add_argument("--transport", choices=["socketcan", "dm-serial"], default="socketcan")
     parser.add_argument("--channel", default="can0")
+    parser.add_argument("--serial-port", default="/dev/ttyACM0")
+    parser.add_argument("--serial-baud", type=int, default=921600)
     parser.add_argument("--vendor", choices=["damiao", "robstride"], default="damiao")
     parser.add_argument("--model", default="4340")
     parser.add_argument("--motor-id", default="0x01")
@@ -241,11 +246,18 @@ def main() -> None:
     param_id = parse_id(args.param_id)
 
     print(
-        f"vendor={args.vendor} channel={args.channel} model={args.model} "
+        f"vendor={args.vendor} transport={args.transport} channel={args.channel} model={args.model} "
         f"motor_id=0x{motor_id:X} feedback_id=0x{feedback_id:X} mode={args.mode}"
     )
 
-    ctrl = lib.motor_controller_new_socketcan(args.channel.encode())
+    if args.transport == "dm-serial":
+        if args.vendor != "damiao":
+            raise RuntimeError("transport=dm-serial is available for damiao only in this demo")
+        ctrl = lib.motor_controller_new_dm_serial(
+            args.serial_port.encode(), int(args.serial_baud)
+        )
+    else:
+        ctrl = lib.motor_controller_new_socketcan(args.channel.encode())
     if not ctrl:
         raise RuntimeError(lib.motor_last_error_message().decode())
 

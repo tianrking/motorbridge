@@ -1,11 +1,12 @@
 # motorbridge C++ Bindings
 
 <!-- channel-compat-note -->
-## Channel Compatibility (PCAN + slcan)
+## Channel Compatibility (PCAN + slcan + Damiao Serial Bridge)
 
-- Linux uses SocketCAN channel names directly: `can0`, `can1`, `slcan0`.
+- Linux SocketCAN uses interface names directly: `can0`, `can1`, `slcan0`.
 - For USB-serial CAN adapters, bring up `slcan0` first: `sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`.
-- On Linux, do not append bitrate in `--channel` (for example `can0@1000000` is invalid on SocketCAN).
+- Damiao-only serial bridge transport is also available in CLI (`--transport dm-serial --serial-port /dev/ttyACM0 --serial-baud 921600`).
+- On Linux SocketCAN, do not append bitrate in `--channel` (for example `can0@1000000` is invalid).
 - On Windows (PCAN backend), `can0/can1` map to `PCAN_USBBUS1/2`; optional `@bitrate` suffix is supported.
 
 
@@ -15,6 +16,8 @@ RAII-style C++ wrapper on top of `motor_abi`.
 
 ## Controller Entrypoints
 
+- `Controller(channel)` (SocketCAN/PCAN path)
+- `Controller::from_dm_serial(serial_port, baud)` (Damiao-only serial bridge)
 - `add_damiao_motor(motor_id, feedback_id, model)`
 - `add_myactuator_motor(motor_id, feedback_id, model)`
 - `add_robstride_motor(motor_id, feedback_id, model)`
@@ -33,6 +36,21 @@ int main() {
   ctrl.enable_all();
   motor.ensure_mode(motorbridge::Mode::MIT, 1000);
   motor.send_mit(0.0f, 0.0f, 20.0f, 1.0f, 0.0f);
+  ctrl.shutdown();
+  return 0;
+}
+```
+
+Damiao over serial bridge:
+
+```cpp
+#include "motorbridge/motorbridge.hpp"
+
+int main() {
+  auto ctrl = motorbridge::Controller::from_dm_serial("/dev/ttyACM1", 921600);
+  auto motor = ctrl.add_damiao_motor(0x04, 0x14, "4310");
+  ctrl.enable_all();
+  motor.send_mit(0.5f, 0.0f, 20.0f, 1.0f, 0.0f);
   ctrl.shutdown();
   return 0;
 }

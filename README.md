@@ -195,6 +195,24 @@ Then use `slcan0` as CLI channel:
 cargo run -p motor_cli --release -- --vendor damiao --channel slcan0 --mode scan --start-id 1 --end-id 255
 ```
 
+## Damiao Serial Bridge Quick Guide (`dm-serial`)
+
+Use this path only when your Damiao adapter exposes a serial bridge (for example `/dev/ttyACM1`) and you want to run Damiao through that private transport:
+
+```bash
+# Damiao scan over serial bridge
+cargo run -p motor_cli --release -- --vendor damiao \
+  --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 \
+  --model 4310 --mode scan --start-id 1 --end-id 16
+
+# Damiao MIT over serial bridge
+cargo run -p motor_cli --release -- --vendor damiao \
+  --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 \
+  --model 4310 --motor-id 0x04 --feedback-id 0x14 \
+  --mode mit --verify-model 0 --ensure-mode 0 \
+  --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
+```
+
 ## CAN Debugging (Professional Playbook)
 
 For deterministic troubleshooting of Linux `slcan` and Windows `pcan`, use:
@@ -213,16 +231,22 @@ Interpretation:
 ## ABI and Bindings
 
 - C ABI:
+  - `motor_controller_new_socketcan(channel)`
+  - `motor_controller_new_dm_serial(serial_port, baud)` (Damiao-only; unix-like systems)
   - Damiao: `motor_controller_add_damiao_motor(...)`
   - RobStride: `motor_controller_add_robstride_motor(...)`
   - MyActuator: `motor_controller_add_myactuator_motor(...)`
   - HighTorque: `motor_controller_add_hightorque_motor(...)`
 - Python:
+  - `Controller(channel="can0")`
+  - `Controller.from_dm_serial("/dev/ttyACM0", 921600)` (Damiao-only)
   - `Controller.add_damiao_motor(...)`
   - `Controller.add_robstride_motor(...)`
   - `Controller.add_myactuator_motor(...)`
   - `Controller.add_hightorque_motor(...)`
 - C++:
+  - `Controller("can0")`
+  - `Controller::from_dm_serial("/dev/ttyACM0", 921600)` (Damiao-only)
   - `Controller::add_damiao_motor(...)`
   - `Controller::add_robstride_motor(...)`
   - `Controller::add_myactuator_motor(...)`

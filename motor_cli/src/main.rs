@@ -19,6 +19,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let vendor = get_str(&args, "vendor", "damiao");
     let channel = get_str(&args, "channel", "can0");
+    let transport = get_str(&args, "transport", "auto");
     let default_model = if vendor == "robstride" {
         "rs-00"
     } else if vendor == "hightorque" {
@@ -67,8 +68,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let scan_start = get_u16_hex_or_dec(&args, "start-id", 1)?;
         let scan_end = get_u16_hex_or_dec(&args, "end-id", 255)?;
         println!(
-            "vendor={} channel={} mode=scan model_hint={}{} base_feedback_id=0x{:X}{} scan_range={}{}..{}{}",
+            "vendor={} transport={} channel={} mode=scan model_hint={}{} base_feedback_id=0x{:X}{} scan_range={}{}..{}{}",
             vendor,
+            transport,
             channel,
             model,
             default_tag(model_is_default),
@@ -81,8 +83,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     } else {
         println!(
-            "vendor={} channel={} model={}{} motor_id=0x{:X}{} feedback_id=0x{:X}{} mode={}",
+            "vendor={} transport={} channel={} model={}{} motor_id=0x{:X}{} feedback_id=0x{:X}{} mode={}",
             vendor,
+            transport,
             channel,
             model,
             default_tag(model_is_default),
@@ -91,6 +94,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             feedback_id,
             default_tag(feedback_id_is_default),
             mode
+        );
+    }
+
+    if transport == "dm-serial" && vendor != "damiao" {
+        return Err(
+            "transport=dm-serial is currently supported only for --vendor damiao".into(),
         );
     }
 

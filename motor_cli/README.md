@@ -60,7 +60,10 @@ motor_cli -h
 |---|---|---|---|
 | `--help` | flag | off | Prints CLI help and exits |
 | `--vendor` | string | `damiao` | `damiao`, `robstride`, `hightorque`, `myactuator`, `all` |
+| `--transport` | string | `auto` | `auto`, `socketcan`, `dm-serial` (`dm-serial` is Damiao-only) |
 | `--channel` | string | `can0` | Linux: SocketCAN interface name (`can0`/`slcan0`); Windows (PCAN backend): `can0`/`can1` with optional `@bitrate` suffix (for example `can0@1000000`) |
+| `--serial-port` | string | `/dev/ttyACM0` | Used when `--transport dm-serial` |
+| `--serial-baud` | u64 | `921600` | Used when `--transport dm-serial` |
 | `--model` | string | vendor dependent | `4340` for Damiao, `rs-00` for RobStride, `hightorque` for HighTorque, `X8` for MyActuator |
 | `--motor-id` | u16 (hex/dec) | `0x01` | Motor CAN ID |
 | `--feedback-id` | u16 (hex/dec) | vendor dependent | Damiao `0x11`, RobStride `0xFF`, HighTorque `0x01`, MyActuator `0x241` (for motor-id `1`) |
@@ -78,6 +81,12 @@ motor_cli -h
 - Windows PCAN:
   - `can0` maps to `PCAN_USBBUS1`, `can1` maps to `PCAN_USBBUS2`.
   - Optional bitrate suffix is supported: `can0@1000000`.
+
+### 2.2 Damiao Serial-Bridge Quick Reference (`--transport dm-serial`)
+
+- This path is adapter-specific and intended for Damiao motors.
+- Typical flags: `--transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600`.
+- In `dm-serial` mode, `--channel` is ignored by transport creation.
 
 ## 3. Vendor = `damiao`
 
@@ -132,6 +141,13 @@ motor_cli \
 motor_cli \
   --vendor damiao --channel can0 --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode mit --pos 1.57 --vel 2.0 --kp 35 --kd 1.2 --tau 0.3 --loop 120 --dt-ms 20
+
+# MIT control via Damiao serial bridge
+motor_cli \
+  --vendor damiao --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 \
+  --model 4310 --motor-id 0x04 --feedback-id 0x14 \
+  --mode mit --verify-model 0 --ensure-mode 0 \
+  --pos 1.0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
 
 # Position-velocity control
 motor_cli \

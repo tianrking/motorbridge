@@ -85,7 +85,9 @@ RobStride extensions:
 
 ## Typical Call Flow
 
-1. `motor_controller_new_socketcan`
+1. Transport constructor:
+   - `motor_controller_new_socketcan(channel)` (general path)
+   - `motor_controller_new_dm_serial(serial_port, baud)` (Damiao-only serial bridge; unix-like systems)
 2. `motor_controller_add_<vendor>_motor`
 3. optional: `motor_controller_enable_all`
 4. optional: `motor_handle_ensure_mode`

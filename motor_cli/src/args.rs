@@ -122,7 +122,10 @@ MyActuator modes:\n\
   --mode scan | enable | disable | stop | set-zero | status | current | vel | pos | version | mode-query\n\n\
 \n\
 Common args:\n\
+  --transport   auto|socketcan|dm-serial (default auto; dm-serial is Damiao-only)\n\
   --channel      default can0\n\
+  --serial-port  default /dev/ttyACM0 (used when --transport dm-serial)\n\
+  --serial-baud  default 921600 (used when --transport dm-serial)\n\
   --model        default depends on vendor (damiao=4340, robstride=rs-00, hightorque=hightorque[hint only], myactuator=X8)\n\
   --motor-id     default 0x01\n\
   --feedback-id  default 0x11 for Damiao, 0xFF for RobStride, 0x01 for HighTorque, 0x241 for MyActuator\n\

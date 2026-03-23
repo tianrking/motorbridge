@@ -25,6 +25,15 @@ class Controller:
         if not self._ptr:
             raise CallError(f"new_socketcan failed: {_err_text()}")
 
+    @classmethod
+    def from_dm_serial(cls, serial_port: str = "/dev/ttyACM0", baud: int = 921600) -> "Controller":
+        self = cls.__new__(cls)
+        self._abi = get_abi()
+        self._ptr = self._abi.lib.motor_controller_new_dm_serial(serial_port.encode(), int(baud))
+        if not self._ptr:
+            raise CallError(f"new_dm_serial failed: {_err_text()}")
+        return self
+
     def close(self) -> None:
         if self._ptr:
             self._abi.lib.motor_controller_free(self._ptr)

@@ -1,5 +1,14 @@
 # Damiao API 与调参总表（完整版）
 
+<!-- channel-compat-note -->
+## 通道兼容说明（PCAN + slcan）
+
+- Linux 下直接使用 SocketCAN 网卡名：`can0`、`can1`、`slcan0`。
+- 串口类 USB-CAN 需先创建并拉起 `slcan0`：`sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`。
+- Linux 下 `--channel` 不要带 `@bitrate`（例如 `can0@1000000` 在 SocketCAN 无效）。
+- Windows（PCAN 后端）中，`can0/can1` 映射 `PCAN_USBBUS1/2`，可选 `@bitrate` 后缀。
+
+
 本页是 `motorbridge` 当前 Damiao 可调控制/配置参数的实用总表。
 
 > English version: [DAMIAO_API.md](DAMIAO_API.md)

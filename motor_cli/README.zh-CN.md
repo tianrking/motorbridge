@@ -42,6 +42,11 @@ motor_cli -h
 - 协议深度分析文档：`../docs/zh/hightorque_protocol_analysis.md`
 - 当前 `vendor=hightorque` 为 原生 ht_can v1.5.5 的“直连 CAN”模式，不是官方的“串口->CANboard”传输链路。
 
+## CAN 调试入口
+
+- Linux `slcan` + Windows `pcan` 专业排障：`../docs/zh/can_debugging.md`
+- English guide: `../docs/en/can_debugging.md`
+
 ## 1. 参数解析规则
 
 - 仅解析 `--key value` 形式。

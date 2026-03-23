@@ -42,6 +42,11 @@ motor_cli -h
 - Protocol analysis (Chinese): `../docs/zh/hightorque_protocol_analysis.md`
 - Current `vendor=hightorque` is a native ht_can v1.5.5 direct-CAN mode, not the official serial-CANboard transport.
 
+## CAN Debugging Entry
+
+- Professional Linux `slcan` + Windows `pcan` troubleshooting: `../docs/en/can_debugging.md`
+- 中文调试手册：`../docs/zh/can_debugging.md`
+
 ## 1. Argument Parsing Rules
 
 - Only `--key value` style options are parsed.

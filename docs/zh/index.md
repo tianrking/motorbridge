@@ -14,6 +14,7 @@ flowchart TD
   IDX --> EXT["extending.md"]
   IDX --> WIN["windows_distribution.md"]
   IDX --> TST["testing.md"]
+  IDX --> CANDBG["can_debugging.md"]
   IDX --> CAL["tools/motor_calib/README.zh-CN.md"]
   IDX --> INT["integrations/README.md"]
 ```
@@ -28,6 +29,7 @@ flowchart TD
 - 扩展开发：[extending.md](extending.md)
 - Windows 分发：[windows_distribution.md](windows_distribution.md)
 - 测试指南：[testing.md](testing.md)
+- CAN 调试（Linux `slcan` + Windows `pcan`）：[can_debugging.md](can_debugging.md)
 - 标定工具：[`tools/motor_calib/README.zh-CN.md`](../../tools/motor_calib/README.zh-CN.md)
 - 集成目录：[`integrations/README.md`](../../integrations/README.md)
 - WS 网关：[`integrations/ws_gateway/README.zh-CN.md`](../../integrations/ws_gateway/README.zh-CN.md)
@@ -50,4 +52,5 @@ flowchart TD
 5. [examples.md](examples.md)
 6. [extending.md](extending.md)
 7. [windows_distribution.md](windows_distribution.md)
-8. [testing.md](testing.md)
+8. [can_debugging.md](can_debugging.md)
+9. [testing.md](testing.md)

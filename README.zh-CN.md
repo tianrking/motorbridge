@@ -195,6 +195,13 @@ ip -details link show slcan0
 cargo run -p motor_cli --release -- --vendor damiao --channel slcan0 --mode scan --start-id 1 --end-id 255
 ```
 
+## CAN 专业调试手册
+
+如需系统化排查 Linux `slcan` 与 Windows `pcan`，请直接使用：
+
+- [`docs/zh/can_debugging.md`](docs/zh/can_debugging.md)
+- [`docs/en/can_debugging.md`](docs/en/can_debugging.md)
+
 结果解读：
 
 - `vendor=damiao id=<n>`：发现一个 Damiao 电机，电机 ID 为 `<n>`。

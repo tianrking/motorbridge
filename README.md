@@ -195,6 +195,13 @@ Then use `slcan0` as CLI channel:
 cargo run -p motor_cli --release -- --vendor damiao --channel slcan0 --mode scan --start-id 1 --end-id 255
 ```
 
+## CAN Debugging (Professional Playbook)
+
+For deterministic troubleshooting of Linux `slcan` and Windows `pcan`, use:
+
+- [`docs/en/can_debugging.md`](docs/en/can_debugging.md)
+- [`docs/zh/can_debugging.md`](docs/zh/can_debugging.md)
+
 Interpretation:
 
 - `vendor=damiao id=<n>` means one Damiao motor is online at motor ID `<n>`.

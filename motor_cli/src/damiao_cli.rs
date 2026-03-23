@@ -352,7 +352,7 @@ pub fn run_damiao(
                 motor.send_cmd_mit(
                     get_f32(args, "pos", 0.0)?,
                     get_f32(args, "vel", 0.0)?,
-                    get_f32(args, "kp", 30.0)?,
+                    get_f32(args, "kp", 2.0)?,
                     get_f32(args, "kd", 1.0)?,
                     get_f32(args, "tau", 0.0)?,
                 )?;

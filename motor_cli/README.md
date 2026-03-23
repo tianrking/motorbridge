@@ -118,7 +118,7 @@ motor_cli -h
 
 | Mode | Arguments | Defaults |
 |---|---|---|
-| `mit` | `--pos --vel --kp --kd --tau` | `0 0 30 1 0` |
+| `mit` | `--pos --vel --kp --kd --tau` | `0 0 2 1 0` |
 | `pos-vel` | `--pos --vlim` | `0 1.0` |
 | `vel` | `--vel` | `0` |
 | `force-pos` | `--pos --vlim --ratio` | `0 1.0 0.1` |
@@ -147,7 +147,7 @@ motor_cli \
   --vendor damiao --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 \
   --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode mit --verify-model 0 --ensure-mode 0 \
-  --pos 1.0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
+  --pos 1.0 --vel 0 --kp 2 --kd 1 --tau 0 --loop 80 --dt-ms 20
 
 # Position-velocity control
 motor_cli \

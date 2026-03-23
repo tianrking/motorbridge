@@ -102,10 +102,9 @@ Usage:\n\
   motor_cli --vendor robstride --mode ping --motor-id 127 --feedback-id 0xFF\n\n\
 Behavior:\n\
   no arguments: print this help (no motor command is sent)\n\n\
-Cargo form:\n\
-  cargo run -p motor_cli --release -- \\\n\
-    --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \\\n\
-    --mode mit --pos 0 --vel 0 --kp 30 --kd 1 --tau 0 --loop 200 --dt-ms 20\n\n\
+CLI form:\n\
+  motor_cli --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \\\n\
+    --mode mit --pos 0 --vel 0 --kp 2 --kd 1 --tau 0 --loop 200 --dt-ms 20\n\n\
 Vendors:\n\
   --vendor damiao    default\n\
   --vendor robstride\n\
@@ -163,11 +162,9 @@ All-vendor scan:\n\
   optional model hints: --damiao-model ... --robstride-model ... --hightorque-model(hint only) ... --myactuator-model ...\n\
 \n\
 Examples:\n\
-  cargo run -p motor_cli --release -- \\\n\
-    --vendor robstride --channel can0 --model rs-00 --motor-id 127 --mode ping\n\
+  motor_cli --vendor robstride --channel can0 --model rs-00 --motor-id 127 --mode ping\n\
 \n\
-  cargo run -p motor_cli --release -- \\\n\
-    --vendor robstride --channel can0 --model rs-00 --motor-id 127 \\\n\
+  motor_cli --vendor robstride --channel can0 --model rs-00 --motor-id 127 \\\n\
     --mode mit --pos 0.0 --vel 0.0 --kp 8 --kd 0.2 --tau 0 --loop 200 --dt-ms 20\n"
     );
 }

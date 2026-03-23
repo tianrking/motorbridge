@@ -54,6 +54,50 @@ motor_cli -h
 - ID 类参数支持十进制（如 `20`）与十六进制（如 `0x14`）。
 - 未被代码使用的参数即使传入，也不会生效。
 
+### 1.1 统一调用范式（CLI 大一统）
+
+所有品牌都遵循同一个调用骨架，只是 `vendor/model/mode` 与附加参数不同：
+
+```bash
+motor_cli \
+  --vendor <damiao|robstride|hightorque|myactuator|all> \
+  --transport <auto|socketcan|dm-serial> \
+  --channel <can0|slcan0|can0@1000000...> \
+  --model <model-name> \
+  --motor-id <id> --feedback-id <id> \
+  --mode <mode-name> \
+  [模式参数...] \
+  --loop <n> --dt-ms <ms>
+```
+
+说明：
+- `dm-serial` 仅 Damiao 可用；其他品牌统一走标准 CAN（SocketCAN/PCAN）。
+- `vendor=all` 当前仅用于统一扫描（`--mode scan`）。
+
+### 1.2 通用参数语义（先理解这些）
+
+| 参数 | 语义 |
+|---|---|
+| `--vendor` | 选择品牌驱动实现（统一入口下发到不同 vendor backend） |
+| `--transport` | 选择传输层（标准 CAN 或 Damiao 串口桥） |
+| `--channel` | CAN 通道名（Linux 为网卡名；Windows 可带 `@bitrate`） |
+| `--model` | 型号名称，用于该品牌下的限值/能力边界与编码映射 |
+| `--motor-id` | 目标电机 ID（发送命令目标） |
+| `--feedback-id` | 反馈帧 ID（接收状态来源） |
+| `--mode` | 控制/查询动作类型（不同品牌支持集合不同） |
+| `--loop` / `--dt-ms` | 循环发送次数 / 周期 |
+| `--ensure-mode` | 控制前是否自动切控制模式（Damiao 等支持） |
+
+### 1.3 各品牌参数变量怎么传（统一调用下的差异）
+
+| 品牌 | `--model` 传入 | `--motor-id` / `--feedback-id` 传入 | 常用 `--mode` |
+|---|---|---|---|
+| Damiao | 必传且建议按电机真实型号（混型场景不要写死一个 model） | `motor-id` 与 `feedback-id` 都需要按实际设备传入 | `scan`、`enable`、`disable`、`mit`（当前串口桥建议这四个） |
+| RobStride | 传 `rs-00/01...` 等 | `motor-id` 必传；`feedback-id` 常用 `0xFF` | `ping`、`scan`、`mit`、`vel`、`read-param`、`write-param` |
+| HighTorque | 传 `hightorque`（hint） | 按设备 ID 传入 | `read`、`mit`、`pos`、`vel`、`tqe`、`scan` 等 |
+| MyActuator | 传运行时型号字符串（默认 `X8`） | 标准 11-bit 规则（常用 `0x140+id` / `0x240+id`） | `status`、`scan`、`current`、`vel`、`pos`、`enable/disable` |
+| all | 分品牌 hint（`--damiao-model` 等） | 仅扫描场景使用 | `scan` |
+
 ## 2. 顶层通用参数（所有 vendor）
 
 | 参数 | 类型 | 默认值 | 说明 |
@@ -119,7 +163,7 @@ motor_cli -h
 
 | 模式 | 参数 | 默认值 |
 |---|---|---|
-| `mit` | `--pos --vel --kp --kd --tau` | `0 0 30 1 0` |
+| `mit` | `--pos --vel --kp --kd --tau` | `0 0 2 1 0` |
 | `pos-vel` | `--pos --vlim` | `0 1.0` |
 | `vel` | `--vel` | `0` |
 | `force-pos` | `--pos --vlim --ratio` | `0 1.0 0.1` |
@@ -148,7 +192,7 @@ motor_cli \
   --vendor damiao --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 \
   --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode mit --verify-model 0 --ensure-mode 0 \
-  --pos 1.0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
+  --pos 1.0 --vel 0 --kp 2 --kd 1 --tau 0 --loop 80 --dt-ms 20
 
 # 位置速度控制
 motor_cli \
@@ -181,7 +225,9 @@ DM_SERIAL="--vendor damiao --transport dm-serial --serial-port /dev/ttyACM1 --se
 | `--verify-model` | 建议按现场开关 | 若握手链路不稳定可先设 `0` 做联通验证 |
 | `--ensure-mode` | 建议按现场开关 | 若电机模式切换流程不稳定可先设 `0` |
 
-#### 3.6.2 串口桥下全模式命令模板
+> 当前串口桥场景对外推荐仅使用：`scan` / `enable` / `disable` / `mit`。
+
+#### 3.6.2 串口桥下常用四模式命令模板
 
 ```bash
 # 1) 扫描
@@ -196,35 +242,10 @@ motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 --mode disable --verify-
 # 4) MIT
 motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 \
   --mode mit --verify-model 0 --ensure-mode 0 \
-  --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
-
-# 5) POS_VEL
-motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 \
-  --mode pos-vel --verify-model 0 --ensure-mode 0 \
-  --pos 1.0 --vlim 2.0 --loop 80 --dt-ms 20
-
-# 6) VEL
-motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 \
-  --mode vel --verify-model 0 --ensure-mode 0 \
-  --vel 1.0 --loop 80 --dt-ms 20
-
-# 7) FORCE_POS
-motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 \
-  --mode force-pos --verify-model 0 --ensure-mode 0 \
-  --pos 1.0 --vlim 2.0 --ratio 0.1 --loop 80 --dt-ms 20
+  --pos 0.5 --vel 0 --kp 2 --kd 1 --tau 0 --loop 80 --dt-ms 20
 ```
 
-#### 3.6.3 串口桥下改 ID（含保存与校验）
-
-```bash
-# 把 0x01/0x11 改成 0x04/0x14
-motor_cli $DM_SERIAL \
-  --motor-id 0x01 --feedback-id 0x11 \
-  --set-motor-id 0x04 --set-feedback-id 0x14 \
-  --store 1 --verify-id 1 --verify-model 0
-```
-
-#### 3.6.4 推荐测试顺序
+#### 3.6.3 推荐测试顺序
 
 1. `scan` 先确认在线 ID。
 2. `enable --loop 1` 做最小动作验证。

@@ -7,6 +7,30 @@ Versioning.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-03-24
+
+### Added
+
+- New practical Damiao guide:
+  - `examples/damiao_controll_all_in_one.md`
+  - includes one-page command bundles for:
+    - CLI four core modes (`mit`, `pos-vel`, `vel`, `force-pos`)
+    - C/C++ ABI examples
+    - Python ctypes ABI examples
+    - Python bindings examples
+    - C++ bindings examples
+
+### Changed
+
+- Damiao CLI runtime output (`motor_cli/src/damiao_cli.rs`) now prints richer realtime fields:
+  - `id`, `arbitration_id`, `status_name`
+  - temperatures `t_mos`, `t_rotor`
+  - mode-aware command/target context and tracking errors
+    - MIT: `cmd_pos/cmd_vel/kp/kd/cmd_tau/e_pos/e_vel`
+    - POS_VEL: `cmd_pos/vlim/e_pos`
+    - VEL: `cmd_vel/e_vel`
+    - FORCE_POS: `cmd_pos/vlim/ratio/e_pos`
+
 ## [0.1.2] - 2026-03-23
 
 ### Changed

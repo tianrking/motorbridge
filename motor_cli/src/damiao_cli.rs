@@ -82,17 +82,7 @@ fn open_damiao_controller(
 ) -> Result<DamiaoController, Box<dyn std::error::Error>> {
     match transport {
         "auto" | "socketcan" => Ok(DamiaoController::new_socketcan(channel)?),
-        "dm-serial" => {
-            #[cfg(unix)]
-            {
-                Ok(DamiaoController::new_dm_serial(serial_port, serial_baud)?)
-            }
-            #[cfg(not(unix))]
-            {
-                let _ = (serial_port, serial_baud);
-                Err("dm-serial transport is only supported on unix-like systems".into())
-            }
-        }
+        "dm-serial" => Ok(DamiaoController::new_dm_serial(serial_port, serial_baud)?),
         _ => Err(format!(
             "unknown Damiao transport: {} (expected auto|socketcan|dm-serial)",
             transport
@@ -338,6 +328,15 @@ pub fn run_damiao(
         }
     }
 
+    let mit_pos = get_f32(args, "pos", 0.0)?;
+    let mit_vel = get_f32(args, "vel", 0.0)?;
+    let mit_kp = get_f32(args, "kp", 2.0)?;
+    let mit_kd = get_f32(args, "kd", 1.0)?;
+    let mit_tau = get_f32(args, "tau", 0.0)?;
+    let pos_target = get_f32(args, "pos", 0.0)?;
+    let vel_limit = get_f32(args, "vlim", 1.0)?;
+    let force_ratio = get_f32(args, "ratio", 0.1)?;
+
     for i in 0..loop_n {
         match mode.as_str() {
             "enable" => {
@@ -349,35 +348,68 @@ pub fn run_damiao(
                 let _ = motor.request_motor_feedback();
             }
             "mit" => {
-                motor.send_cmd_mit(
-                    get_f32(args, "pos", 0.0)?,
-                    get_f32(args, "vel", 0.0)?,
-                    get_f32(args, "kp", 2.0)?,
-                    get_f32(args, "kd", 1.0)?,
-                    get_f32(args, "tau", 0.0)?,
-                )?;
+                motor.send_cmd_mit(mit_pos, mit_vel, mit_kp, mit_kd, mit_tau)?;
             }
             "pos-vel" => {
-                motor.send_cmd_pos_vel(get_f32(args, "pos", 0.0)?, get_f32(args, "vlim", 1.0)?)?;
+                motor.send_cmd_pos_vel(pos_target, vel_limit)?;
             }
             "vel" => {
-                motor.send_cmd_vel(get_f32(args, "vel", 0.0)?)?;
+                motor.send_cmd_vel(mit_vel)?;
             }
             "force-pos" => {
-                motor.send_cmd_force_pos(
-                    get_f32(args, "pos", 0.0)?,
-                    get_f32(args, "vlim", 1.0)?,
-                    get_f32(args, "ratio", 0.1)?,
-                )?;
+                motor.send_cmd_force_pos(pos_target, vel_limit, force_ratio)?;
             }
             _ => return Err(format!("unknown Damiao mode: {mode}").into()),
         }
 
         if let Some(s) = motor.latest_state() {
-            println!(
-                "#{i} pos={:+.3} vel={:+.3} torq={:+.3} status={}",
-                s.pos, s.vel, s.torq, s.status_code
+            let base = format!(
+                "#{i} id={} arb=0x{:03X} pos={:+.3} vel={:+.3} torq={:+.3} status={}({}) t_mos={:.1}C t_rotor={:.1}C",
+                s.can_id, s.arbitration_id, s.pos, s.vel, s.torq, s.status_code, s.status_name, s.t_mos, s.t_rotor
             );
+            match mode.as_str() {
+                "mit" => {
+                    println!(
+                        "{} cmd_pos={:+.3} cmd_vel={:+.3} kp={:.3} kd={:.3} cmd_tau={:+.3} e_pos={:+.3} e_vel={:+.3}",
+                        base,
+                        mit_pos,
+                        mit_vel,
+                        mit_kp,
+                        mit_kd,
+                        mit_tau,
+                        mit_pos - s.pos,
+                        mit_vel - s.vel
+                    );
+                }
+                "pos-vel" => {
+                    println!(
+                        "{} cmd_pos={:+.3} vlim={:.3} e_pos={:+.3}",
+                        base,
+                        pos_target,
+                        vel_limit,
+                        pos_target - s.pos
+                    );
+                }
+                "vel" => {
+                    println!(
+                        "{} cmd_vel={:+.3} e_vel={:+.3}",
+                        base,
+                        mit_vel,
+                        mit_vel - s.vel
+                    );
+                }
+                "force-pos" => {
+                    println!(
+                        "{} cmd_pos={:+.3} vlim={:.3} ratio={:.3} e_pos={:+.3}",
+                        base,
+                        pos_target,
+                        vel_limit,
+                        force_ratio,
+                        pos_target - s.pos
+                    );
+                }
+                _ => println!("{base}"),
+            }
         }
         std::thread::sleep(Duration::from_millis(dt_ms));
     }

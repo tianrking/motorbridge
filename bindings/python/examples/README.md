@@ -18,6 +18,9 @@ Examples built on the Python SDK.
 ## Files
 
 - `python_wrapper_demo.py`: minimal Damiao MIT loop
+- `damiao_maintenance_demo.py`: Damiao maintenance flow (`clear_error` / `set_zero_position` / `set_can_timeout_ms` / `request_feedback`)
+- `damiao_register_rw_demo.py`: Damiao register read/write (`f32` + `u32` + optional `store_parameters`)
+- `damiao_dm_serial_demo.py`: Damiao serial-bridge transport demo (`Controller.from_dm_serial`)
 - `robstride_wrapper_demo.py`: RobStride ping / read-param / mit / vel demo
 - `full_modes_demo.py`: Damiao full-mode demo
 - `pid_register_tune_demo.py`: Damiao register tuning
@@ -33,6 +36,30 @@ Damiao:
 PYTHONPATH=bindings/python/src python3 bindings/python/examples/python_wrapper_demo.py \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 20 --dt-ms 20
+```
+
+Damiao maintenance:
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/damiao_maintenance_demo.py \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --can-timeout-ms 1000 --set-zero 0
+```
+
+Damiao register rw:
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/damiao_register_rw_demo.py \
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --read-f32-rid 21 --read-u32-rid 10 --store 0
+```
+
+Damiao dm-serial:
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/damiao_dm_serial_demo.py \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
+  --motor-id 0x01 --feedback-id 0x11 --mode mit --loop 40 --dt-ms 20
 ```
 
 RobStride:
@@ -55,3 +82,13 @@ Unified vendor scan via CLI:
 PYTHONPATH=bindings/python/src python3 -m motorbridge.cli scan \
   --vendor all --channel can0 --start-id 0x01 --end-id 0xFF
 ```
+
+## Damiao Coverage Note
+
+Damiao examples now cover the full high-level SDK usage surface:
+
+- Control modes: `mit` / `pos-vel` / `vel` / `force-pos`
+- Transport paths: `Controller(channel)` + `Controller.from_dm_serial(...)`
+- Maintenance ops: `clear_error`, `set_zero_position`, `set_can_timeout_ms`, `request_feedback`
+- Register APIs: `get/write f32`, `get/write u32`, `store_parameters`
+- Scan helper and tuning workflows

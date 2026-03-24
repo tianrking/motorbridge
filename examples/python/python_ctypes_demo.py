@@ -220,6 +220,9 @@ def main() -> None:
     parser.add_argument("--dt-ms", type=int, default=20)
     parser.add_argument("--ensure-mode", type=int, default=1, help="1/0")
     parser.add_argument("--ensure-timeout-ms", type=int, default=1000)
+    parser.add_argument("--verify-model", type=int, default=1, help="1/0 (accepted for CLI parity)")
+    parser.add_argument("--verify-timeout-ms", type=int, default=500, help="accepted for CLI parity")
+    parser.add_argument("--verify-tol", type=float, default=0.2, help="accepted for CLI parity")
     parser.add_argument(
         "--ensure-strict",
         type=int,
@@ -249,6 +252,11 @@ def main() -> None:
         f"vendor={args.vendor} transport={args.transport} channel={args.channel} model={args.model} "
         f"motor_id=0x{motor_id:X} feedback_id=0x{feedback_id:X} mode={args.mode}"
     )
+    if args.vendor == "damiao" and args.verify_model:
+        print(
+            "[note] --verify-model/--verify-timeout-ms/--verify-tol are accepted for CLI parity "
+            "in this ctypes demo; model verification is handled by motor_cli, not by this script."
+        )
 
     if args.transport == "dm-serial":
         if args.vendor != "damiao":

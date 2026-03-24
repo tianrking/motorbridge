@@ -87,7 +87,7 @@ RobStride extensions:
 
 1. Transport constructor:
    - `motor_controller_new_socketcan(channel)` (general path)
-   - `motor_controller_new_dm_serial(serial_port, baud)` (Damiao-only serial bridge; unix-like systems)
+   - `motor_controller_new_dm_serial(serial_port, baud)` (Damiao-only serial bridge; cross-platform, e.g. `/dev/ttyACM0` or `COM3`)
 2. `motor_controller_add_<vendor>_motor`
 3. optional: `motor_controller_enable_all`
 4. optional: `motor_handle_ensure_mode`

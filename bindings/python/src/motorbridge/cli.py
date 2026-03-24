@@ -31,6 +31,9 @@ def _add_common_args(p: argparse.ArgumentParser) -> None:
         choices=["damiao", "myactuator", "robstride", "hightorque"],
     )
     p.add_argument("--channel", default="can0")
+    p.add_argument("--transport", default="auto", choices=["auto", "socketcan", "dm-serial"])
+    p.add_argument("--serial-port", default="/dev/ttyACM0")
+    p.add_argument("--serial-baud", type=int, default=921600)
     p.add_argument("--model", default="4340")
     p.add_argument("--motor-id", default="0x01")
     p.add_argument("--feedback-id", default="0x11")
@@ -65,6 +68,17 @@ def _add_motor(ctrl: Controller, vendor: str, motor_id: int, feedback_id: int, m
     if vendor == "hightorque":
         return ctrl.add_hightorque_motor(motor_id, feedback_id, model)
     return ctrl.add_damiao_motor(motor_id, feedback_id, model)
+
+
+def _open_controller(args: argparse.Namespace, vendor: str) -> Controller:
+    transport = getattr(args, "transport", "auto")
+    if transport == "dm-serial":
+        if vendor != "damiao":
+            raise ValueError("transport=dm-serial is supported only for --vendor damiao")
+        return Controller.from_dm_serial(args.serial_port, int(args.serial_baud))
+    # Python SDK currently has a single standard-CAN constructor.
+    # Treat auto/socketcan the same as `motor_cli` socketcan path.
+    return Controller(args.channel)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -112,6 +126,9 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=["damiao", "myactuator", "robstride", "hightorque", "all"],
     )
     scan.add_argument("--channel", default="can0")
+    scan.add_argument("--transport", default="auto", choices=["auto", "socketcan", "dm-serial"])
+    scan.add_argument("--serial-port", default="/dev/ttyACM0")
+    scan.add_argument("--serial-baud", type=int, default=921600)
     scan.add_argument("--model", default="4340")
     scan.add_argument("--start-id", default="0x01")
     scan.add_argument("--end-id", default="0x10")
@@ -180,11 +197,11 @@ def _run_command(args: argparse.Namespace) -> None:
     motor_id = _parse_id(args.motor_id)
     feedback_id = _parse_id(args.feedback_id)
     print(
-        f"command=run vendor={args.vendor} channel={args.channel} model={args.model} "
-        f"motor_id=0x{motor_id:X} feedback_id=0x{feedback_id:X} mode={args.mode}"
+        f"command=run vendor={args.vendor} transport={args.transport} channel={args.channel} "
+        f"model={args.model} motor_id=0x{motor_id:X} feedback_id=0x{feedback_id:X} mode={args.mode}"
     )
 
-    with Controller(args.channel) as ctrl:
+    with _open_controller(args, args.vendor) as ctrl:
         motor = _add_motor(ctrl, args.vendor, motor_id, feedback_id, args.model)
         try:
             if args.mode not in ("enable", "disable", "ping"):
@@ -231,6 +248,15 @@ def _run_command(args: argparse.Namespace) -> None:
                         raise ValueError(f"{args.vendor} does not support force-pos command")
                     motor.send_force_pos(args.pos, args.vlim, args.ratio)
 
+                # Keep feedback state fresh during active control loops.
+                if args.vendor == "damiao" and args.mode in ("mit", "pos-vel", "vel", "force-pos"):
+                    motor.request_feedback()
+                    try:
+                        ctrl.poll_feedback_once()
+                    except Exception:
+                        # Best-effort polling; command loop should keep running.
+                        pass
+
                 if args.print_state:
                     st = motor.get_state()
                     if st is None:
@@ -253,10 +279,10 @@ def _id_dump_command(args: argparse.Namespace) -> None:
     feedback_id = _parse_id(args.feedback_id)
     rids = _parse_rids(args.rids)
     print(
-        f"command=id-dump channel={args.channel} model={args.model} "
+        f"command=id-dump transport={args.transport} channel={args.channel} model={args.model} "
         f"motor_id=0x{motor_id:X} feedback_id=0x{feedback_id:X}"
     )
-    ctrl = Controller(args.channel)
+    ctrl = _open_controller(args, args.vendor)
     motor = ctrl.add_damiao_motor(motor_id, feedback_id, args.model)
     try:
         for rid in rids:
@@ -284,12 +310,12 @@ def _id_set_command(args: argparse.Namespace) -> None:
     new_motor_id = _parse_id(args.new_motor_id) if args.new_motor_id else motor_id
     new_feedback_id = _parse_id(args.new_feedback_id) if args.new_feedback_id else feedback_id
     print(
-        f"command=id-set channel={args.channel} model={args.model} "
+        f"command=id-set transport={args.transport} channel={args.channel} model={args.model} "
         f"old_motor_id=0x{motor_id:X} old_feedback_id=0x{feedback_id:X} "
         f"new_motor_id=0x{new_motor_id:X} new_feedback_id=0x{new_feedback_id:X}"
     )
 
-    ctrl = Controller(args.channel)
+    ctrl = _open_controller(args, args.vendor)
     motor = ctrl.add_damiao_motor(motor_id, feedback_id, args.model)
     try:
         if new_feedback_id != feedback_id:
@@ -309,7 +335,7 @@ def _id_set_command(args: argparse.Namespace) -> None:
     if not args.verify:
         return
 
-    verify_ctrl = Controller(args.channel)
+    verify_ctrl = _open_controller(args, args.vendor)
     verify_motor = verify_ctrl.add_damiao_motor(new_motor_id, new_feedback_id, args.model)
     try:
         esc = verify_motor.get_register_u32(8, args.timeout_ms)
@@ -337,7 +363,7 @@ def _scan_damiao(args: argparse.Namespace, start_id: int, end_id: int) -> list[t
     )
     for mid in range(start_id, end_id + 1):
         fid = feedback_base + (mid & 0x0F)
-        ctrl = Controller(args.channel)
+        ctrl = _open_controller(args, "damiao")
         try:
             motor = ctrl.add_damiao_motor(mid, fid, args.model)
             try:
@@ -474,10 +500,12 @@ def _scan_command(args: argparse.Namespace) -> None:
     end_id = _parse_id(args.end_id)
     if end_id < start_id:
         raise ValueError("end-id must be >= start-id")
+    if args.transport == "dm-serial" and args.vendor != "damiao":
+        raise ValueError("scan with transport=dm-serial currently supports --vendor damiao only")
     resolved_model, _ = _vendor_defaults(args.vendor if args.vendor != "all" else "damiao", args.model, "0x11")
     args.model = resolved_model
     print(
-        f"command=scan vendor={args.vendor} channel={args.channel} model={args.model} "
+        f"command=scan vendor={args.vendor} transport={args.transport} channel={args.channel} model={args.model} "
         f"id_range=[0x{start_id:X},0x{end_id:X}] timeout_ms={args.timeout_ms}"
     )
 

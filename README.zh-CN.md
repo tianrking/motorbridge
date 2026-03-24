@@ -236,7 +236,7 @@ cargo run -p motor_cli --release -- --vendor damiao \
 
 - C ABI:
   - `motor_controller_new_socketcan(channel)`
-  - `motor_controller_new_dm_serial(serial_port, baud)`（仅 Damiao；unix-like 系统）
+  - `motor_controller_new_dm_serial(serial_port, baud)`（仅 Damiao 串口桥；跨平台，可用 `/dev/ttyACM0` 或 `COM3`）
   - Damiao: `motor_controller_add_damiao_motor(...)`
   - RobStride: `motor_controller_add_robstride_motor(...)`
   - MyActuator: `motor_controller_add_myactuator_motor(...)`

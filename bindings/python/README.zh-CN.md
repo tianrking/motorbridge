@@ -159,6 +159,9 @@ python -m pip install bindings/python/dist/motorbridge-*.whl
 ## 示例程序
 
 - Damiao wrapper 示例: `examples/python_wrapper_demo.py`
+- Damiao 维护接口示例: `examples/damiao_maintenance_demo.py`
+- Damiao 寄存器读写示例: `examples/damiao_register_rw_demo.py`
+- Damiao 串口桥链路示例: `examples/damiao_dm_serial_demo.py`
 - RobStride wrapper 示例: `examples/robstride_wrapper_demo.py`
 - Damiao 全模式示例: `examples/full_modes_demo.py`
 - Damiao 扫描 / 调参 / 位置辅助:
@@ -168,6 +171,15 @@ python -m pip install bindings/python/dist/motorbridge-*.whl
   - `examples/pos_repl_demo.py`
 
 详细见 [examples/README.md](examples/README.md)。
+
+## Damiao 全覆盖状态
+
+Python 示例中 Damiao 用法已覆盖到位：
+
+- 控制模式：`mit` / `pos-vel` / `vel` / `force-pos`
+- 传输链路：`Controller(channel)` 与 `Controller.from_dm_serial(...)`
+- 维护接口：`clear_error`、`set_zero_position`、`set_can_timeout_ms`、`request_feedback`
+- 寄存器接口：`get/write f32`、`get/write u32`、`store_parameters`
 
 ## 端到端示例命令
 

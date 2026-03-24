@@ -229,25 +229,16 @@ pub extern "C" fn motor_controller_new_dm_serial(
             return ptr::null_mut();
         }
     };
-    #[cfg(unix)]
-    {
-        let controller = match DamiaoController::new_dm_serial(&serial_port, baud) {
-            Ok(c) => c,
-            Err(e) => {
-                set_last_error(e.to_string());
-                return ptr::null_mut();
-            }
-        };
-        return Box::into_raw(Box::new(MotorController {
-            inner: ControllerInner::Damiao(controller),
-        }));
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = (serial_port, baud);
-        set_last_error("motor_controller_new_dm_serial is only supported on unix-like systems");
-        ptr::null_mut()
-    }
+    let controller = match DamiaoController::new_dm_serial(&serial_port, baud) {
+        Ok(c) => c,
+        Err(e) => {
+            set_last_error(e.to_string());
+            return ptr::null_mut();
+        }
+    };
+    Box::into_raw(Box::new(MotorController {
+        inner: ControllerInner::Damiao(controller),
+    }))
 }
 
 #[unsafe(no_mangle)]

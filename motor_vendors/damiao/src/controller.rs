@@ -1,9 +1,8 @@
 use crate::motor::DamiaoMotor;
 use motor_core::bus::CanBus;
 use motor_core::controller::CoreController;
-use motor_core::error::{MotorError, Result};
-#[cfg(unix)]
 use motor_core::dm_serial::DmSerialBus;
+use motor_core::error::{MotorError, Result};
 #[cfg(target_os = "windows")]
 use motor_core::pcan::PcanBus;
 #[cfg(target_os = "linux")]
@@ -44,7 +43,6 @@ impl DamiaoController {
         }
     }
 
-    #[cfg(unix)]
     pub fn new_dm_serial(port: &str, baud: u32) -> Result<Self> {
         let bus: Arc<dyn CanBus> = Arc::new(DmSerialBus::open(port, baud)?);
         Ok(Self::new(bus))

@@ -9,7 +9,7 @@ license.workspace = true
 name = "motor_core"
 path = "src/lib.rs"
 
-[target.'cfg(unix)'.dependencies]
+[dependencies]
 serialport = { version = "4.6", default-features = false }
 
 [target.'cfg(target_os = "windows")'.dependencies]

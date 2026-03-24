@@ -73,7 +73,7 @@ cargo run -p motor_cli --release -- --vendor damiao \
 
 说明：
 - `can0` 映射 `PCAN_USBBUS1`，`can1` 映射 `PCAN_USBBUS2`。
-- Windows 当前不提供 `dm-serial` 支持路径。
+- Windows 也可使用 Damiao 串口桥（`dm-serial`），串口名常见为 `COM3`、`COM4` 等。
 
 ## 6. 多厂商统一控制建议
 

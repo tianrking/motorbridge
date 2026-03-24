@@ -159,6 +159,9 @@ python -m pip install bindings/python/dist/motorbridge-*.whl
 ## Example Programs
 
 - Damiao wrapper demo: `examples/python_wrapper_demo.py`
+- Damiao maintenance demo: `examples/damiao_maintenance_demo.py`
+- Damiao register rw demo: `examples/damiao_register_rw_demo.py`
+- Damiao dm-serial demo: `examples/damiao_dm_serial_demo.py`
 - RobStride wrapper demo: `examples/robstride_wrapper_demo.py`
 - Full Damiao mode demo: `examples/full_modes_demo.py`
 - Damiao scan / tune / position helpers:
@@ -168,6 +171,15 @@ python -m pip install bindings/python/dist/motorbridge-*.whl
   - `examples/pos_repl_demo.py`
 
 See [examples/README.md](examples/README.md).
+
+## Damiao Full-Coverage Status
+
+Damiao usage in Python examples is now covered end-to-end:
+
+- control modes: `mit` / `pos-vel` / `vel` / `force-pos`
+- transport paths: SocketCAN/PCAN constructor + `from_dm_serial(...)`
+- maintenance ops: `clear_error`, `set_zero_position`, `set_can_timeout_ms`, `request_feedback`
+- register APIs: `get/write f32`, `get/write u32`, `store_parameters`
 
 ## End-to-End Demo Commands
 

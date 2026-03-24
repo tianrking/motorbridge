@@ -232,7 +232,7 @@ Interpretation:
 
 - C ABI:
   - `motor_controller_new_socketcan(channel)`
-  - `motor_controller_new_dm_serial(serial_port, baud)` (Damiao-only; unix-like systems)
+  - `motor_controller_new_dm_serial(serial_port, baud)` (Damiao-only serial bridge; cross-platform, e.g. `/dev/ttyACM0` or `COM3`)
   - Damiao: `motor_controller_add_damiao_motor(...)`
   - RobStride: `motor_controller_add_robstride_motor(...)`
   - MyActuator: `motor_controller_add_myactuator_motor(...)`

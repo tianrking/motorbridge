@@ -87,7 +87,7 @@ RobStride 扩展接口：
 
 1. 选择传输层构造器：
    - `motor_controller_new_socketcan(channel)`（通用路径）
-   - `motor_controller_new_dm_serial(serial_port, baud)`（仅 Damiao 串口桥；unix-like 系统）
+   - `motor_controller_new_dm_serial(serial_port, baud)`（仅 Damiao 串口桥；跨平台，可用 `/dev/ttyACM0` 或 `COM3`）
 2. `motor_controller_add_<vendor>_motor`
 3. 可选：`motor_controller_enable_all`
 4. 可选：`motor_handle_ensure_mode`

@@ -1,11 +1,5 @@
 # Damiao Control All In One
 
-工作目录：
-
-```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm
-```
-
 ---
 
 ## A) CLI 部分（4个例子）
@@ -38,6 +32,14 @@ cargo run -p motor_cli --release -- \
   --motor-id 0x01 --feedback-id 0x11 \
   --mode force-pos --pos -2.0 --vlim 1.0 --ratio 0.2 \
   --loop 300 --dt-ms 10
+```
+
+CLI 对应扫描命令（总线电机 ID 扫描）：
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor damiao --transport socketcan --channel can0 --model 4310 \
+  --mode scan --start-id 1 --end-id 16
 ```
 
 ### A.1 参数含义 / 单位 / 常用范围（Damiao）
@@ -107,6 +109,13 @@ g++ -O2 examples/cpp/cpp_abi_demo.cpp -I motor_abi/include -L target/release -lm
   --mode force-pos --pos -2.0 --vlim 1.0 --ratio 0.2 --loop 100 --dt-ms 10
 ```
 
+ABI（C/C++）对应扫描命令（使用 C++ 扫描示例）：
+
+```bash
+./bindings/cpp/build/scan_ids_demo \
+  --channel can0 --model 4310 --start-id 1 --end-id 16
+```
+
 ---
 
 ## C) ABI Python(ctypes) 部分（4个例子）
@@ -139,6 +148,14 @@ python3 examples/python/python_ctypes_demo.py \
   --mode force-pos --pos -2.0 --vlim 1.0 --ratio 0.2 --loop 100 --dt-ms 10
 ```
 
+ABI Python(ctypes) 对应扫描命令（当前 ctypes demo 无 scan 子命令，配套用 Python 扫描示例）：
+
+```bash
+export PYTHONPATH=bindings/python/src
+python3 bindings/python/examples/scan_ids_demo.py \
+  --channel can0 --model 4310 --start-id 1 --end-id 16
+```
+
 ---
 
 ## D) bindings/python 部分（4个例子）
@@ -167,6 +184,13 @@ python3 bindings/python/examples/full_modes_demo.py \
 python3 bindings/python/examples/full_modes_demo.py \
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode force-pos --pos -2.0 --vlim 1.0 --ratio 0.2 --loop 300 --dt-ms 10
+```
+
+bindings/python 对应扫描命令：
+
+```bash
+python3 bindings/python/examples/scan_ids_demo.py \
+  --channel can0 --model 4310 --start-id 1 --end-id 16
 ```
 
 ---
@@ -203,6 +227,13 @@ export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
   --channel can0 --model 4340P --start-id 1 --end-id 16
 ```
 
+bindings/cpp 对应扫描命令：
+
+```bash
+./bindings/cpp/build/scan_ids_demo \
+  --channel can0 --model 4310 --start-id 1 --end-id 16
+```
+
 ---
 
 ## F) 通用停机命令
@@ -212,3 +243,72 @@ cargo run -p motor_cli --release -- \
   --vendor damiao --transport socketcan --channel can0 --model 4340P \
   --motor-id 0x01 --feedback-id 0x11 --mode disable
 ```
+
+---
+
+## G) 扫描功能（4种方式）
+
+### G.1 方式1：Rust CLI 扫描（推荐，信息最全）
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor damiao --transport socketcan --channel can0 --model 4310 \
+  --mode scan --start-id 1 --end-id 16
+```
+
+典型上报字段：
+
+- `id`
+- `feedback_id`
+- `model_guess`
+- `limits=(pmax,vmax,tmax)`
+
+### G.2 方式2：Python binding 扫描脚本（scan_ids_demo）
+
+```bash
+export PYTHONPATH=bindings/python/src
+python3 bindings/python/examples/scan_ids_demo.py \
+  --channel can0 --model 4310 --start-id 1 --end-id 16
+```
+
+典型上报字段：
+
+- `motor-id`
+- `feedback-id`
+- 命中/未命中结果
+
+### G.3 方式3：C++ binding 扫描脚本（scan_ids_demo）
+
+```bash
+./bindings/cpp/build/scan_ids_demo \
+  --channel can0 --model 4310 --start-id 1 --end-id 16
+```
+
+典型上报字段：
+
+- `motor-id`
+- `feedback-id`
+- 命中/未命中结果
+
+### G.4 方式4：Python SDK CLI 扫描（motorbridge-cli）
+
+```bash
+export PYTHONPATH=bindings/python/src
+python3 -m motorbridge.cli scan \
+  --vendor damiao --channel can0 --start-id 0x01 --end-id 0x10
+```
+
+典型上报字段：
+
+- `vendor`
+- `id`
+- 命中数量统计
+
+### G.5 扫描信息对齐说明
+
+1. 你要的“总线电机是否存在、ID 是多少”，4 种方式都能查。  
+2. `feedback_id`：CLI / Python scan_ids_demo / C++ scan_ids_demo 可直接看到。  
+3. `model_guess` 与 `limits`：以 Rust `motor_cli --mode scan` 的输出最完整，其他扫描方式通常不做完整型号猜测与极限打印。  
+4. 如果要做“发现 + 精确识别 + 控制参数选型”，建议流程：
+   - 先用 `G.1` 扫描
+   - 再用 A/B/C/D/E 的四模式命令做控制验证

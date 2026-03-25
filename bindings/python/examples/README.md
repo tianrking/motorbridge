@@ -26,6 +26,7 @@ Examples built on the Python SDK.
 - `pid_register_tune_demo.py`: Damiao register tuning
 - `scan_ids_demo.py`: Damiao fast scan (legacy helper)
 - `pos_ctrl_demo.py`: Damiao one-shot target position
+- `multi_motor_ctrl_demo.py`: Damiao multi-motor control with `-id` / `-pos` one-to-one mapping
 - `pos_repl_demo.py`: Damiao interactive position console
 
 ## Quick Run
@@ -81,6 +82,14 @@ Unified vendor scan via CLI:
 ```bash
 PYTHONPATH=bindings/python/src python3 -m motorbridge.cli scan \
   --vendor all --channel can0 --start-id 0x01 --end-id 0xFF
+```
+
+Multi-motor `pos-vel` (example: motor `4` and `7`, positions mapped by order):
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/multi_motor_ctrl_demo.py \
+  --channel can0 --model 4310 --mode pos-vel \
+  -id 4 7 -pos 0.8 -0.6 -vlim 1.2 1.2 --loop 200 --dt-ms 20
 ```
 
 ## Damiao Coverage Note

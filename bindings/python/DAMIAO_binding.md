@@ -112,6 +112,7 @@ export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
 - `full_modes_demo.py`：四模式统一入口
 - `scan_ids_demo.py`：Damiao 扫描
 - `pos_ctrl_demo.py`：单次位置目标
+- `multi_motor_ctrl_demo.py`：多电机控制（`-id/-pos` 一一对应）+ SDK 每步耗时日志
 - `pos_repl_demo.py`：交互式位置控制
 - `pid_register_tune_demo.py`：寄存器调参
 - `damiao_maintenance_demo.py`：维护接口（清错、置零、超时、反馈）
@@ -177,6 +178,22 @@ PYTHONPATH=bindings/python/src python3 bindings/python/examples/damiao_dm_serial
   --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
   --motor-id 0x01 --feedback-id 0x11 --mode mit --loop 40 --dt-ms 20
 ```
+
+### 6.7 多电机位置控制 + 每步 SDK 计时（4号与7号示例）
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/multi_motor_ctrl_demo.py \
+  --channel can0 --model 4310 --mode pos-vel \
+  -id 4 7 -pos 0.8 -0.6 -vlim 1.2 1.2 \
+  --loop 50 --dt-ms 20 --trace-sdk 1 --timing-log 1 --timing-every 5
+```
+
+说明：
+
+- `-id` 后可传多个电机 ID（空格或逗号都可）。
+- `-pos` 与 `-id` 顺序一一对应。
+- `--trace-sdk 1`：打印每次 SDK 调用耗时（`add/enable/ensure/send/get_state/close`）。
+- `--timing-log 1`：打印汇总统计（平均、最小、最大、总耗时）。
 
 ## 7) 结束动作（务必执行）
 

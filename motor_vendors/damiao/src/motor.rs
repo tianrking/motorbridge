@@ -13,6 +13,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+const REGISTER_POLL_INTERVAL_MS: u64 = 2;
+
 const DAMIAO_MODELS: &[MotorModelSpec] = &[
     MotorModelSpec {
         vendor: "damiao",
@@ -395,7 +397,7 @@ impl DamiaoMotor {
                     timeout
                 )));
             }
-            std::thread::sleep(Duration::from_millis(10));
+            std::thread::sleep(Duration::from_millis(REGISTER_POLL_INTERVAL_MS));
         }
     }
 
@@ -423,7 +425,7 @@ impl DamiaoMotor {
                     timeout
                 )));
             }
-            std::thread::sleep(Duration::from_millis(10));
+            std::thread::sleep(Duration::from_millis(REGISTER_POLL_INTERVAL_MS));
         }
     }
 

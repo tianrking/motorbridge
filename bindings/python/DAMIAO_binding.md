@@ -119,6 +119,8 @@ export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
 - `damiao_maintenance_demo.py`：维护接口（清错、置零、超时、反馈）
 - `damiao_register_rw_demo.py`：寄存器 f32/u32 读写 + 存参
 - `damiao_dm_serial_demo.py`：Damiao 串口桥传输链路
+- `dm_serial_mode_switch_200_demo.py`：`dm-serial` 连续切换四模式（每模式可设循环次数，默认 200）
+- `dm_serial_status_like_cli_demo.py`：`dm-serial` 查询当前模式 + 关键寄存器 + 实时状态（类 CLI 输出）
 
 ## 6) 按顺序实操命令（推荐）
 
@@ -210,6 +212,23 @@ PYTHONPATH=bindings/python/src python3 bindings/python/examples/mit_pos_switch_d
 
 - `--mit-hold-loops 0` 表示仅验证 MIT 切换，不发 MIT 控制循环。
 - `--pos-hold-loops 50` 表示在 POS_VEL 下执行 50 个循环。
+
+### 6.9 `dm-serial` 专用：四模式切换证明 + 状态查询
+
+```bash
+# A) 四模式切换（MIT -> POS_VEL -> VEL -> FORCE_POS；每模式 200 次）
+PYTHONPATH=bindings/python/src LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH} \
+python3 bindings/python/examples/dm_serial_mode_switch_200_demo.py \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
+  --motor-id 0x07 --feedback-id 0x17 --ensure-timeout-ms 300 \
+  --loop-per-mode 200 --dt-ms 20
+
+# B) 状态查询（当前模式 + CTRL_MODE/ID/TIMEOUT/PMAX/VMAX/TMAX + pos/vel/torq/status）
+PYTHONPATH=bindings/python/src LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH} \
+python3 bindings/python/examples/dm_serial_status_like_cli_demo.py \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
+  --motor-id 0x07 --feedback-id 0x17 --timeout-ms 300 --loop 50 --dt-ms 100
+```
 
 ## 7) 结束动作（务必执行）
 

@@ -42,6 +42,161 @@ cargo run -p motor_cli --release -- \
   --mode scan --start-id 1 --end-id 16
 ```
 
+CLI 对应扫描命令（Damiao 串口桥 `dm-serial`）：
+
+```bash
+# 1) 先确认串口设备（常见 /dev/ttyACM0）
+ls /dev/ttyACM* /dev/ttyUSB* 2>/dev/null
+
+# 2) 建议先固定变量，避免参数错位
+export SER=/dev/ttyACM0
+export BAUD=921600
+export MODEL=4310
+echo "SER=$SER BAUD=$BAUD MODEL=$MODEL"
+
+# 3) dm-serial 扫描
+cargo run -p motor_cli --release -- \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --mode scan --start-id 1 --end-id 16
+```
+
+说明：
+
+- `dm-serial` 仅支持 `--vendor damiao`。
+- 如果出现 `open serial port 1 failed`，通常是 `SER/BAUD/MODEL` 变量未生效导致参数错位。
+
+CLI 串口桥推荐顺序（先扫描，再四模式，最后失能）：
+
+```bash
+# 建议先设置（按你的设备改）
+export SER=/dev/ttyACM0
+export BAUD=921600
+export MODEL=4310
+export MID=0x07
+export FID=0x17
+
+# 0) scan（先确认在线 ID）
+cargo run -p motor_cli --release -- \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --mode scan --start-id 1 --end-id 16
+
+# 1) enable（建议先做最小动作）
+cargo run -p motor_cli --release -- \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode enable --verify-model 0 --loop 1
+
+# 2) MIT（当前串口桥最稳定）
+cargo run -p motor_cli --release -- \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode mit --verify-model 0 --ensure-mode 1 \
+  --pos -0.5 --vel 0 --kp 8 --kd 0.2 --tau 0 --loop 20 --dt-ms 20
+
+# 3) POS_VEL（可尝试）
+cargo run -p motor_cli --release -- \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode pos-vel --verify-model 0 --ensure-mode 1 \
+  --pos 0.3 --vlim 0.8 --loop 10 --dt-ms 20
+
+# 4) VEL（可尝试）
+cargo run -p motor_cli --release -- \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode vel --verify-model 0 --ensure-mode 1 \
+  --vel 0.5 --loop 10 --dt-ms 20
+
+# 5) FORCE_POS（可尝试）
+cargo run -p motor_cli --release -- \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode force-pos --verify-model 0 --ensure-mode 1 \
+  --pos 0.3 --vlim 0.8 --ratio 0.2 --loop 10 --dt-ms 20
+
+# 6) disable（结束建议执行）
+cargo run -p motor_cli --release -- \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode disable --verify-model 0 --loop 1
+```
+
+说明：
+
+- `dm-serial` 场景当前更稳妥的是 `scan/enable/mit/disable`。
+- 若 `pos-vel/vel/force-pos` 仍不稳定，建议改走 `socketcan`（`can0`）执行这三种模式。
+
+Python binding 串口桥推荐顺序（与上面 CLI 并列）：
+
+```bash
+# 先准备 Python 环境（在 rust_dm 目录）
+export PYTHONPATH=bindings/python/src
+export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
+
+# 建议先设置（按你的设备改）
+export SER=/dev/ttyACM0
+export BAUD=921600
+export MODEL=4310
+export MID=0x07
+export FID=0x17
+
+# 0) scan
+python3 -m motorbridge.cli scan \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --start-id 0x01 --end-id 0x10
+
+# 1) MIT（当前串口桥最稳定）
+python3 -m motorbridge.cli run \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode mit --ensure-mode 1 --ensure-timeout-ms 300 \
+  --pos 0 --vel 0 --kp 8 --kd 0.2 --tau 0 --loop 40 --dt-ms 20
+
+# 2) POS_VEL（可尝试）
+python3 -m motorbridge.cli run \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode pos-vel --ensure-mode 1 --ensure-timeout-ms 300 \
+  --pos 0.3 --vlim 0.8 --loop 10 --dt-ms 20
+
+# 3) VEL（可尝试）
+python3 -m motorbridge.cli run \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode vel --ensure-mode 1 --ensure-timeout-ms 300 \
+  --vel 0.5 --loop 10 --dt-ms 20
+
+# 4) FORCE_POS（可尝试）
+python3 -m motorbridge.cli run \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode force-pos --ensure-mode 1 --ensure-timeout-ms 300 \
+  --pos 0.3 --vlim 0.8 --ratio 0.2 --loop 10 --dt-ms 20
+
+# 5) disable（结束建议执行）
+python3 -m motorbridge.cli run \
+  --vendor damiao --transport dm-serial --serial-port "$SER" --serial-baud "$BAUD" \
+  --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode disable --loop 1
+```
+
+说明：`dm-serial` 场景希望更快返回时，`--ensure-timeout-ms` 建议先用 `300`，按现场再调到 `200~500`。
+
+Python `dm-serial` 现成示例脚本（可直接运行）：
+
+```bash
+# 四模式切换证明（每模式默认 200 次）
+python3 bindings/python/examples/dm_serial_mode_switch_200_demo.py \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
+  --motor-id 0x07 --feedback-id 0x17 --ensure-timeout-ms 300 \
+  --loop-per-mode 200 --dt-ms 20
+
+# 类 CLI 状态查询（当前模式 + 关键寄存器 + 反馈状态）
+python3 bindings/python/examples/dm_serial_status_like_cli_demo.py \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
+  --motor-id 0x07 --feedback-id 0x17 --timeout-ms 300 --loop 50 --dt-ms 100
+```
+
 ### A.1 参数含义 / 单位 / 常用范围（Damiao）
 
 | 参数 | 含义 | 单位 | 常用范围（4340P/4310 调试） | 备注 |

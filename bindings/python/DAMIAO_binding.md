@@ -113,6 +113,7 @@ export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
 - `scan_ids_demo.py`：Damiao 扫描
 - `pos_ctrl_demo.py`：单次位置目标
 - `multi_motor_ctrl_demo.py`：多电机控制（`-id/-pos` 一一对应）+ SDK 每步耗时日志
+- `mit_pos_switch_demo.py`：多电机模式切换测试（MIT -> POS_VEL）
 - `pos_repl_demo.py`：交互式位置控制
 - `pid_register_tune_demo.py`：寄存器调参
 - `damiao_maintenance_demo.py`：维护接口（清错、置零、超时、反馈）
@@ -194,6 +195,21 @@ PYTHONPATH=bindings/python/src python3 bindings/python/examples/multi_motor_ctrl
 - `-pos` 与 `-id` 顺序一一对应。
 - `--trace-sdk 1`：打印每次 SDK 调用耗时（`add/enable/ensure/send/get_state/close`）。
 - `--timing-log 1`：打印汇总统计（平均、最小、最大、总耗时）。
+
+### 6.8 模式切换测试（MIT 与 POS_VEL，4号与7号示例）
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/mit_pos_switch_demo.py \
+  --channel can0 --model 4310 -id 4 7 \
+  --trajectory -3 \
+  --mit-hold-loops 0 --pos-hold-loops 50 \
+  --dt-ms 20 --print-state 1
+```
+
+说明：
+
+- `--mit-hold-loops 0` 表示仅验证 MIT 切换，不发 MIT 控制循环。
+- `--pos-hold-loops 50` 表示在 POS_VEL 下执行 50 个循环。
 
 ## 7) 结束动作（务必执行）
 

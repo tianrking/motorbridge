@@ -27,6 +27,7 @@ Examples built on the Python SDK.
 - `scan_ids_demo.py`: Damiao fast scan (legacy helper)
 - `pos_ctrl_demo.py`: Damiao one-shot target position
 - `multi_motor_ctrl_demo.py`: Damiao multi-motor control with `-id` / `-pos` one-to-one mapping
+- `mit_pos_switch_demo.py`: two-phase mode switch demo (MIT then POS_VEL) for multi-motor targets
 - `pos_repl_demo.py`: Damiao interactive position console
 
 ## Quick Run
@@ -90,6 +91,16 @@ Multi-motor `pos-vel` (example: motor `4` and `7`, positions mapped by order):
 PYTHONPATH=bindings/python/src python3 bindings/python/examples/multi_motor_ctrl_demo.py \
   --channel can0 --model 4310 --mode pos-vel \
   -id 4 7 -pos 0.8 -0.6 -vlim 1.2 1.2 --loop 200 --dt-ms 20
+```
+
+MIT/POS_VEL switch demo (POS_VEL-only run for motor `4` and `7`, target `-3`):
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/mit_pos_switch_demo.py \
+  --channel can0 --model 4310 -id 4 7 \
+  --trajectory -3 \
+  --mit-hold-loops 0 --pos-hold-loops 50 \
+  --dt-ms 20 --print-state 1
 ```
 
 ## Damiao Coverage Note

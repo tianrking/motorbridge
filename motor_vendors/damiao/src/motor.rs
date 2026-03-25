@@ -374,22 +374,33 @@ impl DamiaoMotor {
     }
 
     pub fn get_register_u32(&self, rid: u8, timeout: Duration) -> Result<u32> {
+        let request_at = Instant::now();
         self.request_register_reading(rid)?;
         let deadline = Instant::now() + timeout;
         loop {
-            if let Some(value) = self
-                .registers
+            let has_fresh_reply = self
+                .register_reply_time
                 .lock()
-                .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
+                .map_err(|_| MotorError::Io("reply time lock poisoned".to_string()))?
                 .get(&rid)
                 .copied()
-            {
-                return match value {
-                    RegisterValue::UInt32(v) => Ok(v),
-                    RegisterValue::Float(_) => Err(MotorError::Protocol(format!(
-                        "register {rid} holds float, not u32"
-                    ))),
-                };
+                .map(|ts| ts >= request_at)
+                .unwrap_or(false);
+            if has_fresh_reply {
+                if let Some(value) = self
+                    .registers
+                    .lock()
+                    .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
+                    .get(&rid)
+                    .copied()
+                {
+                    return match value {
+                        RegisterValue::UInt32(v) => Ok(v),
+                        RegisterValue::Float(_) => Err(MotorError::Protocol(format!(
+                            "register {rid} holds float, not u32"
+                        ))),
+                    };
+                }
             }
             if Instant::now() >= deadline {
                 return Err(MotorError::Timeout(format!(
@@ -402,22 +413,33 @@ impl DamiaoMotor {
     }
 
     pub fn get_register_f32(&self, rid: u8, timeout: Duration) -> Result<f32> {
+        let request_at = Instant::now();
         self.request_register_reading(rid)?;
         let deadline = Instant::now() + timeout;
         loop {
-            if let Some(value) = self
-                .registers
+            let has_fresh_reply = self
+                .register_reply_time
                 .lock()
-                .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
+                .map_err(|_| MotorError::Io("reply time lock poisoned".to_string()))?
                 .get(&rid)
                 .copied()
-            {
-                return match value {
-                    RegisterValue::Float(v) => Ok(v),
-                    RegisterValue::UInt32(_) => Err(MotorError::Protocol(format!(
-                        "register {rid} holds u32, not float"
-                    ))),
-                };
+                .map(|ts| ts >= request_at)
+                .unwrap_or(false);
+            if has_fresh_reply {
+                if let Some(value) = self
+                    .registers
+                    .lock()
+                    .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
+                    .get(&rid)
+                    .copied()
+                {
+                    return match value {
+                        RegisterValue::Float(v) => Ok(v),
+                        RegisterValue::UInt32(_) => Err(MotorError::Protocol(format!(
+                            "register {rid} holds u32, not float"
+                        ))),
+                    };
+                }
             }
             if Instant::now() >= deadline {
                 return Err(MotorError::Timeout(format!(
@@ -526,7 +548,7 @@ mod tests {
     use super::*;
     use motor_core::bus::CanFrame;
     use std::sync::Mutex;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
     struct SilentBus {
         sent: Mutex<Vec<CanFrame>>,
@@ -584,6 +606,28 @@ mod tests {
         let err = motor
             .get_register_u32(10, Duration::from_millis(1))
             .expect_err("timeout expected");
+        assert!(matches!(err, MotorError::Timeout(_)));
+    }
+
+    #[test]
+    fn get_register_u32_ignores_stale_cached_reply() {
+        let bus: Arc<dyn CanBus> = Arc::new(SilentBus::new());
+        let motor = DamiaoMotor::new(0x01, 0x11, "4340P", bus).expect("create motor");
+
+        motor
+            .registers
+            .lock()
+            .expect("register lock")
+            .insert(10, RegisterValue::UInt32(2));
+        motor
+            .register_reply_time
+            .lock()
+            .expect("reply lock")
+            .insert(10, Instant::now());
+
+        let err = motor
+            .get_register_u32(10, Duration::from_millis(1))
+            .expect_err("stale cache must not satisfy new request");
         assert!(matches!(err, MotorError::Timeout(_)));
     }
 }

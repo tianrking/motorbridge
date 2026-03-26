@@ -14,7 +14,7 @@ def _parse_id(text: str) -> int:
 def main() -> None:
     p = argparse.ArgumentParser(
         description=(
-            "SOP-04 (dm-serial): enable -> set_zero_position -> immediate control "
+            "SOP-04 (dm-serial): disable -> set_zero_position -> immediate control "
             "(default no delay between steps)"
         )
     )
@@ -52,8 +52,11 @@ def main() -> None:
     with Controller.from_dm_serial(args.serial_port, args.serial_baud) as ctrl:
         m = ctrl.add_damiao_motor(motor_id, feedback_id, args.model)
         try:
-            # 1) Enable.
-            ctrl.enable_all()
+            # 1) Disable before set-zero (core guard requires this order).
+            try:
+                m.disable()
+            except Exception:
+                pass
 
             # 2) Set current position as zero.
             m.set_zero_position()
@@ -63,36 +66,34 @@ def main() -> None:
                 time.sleep(settle_s)
 
             # 3) Immediately switch mode and run control loop.
-            # m.ensure_mode(Mode.POS_VEL, int(args.ensure_timeout_ms))
-            # for i in range(loop_n):
-            #     m.send_pos_vel(float(args.target_pos), float(args.vlim))
-            #     try:
-            #         m.request_feedback()
-            #         ctrl.poll_feedback_once()
-            #     except Exception:
-            #         pass
+            ctrl.enable_all()
+            m.ensure_mode(Mode.POS_VEL, int(args.ensure_timeout_ms))
+            for i in range(loop_n):
+                m.send_pos_vel(float(args.target_pos), float(args.vlim))
+                try:
+                    m.request_feedback()
+                    ctrl.poll_feedback_once()
+                except Exception:
+                    pass
 
-            #     st = m.get_state()
-            #     if st is None:
-            #         print(f"#{i+1}/{loop_n} no_feedback")
-            #     else:
-            #         print(
-            #             f"#{i+1}/{loop_n} pos={st.pos:+.3f} vel={st.vel:+.3f} "
-            #             f"torq={st.torq:+.3f} status={st.status_code}"
-            #         )
+                st = m.get_state()
+                if st is None:
+                    print(f"#{i+1}/{loop_n} no_feedback")
+                else:
+                    print(
+                        f"#{i+1}/{loop_n} pos={st.pos:+.3f} vel={st.vel:+.3f} "
+                        f"torq={st.torq:+.3f} status={st.status_code}"
+                    )
 
-            #     if dt_s > 0:
-            #         time.sleep(dt_s)
+                if dt_s > 0:
+                    time.sleep(dt_s)
         finally:
             try:
-                # m.disable()
-                pass
+                m.disable()
             except Exception:
                 pass
-            # m.close()
-            pass
+            m.close()
 
 
 if __name__ == "__main__":
     main()
-

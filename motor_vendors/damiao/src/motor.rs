@@ -10,10 +10,12 @@ use motor_core::device::MotorDevice;
 use motor_core::error::{MotorError, Result};
 use motor_core::model::{ModelCatalog, MotorModelSpec, PvTLimits, StaticModelCatalog};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 const REGISTER_POLL_INTERVAL_MS: u64 = 2;
+const SET_ZERO_SETTLE_MS: u64 = 20;
 
 const DAMIAO_MODELS: &[MotorModelSpec] = &[
     MotorModelSpec {
@@ -203,6 +205,9 @@ pub struct DamiaoMotor {
     bus: Arc<dyn CanBus>,
     limits: PvTLimits,
     state: Mutex<Option<MotorFeedbackState>>,
+    // Software-side guard for set-zero sequencing:
+    // set_zero_position() is allowed only after disable() was issued.
+    disabled_hint: AtomicBool,
     registers: Mutex<HashMap<u8, RegisterValue>>,
     register_reply_time: Mutex<HashMap<u8, Instant>>,
 }
@@ -220,6 +225,7 @@ impl DamiaoMotor {
             bus,
             limits: PvTLimits::from_spec(spec),
             state: Mutex::new(None),
+            disabled_hint: AtomicBool::new(true),
             registers: Mutex::new(HashMap::new()),
             register_reply_time: Mutex::new(HashMap::new()),
         })
@@ -236,11 +242,15 @@ impl DamiaoMotor {
     }
 
     pub fn enable(&self) -> Result<()> {
-        self.send_raw(self.motor_id.into(), encode_enable_cmd())
+        self.send_raw(self.motor_id.into(), encode_enable_cmd())?;
+        self.disabled_hint.store(false, Ordering::Release);
+        Ok(())
     }
 
     pub fn disable(&self) -> Result<()> {
-        self.send_raw(self.motor_id.into(), encode_disable_cmd())
+        self.send_raw(self.motor_id.into(), encode_disable_cmd())?;
+        self.disabled_hint.store(true, Ordering::Release);
+        Ok(())
     }
 
     pub fn clear_error(&self) -> Result<()> {
@@ -248,7 +258,14 @@ impl DamiaoMotor {
     }
 
     pub fn set_zero_position(&self) -> Result<()> {
-        self.send_raw(self.motor_id.into(), encode_set_zero_cmd())
+        if !self.disabled_hint.load(Ordering::Acquire) {
+            return Err(MotorError::InvalidArgument(
+                "set_zero_position requires disable() first".to_string(),
+            ));
+        }
+        self.send_raw(self.motor_id.into(), encode_set_zero_cmd())?;
+        std::thread::sleep(Duration::from_millis(SET_ZERO_SETTLE_MS));
+        Ok(())
     }
 
     pub fn send_cmd_mit(
@@ -629,5 +646,34 @@ mod tests {
             .get_register_u32(10, Duration::from_millis(1))
             .expect_err("stale cache must not satisfy new request");
         assert!(matches!(err, MotorError::Timeout(_)));
+    }
+
+    #[test]
+    fn set_zero_requires_disable_first() {
+        let bus: Arc<dyn CanBus> = Arc::new(SilentBus::new());
+        let motor = DamiaoMotor::new(0x01, 0x11, "4340P", bus).expect("create motor");
+
+        motor.enable().expect("enable");
+        let err = motor
+            .set_zero_position()
+            .expect_err("set_zero must fail when motor is not disabled");
+        assert!(matches!(err, MotorError::InvalidArgument(_)));
+    }
+
+    #[test]
+    fn set_zero_sends_command_after_disable() {
+        let bus_impl = Arc::new(SilentBus::new());
+        let bus: Arc<dyn CanBus> = bus_impl.clone();
+        let motor = DamiaoMotor::new(0x04, 0x14, "4310", bus).expect("create motor");
+
+        motor.disable().expect("disable");
+        motor.set_zero_position().expect("set_zero");
+
+        let sent = bus_impl.sent.lock().expect("sent lock");
+        let has_set_zero = sent.iter().any(|f| {
+            f.arbitration_id == 0x04
+                && f.data == [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE]
+        });
+        assert!(has_set_zero, "set_zero command frame should be sent");
     }
 }

@@ -45,6 +45,10 @@ def main() -> None:
             print(f"set_can_timeout_ms: {args.can_timeout_ms}")
 
             if args.set_zero:
+                try:
+                    m.disable()
+                except Exception:
+                    pass
                 m.set_zero_position()
                 print("set_zero_position: command sent")
                 if settle_s > 0:
@@ -70,4 +74,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

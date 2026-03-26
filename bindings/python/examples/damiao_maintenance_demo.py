@@ -45,6 +45,10 @@ def main() -> None:
             print("clear_error done")
 
             if args.set_zero:
+                try:
+                    m.disable()
+                except Exception:
+                    pass
                 m.set_zero_position()
                 print("set_zero_position done")
                 time.sleep(0.2)
@@ -66,4 +70,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

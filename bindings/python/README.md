@@ -179,6 +179,8 @@ Damiao usage in Python examples is now covered end-to-end:
 - control modes: `mit` / `pos-vel` / `vel` / `force-pos`
 - transport paths: SocketCAN/PCAN constructor + `from_dm_serial(...)`
 - maintenance ops: `clear_error`, `set_zero_position`, `set_can_timeout_ms`, `request_feedback`
+  - project guard for Damiao set-zero: call `disable()` before `set_zero_position()`
+  - no user-facing `ms` parameter for set-zero; core applies fixed `20ms` settle
 - register APIs: `get/write f32`, `get/write u32`, `store_parameters`
 
 ## End-to-End Demo Commands

@@ -259,9 +259,10 @@ impl DamiaoMotor {
 
     pub fn set_zero_position(&self) -> Result<()> {
         if !self.disabled_hint.load(Ordering::Acquire) {
-            return Err(MotorError::InvalidArgument(
-                "set_zero_position requires disable() first".to_string(),
-            ));
+            return Err(MotorError::InvalidArgument(format!(
+                "motor 0x{:X} is not disabled; set_zero_position skipped. call disable() first",
+                self.motor_id
+            )));
         }
         self.send_raw(self.motor_id.into(), encode_set_zero_cmd())?;
         std::thread::sleep(Duration::from_millis(SET_ZERO_SETTLE_MS));

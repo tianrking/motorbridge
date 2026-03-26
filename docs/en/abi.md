@@ -66,6 +66,8 @@ Behavior rule:
 - Unsupported calls return non-zero and a readable message via `motor_last_error_message()`.
 - Signatures stay stable even when a vendor ignores part of a signature.
 - Example: HighTorque accepts `send_mit(pos, vel, kp, kd, tau)` for interface consistency, but native protocol does not use `kp/kd`.
+- Damiao set-zero sequence rule: call `motor_handle_disable` before `motor_handle_set_zero_position`; otherwise set-zero is rejected by core guard.
+- Damiao set-zero settle rule: core applies an internal fixed settle (`~20ms`) after successful `set_zero_position` (no extra ABI parameter).
 
 ## Vendor-Specific Extensions
 

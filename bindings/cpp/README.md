@@ -15,6 +15,13 @@ RAII-style C++ wrapper on top of `motor_abi`.
 
 > Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
+## Damiao Set-Zero Rule (dm-serial)
+
+- For Damiao, call `disable()` before `set_zero_position()`.
+- Core guard rejects `set_zero_position()` when motor is not disabled.
+- Core applies an internal fixed settle (`~20ms`) after `set_zero_position()`.
+- C++/ABI signatures are unchanged; this is behavior guard in core.
+
 ## Controller Entrypoints
 
 - `Controller(channel)` (SocketCAN/PCAN path)

@@ -27,7 +27,8 @@ Examples built on the Python SDK.
 - `dm_serial_04_enable_setzero_no_delay_demo.py`: SOP-04 dm-serial stress repro (`set_zero` then immediate control)
 - `dm_serial_05_setzero_timing_ab_test.py`: SOP-05 dm-serial set-zero settle-time A/B test
 - `dm_serial_06_recover_no_reboot_demo.py`: SOP-06 dm-serial software recovery (no host reboot)
-- `dm_serial_07_enable_setzero_enable_rotate_demo.py`: SOP-07 dm-serial robust sequence (`disable -> set_zero -> wait -> enable -> control`)
+- `dm_serial_07_enable_setzero_enable_rotate_demo.py`: SOP-07 dm-serial robust sequence (`disable -> set_zero -> enable -> control`)
+- `dm_serial_08_negative_enable_setzero_guard_demo.py`: SOP-08 dm-serial negative test (`enable` state `set_zero` should be rejected by core guard)
 - `dm_serial_leader_monitor_demo.py`: Damiao dm-serial leader monitor (enable-all + selected-ID full state stream)
 - `robstride_wrapper_demo.py`: RobStride ping / read-param / mit / vel demo
 - `full_modes_demo.py`: Damiao full-mode demo
@@ -118,21 +119,30 @@ SOP-07 dm-serial robust set-zero + control sequence:
 PYTHONPATH=bindings/python/src python3 bindings/python/examples/dm_serial_07_enable_setzero_enable_rotate_demo.py \
   --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
   --motor-id 0x04 --feedback-id 0x14 --target-pos 3.0 --vlim 1.0 \
-  --loop 50 --dt-ms 20 --settle-ms 20 --ensure-timeout-ms 800
+  --loop 50 --dt-ms 20 --ensure-timeout-ms 800 \
+  --post-setzero-ms 0
+```
+
+SOP-08 dm-serial negative test (`enable` then `set_zero`, expect guard reject):
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/dm_serial_08_negative_enable_setzero_guard_demo.py \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
+  --motor-id 0x04 --feedback-id 0x14 --ensure-timeout-ms 800
 ```
 
 ## dm-serial Timing Notes (Set-Zero Sequence)
 
 - Observed issue: running `set_zero_position()` and immediately calling `ensure_mode(...)` can trigger `register 10 not received` timeouts.
 - Root cause pattern: this is typically a dm-serial timing window (bridge latency + motor internal state switch), not a normal control-mode logic bug.
-- Practical rule from on-device tests: keep a short settle delay after `set_zero_position()`. A stable value observed in tests is around `20 ms` for the tested setup.
+- Core guard rule: `set_zero_position()` is accepted only after `disable()`.
+- Core settle rule: after `set_zero_position()`, a fixed `20 ms` settle is applied in core (not exposed as Python argument).
 - Recommended sequence for robust control:
   1. `disable` (or `disable_all`)
   2. `set_zero_position`
-  3. wait `~20 ms` (or use confirmation-based wait)
-  4. `enable` (or `enable_all`)
-  5. `ensure_mode`
-  6. run control loop
+  3. `enable` (or `enable_all`)
+  4. `ensure_mode`
+  5. run control loop
 - If the timeout state is triggered, try software recovery first (`disable -> clear_error -> enable -> retry`) before rebooting host/device.
 
 Damiao dm-serial leader monitor (selected IDs full-state stream):

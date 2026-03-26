@@ -10,6 +10,11 @@
 - Linux SocketCAN 下 `--channel` 不要带 `@bitrate`（例如 `can0@1000000` 无效）。
 - Windows（PCAN 后端）中，`can0/can1` 映射 `PCAN_USBBUS1/2`，可选 `@bitrate` 后缀。
 
+## Damiao 置零顺序说明
+
+- 推荐顺序：`disable -> set_zero_position -> enable -> ensure_mode -> control`。
+- `set_zero_position` 由核心层防护，要求电机处于失能状态。
+
 
 在仓库根目录构建:
 

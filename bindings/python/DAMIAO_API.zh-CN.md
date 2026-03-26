@@ -42,6 +42,8 @@ Controller：
 Motor：
 
 - 控制：`enable()`、`disable()`、`clear_error()`、`set_zero_position()`
+  - 项目规范：`set_zero_position()` 前先调用 `disable()`
+  - Python 接口不提供 `ms` 入参；核心层内置固定 `20ms` 稳定等待
 - 模式：`ensure_mode(mode, timeout_ms=1000)`
 - 指令：`send_mit()`、`send_pos_vel()`、`send_vel()`、`send_force_pos()`
 - 运维：`request_feedback()`、`store_parameters()`、`set_can_timeout_ms(timeout_ms)`

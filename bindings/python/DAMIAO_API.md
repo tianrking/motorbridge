@@ -42,6 +42,8 @@ Controller:
 Motor:
 
 - control: `enable()`, `disable()`, `clear_error()`, `set_zero_position()`
+  - project rule: call `disable()` before `set_zero_position()`
+  - Python API has no `ms` argument for set-zero; core applies fixed `20ms` settle internally
 - mode: `ensure_mode(mode, timeout_ms=1000)`
 - command: `send_mit()`, `send_pos_vel()`, `send_vel()`, `send_force_pos()`
 - ops: `request_feedback()`, `store_parameters()`, `set_can_timeout_ms(timeout_ms)`

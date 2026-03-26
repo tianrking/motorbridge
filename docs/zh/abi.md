@@ -66,6 +66,8 @@ ABI 对外保持一套统一控制接口。
 - 不支持的调用返回非 0，并可通过 `motor_last_error_message()` 获取清晰错误信息。
 - 即使某厂商忽略部分参数，也保持统一函数签名不变。
 - 例如：HighTorque 支持 `send_mit(pos, vel, kp, kd, tau)` 统一签名，但原生协议不使用 `kp/kd`。
+- Damiao 置零顺序规则：先调用 `motor_handle_disable`，再调用 `motor_handle_set_zero_position`；否则会被核心防护拒绝。
+- Damiao 置零稳定规则：`set_zero_position` 成功后，核心层内置固定稳定等待（约 `20ms`），ABI 不额外暴露等待参数。
 
 ## 厂商扩展接口
 

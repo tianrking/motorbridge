@@ -121,6 +121,7 @@ export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
 - `damiao_dm_serial_demo.py`：Damiao 串口桥传输链路
 - `dm_serial_mode_switch_200_demo.py`：`dm-serial` 连续切换四模式（每模式可设循环次数，默认 200）
 - `dm_serial_status_like_cli_demo.py`：`dm-serial` 查询当前模式 + 关键寄存器 + 实时状态（类 CLI 输出）
+- `dm_serial_leader_monitor_demo.py`：`dm-serial` leader 监控（指定 ID 全状态上报 + 启动时全体使能）
 
 ## 6) 按顺序实操命令（推荐）
 

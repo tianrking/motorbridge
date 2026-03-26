@@ -10,6 +10,11 @@
 - On Linux SocketCAN, do not append bitrate in `--channel` (for example `can0@1000000` is invalid).
 - On Windows (PCAN backend), `can0/can1` map to `PCAN_USBBUS1/2`; optional `@bitrate` suffix is supported.
 
+## Damiao Set-Zero Sequence Note
+
+- Recommended order: `disable -> set_zero_position -> enable -> ensure_mode -> control`.
+- `set_zero_position` is guarded in core and requires disabled state.
+
 
 Build from repo root:
 

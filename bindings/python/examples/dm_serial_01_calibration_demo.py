@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import time
 
 from motorbridge import Controller
 
@@ -22,12 +21,10 @@ def main() -> None:
     p.add_argument("--feedback-id", default="0x14")
     p.add_argument("--can-timeout-ms", type=int, default=1000)
     p.add_argument("--set-zero", type=int, default=0, help="1 to set current position as zero")
-    p.add_argument("--settle-ms", type=int, default=200, help="wait after key ops")
     args = p.parse_args()
 
     motor_id = _parse_id(args.motor_id)
     feedback_id = _parse_id(args.feedback_id)
-    settle_s = max(0, int(args.settle_ms)) / 1000.0
 
     print(
         f"sop=01-calibration serial={args.serial_port}@{args.serial_baud} model={args.model} "
@@ -51,8 +48,6 @@ def main() -> None:
                     pass
                 m.set_zero_position()
                 print("set_zero_position: command sent")
-                if settle_s > 0:
-                    time.sleep(settle_s)
 
             try:
                 m.request_feedback()

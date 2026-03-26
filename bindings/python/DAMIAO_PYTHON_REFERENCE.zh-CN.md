@@ -242,7 +242,7 @@ export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
 | `enable()` | 单电机使能 | `clear_error` 之后、控制前 | 建议后接短等待（`100~300ms`） |
 | `disable()` | 单电机失能 | 流程结束 | 无硬性范围 |
 | `clear_error()` | 清故障状态 | `enable/ensure_mode` 前 | 建议维护流程先调用 |
-| `set_zero_position()` | 将“当前位置”设为零点 | **项目规范：先 `disable` 再调用** | 不是“回到 0 位”；不建议每次运行都调用 |
+| `set_zero_position()` | 将“当前位置”设为零点 | **项目规范：先 `disable` 再调用** | 不是“回到 0 位”；Python 接口无 `ms` 参数（核心内置 20ms 稳定时间） |
 | `ensure_mode(mode, timeout_ms)` | 切换并校验控制模式 | `send_xxx` 前 | `mode`=`MIT/POS_VEL/VEL/FORCE_POS`；`timeout_ms` 建议：标准 CAN `150~300`，`dm-serial` `200~500` |
 | `send_mit(pos, vel, kp, kd, tau)` | MIT 控制 | `ensure_mode(Mode.MIT)` 后 | `pos` rad；`vel` rad/s；`kp>=0`、`kd>=0`；`tau` Nm。建议小参数起步 |
 | `send_pos_vel(pos, vlim)` | 位置+速度上限控制 | `ensure_mode(Mode.POS_VEL)` 后 | `pos` rad；`vlim>0`，建议从 `0.5~2.0` 起步 |
@@ -279,23 +279,22 @@ export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
 ### B) 是否必须等待
 
 - 协议层面：不是硬性必须等待。
-- 工程实践（dm-serial）：建议在 `set_zero_position()` 后保留短暂稳定时间，再做 `ensure_mode` 或寄存器读取。
-- 已有实测结论：`set_zero` 后紧接 `ensure_mode` 可能触发 `register 10 not received`；增加约 `20 ms` 等待后可显著稳定。
+- 当前项目实现：`set_zero_position()` 内部固定执行 `20ms` 稳定等待（核心层），调用方无需再传入等待参数。
+- Python 绑定 `set_zero_position()` 签名为 `set_zero_position() -> None`，**不提供 `ms` 入参**。
 
 ### B.1) 项目约束（重点）
 
 - 在本项目 dm-serial 实操规范中，`set_zero_position()` 前 **必须先 `disable`**。
-- 建议按“强约束流程”执行：`disable -> set_zero_position -> wait(~20ms) -> enable -> ensure_mode -> control`。
+- 建议按“强约束流程”执行：`disable -> set_zero_position(核心内置20ms) -> enable -> ensure_mode -> control`。
 - 原因：可显著降低 `set_zero` 后寄存器读超时（如 `RID 10`）导致的后续控制失败风险。
 
 ### C) 推荐顺序（校准后要继续控制时）
 
 1. `disable`（或 `disable_all`）
 2. `set_zero_position`
-3. 等待 `~20 ms`（若现场不稳可放宽到 `50~200 ms`）
-4. `enable`（或 `enable_all`）
-5. `ensure_mode`
-6. `send_xxx` 控制
+3. `enable`（或 `enable_all`）
+4. `ensure_mode`
+5. `send_xxx` 控制
 
 ### D) 触发异常后的软件恢复（不重启优先）
 

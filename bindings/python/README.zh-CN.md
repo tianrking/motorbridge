@@ -179,6 +179,8 @@ Python 示例中 Damiao 用法已覆盖到位：
 - 控制模式：`mit` / `pos-vel` / `vel` / `force-pos`
 - 传输链路：`Controller(channel)` 与 `Controller.from_dm_serial(...)`
 - 维护接口：`clear_error`、`set_zero_position`、`set_can_timeout_ms`、`request_feedback`
+  - Damiao 置零规范：先 `disable()`，再 `set_zero_position()`
+  - Python 不暴露置零等待参数；核心层内置固定 `20ms` 稳定等待
 - 寄存器接口：`get/write f32`、`get/write u32`、`store_parameters`
 
 ## 端到端示例命令

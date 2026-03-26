@@ -15,6 +15,13 @@
 
 > English version: [README.md](README.md)
 
+## Damiao 置零规则（dm-serial）
+
+- Damiao 场景下，`set_zero_position()` 前先调用 `disable()`。
+- 核心层已加入防护：非失能状态调用 `set_zero_position()` 会被拒绝。
+- 核心层在 `set_zero_position()` 后内置固定稳定等待（约 `20ms`）。
+- C++/ABI 函数签名未变，本次属于核心行为防护升级。
+
 ## Controller 入口
 
 - `Controller(channel)`（SocketCAN/PCAN 路径）

@@ -21,6 +21,14 @@ Examples built on the Python SDK.
 - `damiao_maintenance_demo.py`: Damiao maintenance flow (`clear_error` / `set_zero_position` / `set_can_timeout_ms` / `request_feedback`)
 - `damiao_register_rw_demo.py`: Damiao register read/write (`f32` + `u32` + optional `store_parameters`)
 - `damiao_dm_serial_demo.py`: Damiao serial-bridge transport demo (`Controller.from_dm_serial`)
+- `dm_serial_01_calibration_demo.py`: SOP-01 dm-serial maintenance/calibration flow
+- `dm_serial_02_control_modes_demo.py`: SOP-02 dm-serial normal control loop (4 modes, no calibration/config writes)
+- `dm_serial_03_status_demo.py`: SOP-03 dm-serial status-only monitor
+- `dm_serial_04_enable_setzero_no_delay_demo.py`: SOP-04 dm-serial stress repro (`set_zero` then immediate control)
+- `dm_serial_05_setzero_timing_ab_test.py`: SOP-05 dm-serial set-zero settle-time A/B test
+- `dm_serial_06_recover_no_reboot_demo.py`: SOP-06 dm-serial software recovery (no host reboot)
+- `dm_serial_07_enable_setzero_enable_rotate_demo.py`: SOP-07 dm-serial robust sequence (`disable -> set_zero -> wait -> enable -> control`)
+- `dm_serial_leader_monitor_demo.py`: Damiao dm-serial leader monitor (enable-all + selected-ID full state stream)
 - `robstride_wrapper_demo.py`: RobStride ping / read-param / mit / vel demo
 - `full_modes_demo.py`: Damiao full-mode demo
 - `pid_register_tune_demo.py`: Damiao register tuning
@@ -62,6 +70,77 @@ Damiao dm-serial:
 PYTHONPATH=bindings/python/src python3 bindings/python/examples/damiao_dm_serial_demo.py \
   --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
   --motor-id 0x01 --feedback-id 0x11 --mode mit --loop 40 --dt-ms 20
+```
+
+SOP-01 dm-serial calibration:
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/dm_serial_01_calibration_demo.py \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
+  --motor-id 0x04 --feedback-id 0x14 --set-zero 0 --can-timeout-ms 1000
+```
+
+SOP-02 dm-serial normal control (no calibration/config writes):
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/dm_serial_02_control_modes_demo.py \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
+  --motor-id 0x04 --feedback-id 0x14 --mode pos-vel --pos 0.8 --vlim 1.0 --loop 100 --dt-ms 20
+```
+
+SOP-03 dm-serial status monitor:
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/dm_serial_03_status_demo.py \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
+  --motor-id 0x04 --feedback-id 0x14 --loop 100 --dt-ms 50
+```
+
+SOP-05 dm-serial set-zero settle-time A/B test:
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/dm_serial_05_setzero_timing_ab_test.py \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
+  --motor-id 0x04 --feedback-id 0x14 --settle-list-ms 0,50,100,200 --rounds 10 --ensure-timeout-ms 500
+```
+
+SOP-06 dm-serial software recovery without reboot:
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/dm_serial_06_recover_no_reboot_demo.py \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
+  --motor-id 0x04 --feedback-id 0x14 --attempts 6 --timeout-ms 800
+```
+
+SOP-07 dm-serial robust set-zero + control sequence:
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/dm_serial_07_enable_setzero_enable_rotate_demo.py \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
+  --motor-id 0x04 --feedback-id 0x14 --target-pos 3.0 --vlim 1.0 \
+  --loop 50 --dt-ms 20 --settle-ms 20 --ensure-timeout-ms 800
+```
+
+## dm-serial Timing Notes (Set-Zero Sequence)
+
+- Observed issue: running `set_zero_position()` and immediately calling `ensure_mode(...)` can trigger `register 10 not received` timeouts.
+- Root cause pattern: this is typically a dm-serial timing window (bridge latency + motor internal state switch), not a normal control-mode logic bug.
+- Practical rule from on-device tests: keep a short settle delay after `set_zero_position()`. A stable value observed in tests is around `20 ms` for the tested setup.
+- Recommended sequence for robust control:
+  1. `disable` (or `disable_all`)
+  2. `set_zero_position`
+  3. wait `~20 ms` (or use confirmation-based wait)
+  4. `enable` (or `enable_all`)
+  5. `ensure_mode`
+  6. run control loop
+- If the timeout state is triggered, try software recovery first (`disable -> clear_error -> enable -> retry`) before rebooting host/device.
+
+Damiao dm-serial leader monitor (selected IDs full-state stream):
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/dm_serial_leader_monitor_demo.py \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 --model 4310 \
+  -id 0x04 0x07 --loop 10000 --dt-ms 20 --hold-mode mit-zero
 ```
 
 RobStride:

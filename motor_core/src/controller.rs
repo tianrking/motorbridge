@@ -109,8 +109,9 @@ impl CoreController {
         let devices = Arc::clone(&self.devices);
 
         let handle = thread::spawn(move || {
+            let idle_sleep = Duration::from_micros(200);
             while active.load(Ordering::Acquire) {
-                match bus.recv(Duration::from_millis(1)) {
+                match bus.recv(Duration::from_millis(0)) {
                     Ok(Some(frame)) => {
                         if frame.is_rx {
                             let snapshot = devices
@@ -126,11 +127,15 @@ impl CoreController {
                                 break;
                             }
                         }
+                        // Fast path: while frames are flowing, keep draining without sleeping.
+                        continue;
                     }
-                    Ok(None) => {}
+                    Ok(None) => {
+                        // Idle path: queue is empty, briefly yield CPU.
+                        std::thread::sleep(idle_sleep);
+                    }
                     Err(_) => active.store(false, Ordering::Release),
                 }
-                std::thread::sleep(Duration::from_millis(1));
             }
         });
 

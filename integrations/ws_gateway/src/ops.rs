@@ -1,12 +1,19 @@
-use crate::{ServerConfig, Target, Vendor};
+use crate::{ServerConfig, Target, Transport, Vendor};
 use motor_vendor_damiao::{ControlMode as DamiaoControlMode, DamiaoController};
+use motor_vendor_hexfellow::HexfellowController;
+use motor_vendor_myactuator::MyActuatorController;
 use motor_vendor_robstride::{
     ControlMode as RobstrideControlMode, ParameterValue as RobstrideParameterValue,
     RobstrideController, RobstrideMotor,
 };
+use motor_core::bus::{CanBus, CanFrame};
+#[cfg(target_os = "windows")]
+use motor_core::pcan::PcanBus;
+#[cfg(target_os = "linux")]
+use motor_core::socketcan::SocketCanBus;
 use serde_json::{json, Value};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 fn parse_hex_or_dec(s: &str) -> Result<u16, String> {
     if let Some(hex) = s.strip_prefix("0x") {
@@ -42,7 +49,10 @@ fn parse_id_list_csv(s: &str) -> Vec<u16> {
 pub(crate) fn parse_args() -> Result<ServerConfig, String> {
     let mut bind = "0.0.0.0:9002".to_string();
     let mut vendor = Vendor::Damiao;
+    let mut transport = Transport::Auto;
     let mut channel = "can0".to_string();
+    let mut serial_port = "/dev/ttyACM0".to_string();
+    let mut serial_baud = 921600u32;
     let mut model = "4340P".to_string();
     let mut motor_id = 0x01u16;
     let mut feedback_id = 0x11u16;
@@ -67,7 +77,14 @@ Usage:\n\
         match k.as_str() {
             "--bind" => bind = next.clone(),
             "--vendor" => vendor = Vendor::from_str(next)?,
+            "--transport" => transport = Transport::from_str(next)?,
             "--channel" => channel = next.clone(),
+            "--serial-port" => serial_port = next.clone(),
+            "--serial-baud" => {
+                serial_baud = next
+                    .parse::<u32>()
+                    .map_err(|e| format!("invalid --serial-baud: {e}"))?;
+            }
             "--model" => model = next.clone(),
             "--motor-id" => motor_id = parse_hex_or_dec(next)?,
             "--feedback-id" => feedback_id = parse_hex_or_dec(next)?,
@@ -88,13 +105,37 @@ Usage:\n\
         if feedback_id == 0x11 {
             feedback_id = 0xFF;
         }
+    } else if vendor == Vendor::Myactuator {
+        if model == "4340P" || model == "4340" {
+            model = "X8".to_string();
+        }
+        if feedback_id == 0x11 {
+            feedback_id = 0x241;
+        }
+    } else if vendor == Vendor::Hexfellow {
+        if model == "4340P" || model == "4340" {
+            model = "hexfellow".to_string();
+        }
+        if feedback_id == 0x11 {
+            feedback_id = 0x00;
+        }
+    } else if vendor == Vendor::Hightorque {
+        if model == "4340P" || model == "4340" {
+            model = "hightorque".to_string();
+        }
+        if feedback_id == 0x11 {
+            feedback_id = 0x01;
+        }
     }
 
     Ok(ServerConfig {
         bind,
         target: Target {
             vendor,
+            transport,
             channel,
+            serial_port,
+            serial_baud,
             model,
             motor_id,
             feedback_id,
@@ -129,6 +170,13 @@ pub(crate) fn as_u16(v: &Value, key: &str, default: u16) -> u16 {
 pub(crate) fn parse_vendor_in_msg(v: &Value, default: Vendor) -> Result<Vendor, String> {
     match v.get("vendor").and_then(Value::as_str) {
         Some(s) => Vendor::from_str(s),
+        None => Ok(default),
+    }
+}
+
+pub(crate) fn parse_transport_in_msg(v: &Value, default: Transport) -> Result<Transport, String> {
+    match v.get("transport").and_then(Value::as_str) {
+        Some(s) => Transport::from_str(s),
         None => Ok(default),
     }
 }
@@ -176,6 +224,7 @@ pub(crate) fn parse_robstride_mode(v: &Value) -> Result<RobstrideControlMode, St
 }
 
 fn cmd_scan_damiao(v: &Value, base: &Target) -> Result<Value, String> {
+    let transport = parse_transport_in_msg(v, base.transport)?;
     let start_id = as_u16(v, "start_id", 1);
     let end_id = as_u16(v, "end_id", 16);
     let feedback_base = as_u16(v, "feedback_base", 16);
@@ -187,7 +236,7 @@ fn cmd_scan_damiao(v: &Value, base: &Target) -> Result<Value, String> {
     let mut hits = Vec::new();
     for mid in start_id..=end_id {
         let fid = feedback_base + (mid & 0x0F);
-        let ctrl = DamiaoController::new_socketcan(&base.channel).map_err(|e| e.to_string())?;
+        let ctrl = open_damiao_controller(base, transport)?;
         let motor = match ctrl.add_motor(mid, fid, &base.model) {
             Ok(m) => m,
             Err(_) => {
@@ -207,6 +256,7 @@ fn cmd_scan_damiao(v: &Value, base: &Target) -> Result<Value, String> {
 
     Ok(json!({
         "vendor": "damiao",
+        "transport": transport.as_str(),
         "count": hits.len(),
         "start_id": start_id,
         "end_id": end_id,
@@ -215,6 +265,7 @@ fn cmd_scan_damiao(v: &Value, base: &Target) -> Result<Value, String> {
 }
 
 fn cmd_scan_robstride(v: &Value, base: &Target) -> Result<Value, String> {
+    let transport = parse_transport_in_msg(v, base.transport)?;
     let start_id = as_u16(v, "start_id", 1);
     let end_id = as_u16(v, "end_id", 255);
     let timeout_ms = as_u64(v, "timeout_ms", 120);
@@ -246,7 +297,7 @@ fn cmd_scan_robstride(v: &Value, base: &Target) -> Result<Value, String> {
         let mut found = None;
         for fid in &feedback_ids {
             let ctrl =
-                RobstrideController::new_socketcan(&base.channel).map_err(|e| e.to_string())?;
+                open_robstride_controller(base, transport)?;
             let motor = match ctrl.add_motor(mid, *fid, &base.model) {
                 Ok(m) => m,
                 Err(_) => {
@@ -286,6 +337,182 @@ fn cmd_scan_robstride(v: &Value, base: &Target) -> Result<Value, String> {
 
     Ok(json!({
         "vendor": "robstride",
+        "transport": transport.as_str(),
+        "count": hits.len(),
+        "start_id": start_id,
+        "end_id": end_id,
+        "hits": hits,
+    }))
+}
+
+fn myactuator_feedback_default(motor_id: u16) -> u16 {
+    0x240u16.saturating_add(motor_id)
+}
+
+fn cmd_scan_myactuator(v: &Value, base: &Target) -> Result<Value, String> {
+    let transport = parse_transport_in_msg(v, base.transport)?;
+    let start_id = as_u16(v, "start_id", 1);
+    let end_id_in = as_u16(v, "end_id", 32);
+    if start_id == 0 || end_id_in == 0 || start_id > 32 || start_id > end_id_in {
+        return Err("invalid scan range: expected start in 1..32 and start<=end".to_string());
+    }
+    let end_id = end_id_in.min(32);
+    let timeout_ms = as_u64(v, "timeout_ms", 100);
+    let ctrl = open_myactuator_controller(base, transport)?;
+    let mut hits = Vec::new();
+    for id in start_id..=end_id {
+        let fid = myactuator_feedback_default(id);
+        let m = match ctrl.add_motor(id, fid, &base.model) {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+        let _ = m.request_version_date();
+        if let Ok(version) = m.await_version_date(Duration::from_millis(timeout_ms)) {
+            hits.push(json!({
+                "probe": id,
+                "motor_id": id,
+                "feedback_id": fid,
+                "version": version
+            }));
+        }
+        std::thread::sleep(Duration::from_millis(3));
+    }
+    let _ = ctrl.close_bus();
+    Ok(json!({
+        "vendor": "myactuator",
+        "transport": transport.as_str(),
+        "count": hits.len(),
+        "start_id": start_id,
+        "end_id": end_id,
+        "hits": hits,
+    }))
+}
+
+fn cmd_scan_hexfellow(v: &Value, base: &Target) -> Result<Value, String> {
+    let transport = parse_transport_in_msg(v, base.transport)?;
+    let start_id = as_u16(v, "start_id", 1);
+    let end_id = as_u16(v, "end_id", 32);
+    let timeout_ms = as_u64(v, "timeout_ms", 200);
+    let ctrl = open_hexfellow_controller(base, transport)?;
+    let found = ctrl
+        .scan_ids(start_id, end_id, Duration::from_millis(timeout_ms))
+        .map_err(|e| e.to_string())?;
+    let mut hits = Vec::new();
+    for h in found {
+        hits.push(json!({
+            "node_id": h.node_id,
+            "sw_ver": h.sw_ver,
+            "peak_torque_raw": h.peak_torque_raw,
+            "kp_kd_factor_raw": h.kp_kd_factor_raw,
+            "dev_type": h.dev_type,
+        }));
+    }
+    let _ = ctrl.close_bus();
+    Ok(json!({
+        "vendor": "hexfellow",
+        "transport": transport.as_str(),
+        "count": hits.len(),
+        "start_id": start_id,
+        "end_id": end_id,
+        "hits": hits,
+    }))
+}
+
+#[derive(Debug, Clone, Copy)]
+struct HighTorqueStatus {
+    motor_id: u16,
+    pos_raw: i16,
+    vel_raw: i16,
+    tqe_raw: i16,
+}
+
+fn can_ext_id_for_motor(motor_id: u16) -> u32 {
+    u32::from(0x8000u16 | motor_id)
+}
+
+fn send_hightorque_ext(bus: &dyn CanBus, motor_id: u16, payload: &[u8]) -> Result<(), String> {
+    if payload.len() > 8 {
+        return Err("payload too long (max 8 bytes)".to_string());
+    }
+    let mut data = [0u8; 8];
+    data[..payload.len()].copy_from_slice(payload);
+    bus.send(CanFrame {
+        arbitration_id: can_ext_id_for_motor(motor_id),
+        data,
+        dlc: payload.len() as u8,
+        is_extended: true,
+        is_rx: false,
+    })
+    .map_err(|e| e.to_string())
+}
+
+fn decode_hightorque_read_reply(frame: CanFrame) -> Option<HighTorqueStatus> {
+    if frame.dlc < 8 || frame.data[0] != 0x27 || frame.data[1] != 0x01 {
+        return None;
+    }
+    let motor_id = if !frame.is_extended && (frame.arbitration_id & 0x00FF) == 0 {
+        ((frame.arbitration_id >> 8) & 0x7F) as u16
+    } else {
+        (frame.arbitration_id & 0x7FF) as u16
+    };
+    Some(HighTorqueStatus {
+        motor_id,
+        pos_raw: i16::from_le_bytes([frame.data[2], frame.data[3]]),
+        vel_raw: i16::from_le_bytes([frame.data[4], frame.data[5]]),
+        tqe_raw: i16::from_le_bytes([frame.data[6], frame.data[7]]),
+    })
+}
+
+fn wait_hightorque_status_for_motor(
+    bus: &dyn CanBus,
+    motor_id: u16,
+    timeout: Duration,
+) -> Result<Option<HighTorqueStatus>, String> {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        let left = deadline.saturating_duration_since(Instant::now());
+        if let Some(frame) = bus
+            .recv(left.min(Duration::from_millis(20)))
+            .map_err(|e| e.to_string())?
+        {
+            if let Some(status) = decode_hightorque_read_reply(frame) {
+                if status.motor_id == motor_id {
+                    return Ok(Some(status));
+                }
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn cmd_scan_hightorque(v: &Value, base: &Target) -> Result<Value, String> {
+    let transport = parse_transport_in_msg(v, base.transport)?;
+    let start_id = as_u16(v, "start_id", 1).clamp(1, 127);
+    let end_id = as_u16(v, "end_id", 32).clamp(1, 127);
+    if start_id > end_id {
+        return Err("invalid scan range after clamp (start_id > end_id)".to_string());
+    }
+    let timeout_ms = as_u64(v, "timeout_ms", 80);
+    let bus = open_hightorque_bus(base, transport)?;
+    let mut hits = Vec::new();
+    for id in start_id..=end_id {
+        send_hightorque_ext(bus.as_ref(), id, &[0x17, 0x01, 0, 0, 0, 0, 0, 0])?;
+        if let Some(s) =
+            wait_hightorque_status_for_motor(bus.as_ref(), id, Duration::from_millis(timeout_ms))?
+        {
+            hits.push(json!({
+                "motor_id": s.motor_id,
+                "pos_raw": s.pos_raw,
+                "vel_raw": s.vel_raw,
+                "tqe_raw": s.tqe_raw
+            }));
+        }
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    let _ = bus.shutdown();
+    Ok(json!({
+        "vendor": "hightorque",
+        "transport": transport.as_str(),
         "count": hits.len(),
         "start_id": start_id,
         "end_id": end_id,
@@ -297,18 +524,22 @@ pub(crate) fn cmd_scan(v: &Value, base: &Target) -> Result<Value, String> {
     match parse_vendor_in_msg(v, base.vendor)? {
         Vendor::Damiao => cmd_scan_damiao(v, base),
         Vendor::Robstride => cmd_scan_robstride(v, base),
+        Vendor::Hexfellow => cmd_scan_hexfellow(v, base),
+        Vendor::Myactuator => cmd_scan_myactuator(v, base),
+        Vendor::Hightorque => cmd_scan_hightorque(v, base),
     }
 }
 
 pub(crate) fn cmd_verify(v: &Value, base: &Target) -> Result<Value, String> {
     let vendor = parse_vendor_in_msg(v, base.vendor)?;
+    let transport = parse_transport_in_msg(v, base.transport)?;
     let mid = as_u16(v, "motor_id", base.motor_id);
     let fid = as_u16(v, "feedback_id", base.feedback_id);
     let timeout_ms = as_u64(v, "timeout_ms", 1000);
 
     match vendor {
         Vendor::Damiao => {
-            let ctrl = DamiaoController::new_socketcan(&base.channel).map_err(|e| e.to_string())?;
+            let ctrl = open_damiao_controller(base, transport)?;
             let motor = ctrl
                 .add_motor(mid, fid, &base.model)
                 .map_err(|e| e.to_string())?;
@@ -321,6 +552,7 @@ pub(crate) fn cmd_verify(v: &Value, base: &Target) -> Result<Value, String> {
             let _ = ctrl.close_bus();
             Ok(json!({
                 "vendor": "damiao",
+                "transport": transport.as_str(),
                 "motor_id": mid,
                 "feedback_id": fid,
                 "esc_id": esc,
@@ -329,8 +561,7 @@ pub(crate) fn cmd_verify(v: &Value, base: &Target) -> Result<Value, String> {
             }))
         }
         Vendor::Robstride => {
-            let ctrl =
-                RobstrideController::new_socketcan(&base.channel).map_err(|e| e.to_string())?;
+            let ctrl = open_robstride_controller(base, transport)?;
             let motor = ctrl
                 .add_motor(mid, fid, &base.model)
                 .map_err(|e| e.to_string())?;
@@ -340,11 +571,67 @@ pub(crate) fn cmd_verify(v: &Value, base: &Target) -> Result<Value, String> {
             let _ = ctrl.close_bus();
             Ok(json!({
                 "vendor": "robstride",
+                "transport": transport.as_str(),
                 "motor_id": mid,
                 "feedback_id": fid,
                 "device_id": ping.device_id,
                 "responder_id": ping.responder_id,
                 "ok": ping.device_id == mid as u8,
+            }))
+        }
+        Vendor::Hexfellow => {
+            let ctrl = open_hexfellow_controller(base, transport)?;
+            let motor = ctrl
+                .add_motor(mid, as_u16(v, "feedback_id", base.feedback_id), &base.model)
+                .map_err(|e| e.to_string())?;
+            let status = motor
+                .query_status(Duration::from_millis(timeout_ms))
+                .map_err(|e| e.to_string())?;
+            let _ = ctrl.close_bus();
+            Ok(json!({
+                "vendor": "hexfellow",
+                "transport": transport.as_str(),
+                "motor_id": mid,
+                "statusword": status.statusword,
+                "mode_display": status.mode_display,
+                "ok": true,
+            }))
+        }
+        Vendor::Myactuator => {
+            let ctrl = open_myactuator_controller(base, transport)?;
+            let fid = as_u16(v, "feedback_id", base.feedback_id);
+            let eff_fid = if fid == 0 {
+                myactuator_feedback_default(mid)
+            } else {
+                fid
+            };
+            let motor = ctrl.add_motor(mid, eff_fid, &base.model).map_err(|e| e.to_string())?;
+            motor.request_version_date().map_err(|e| e.to_string())?;
+            let version = motor
+                .await_version_date(Duration::from_millis(timeout_ms))
+                .map_err(|e| e.to_string())?;
+            let _ = ctrl.close_bus();
+            Ok(json!({
+                "vendor": "myactuator",
+                "transport": transport.as_str(),
+                "motor_id": mid,
+                "feedback_id": eff_fid,
+                "version": version,
+                "ok": true,
+            }))
+        }
+        Vendor::Hightorque => {
+            let bus = open_hightorque_bus(base, transport)?;
+            send_hightorque_ext(bus.as_ref(), mid, &[0x17, 0x01, 0, 0, 0, 0, 0, 0])?;
+            let status =
+                wait_hightorque_status_for_motor(bus.as_ref(), mid, Duration::from_millis(timeout_ms))?;
+            let _ = bus.shutdown();
+            Ok(json!({
+                "vendor": "hightorque",
+                "transport": transport.as_str(),
+                "motor_id": mid,
+                "ok": status.is_some(),
+                "state": status.map(|s| json!({"pos_raw": s.pos_raw, "vel_raw": s.vel_raw, "tqe_raw": s.tqe_raw})),
             }))
         }
     }
@@ -445,6 +732,87 @@ pub(crate) fn cmd_set_id(v: &Value, base: &Target) -> Result<Value, String> {
             }
             Ok(out)
         }
+        Vendor::Hexfellow | Vendor::Myactuator | Vendor::Hightorque => {
+            Err(format!("set_id is not supported for {}", vendor.as_str()))
+        }
+    }
+}
+
+fn open_damiao_controller(base: &Target, transport: Transport) -> Result<DamiaoController, String> {
+    match transport {
+        Transport::Auto | Transport::SocketCan => {
+            DamiaoController::new_socketcan(&base.channel).map_err(|e| e.to_string())
+        }
+        Transport::SocketCanFd => {
+            DamiaoController::new_socketcanfd(&base.channel).map_err(|e| e.to_string())
+        }
+        Transport::DmSerial => {
+            DamiaoController::new_dm_serial(&base.serial_port, base.serial_baud).map_err(|e| e.to_string())
+        }
+    }
+}
+
+fn open_robstride_controller(
+    base: &Target,
+    transport: Transport,
+) -> Result<RobstrideController, String> {
+    match transport {
+        Transport::Auto | Transport::SocketCan => {
+            RobstrideController::new_socketcan(&base.channel).map_err(|e| e.to_string())
+        }
+        Transport::SocketCanFd => {
+            RobstrideController::new_socketcanfd(&base.channel).map_err(|e| e.to_string())
+        }
+        Transport::DmSerial => Err("transport dm-serial is damiao-only".to_string()),
+    }
+}
+
+fn open_myactuator_controller(
+    base: &Target,
+    transport: Transport,
+) -> Result<MyActuatorController, String> {
+    match transport {
+        Transport::Auto | Transport::SocketCan => {
+            MyActuatorController::new_socketcan(&base.channel).map_err(|e| e.to_string())
+        }
+        Transport::SocketCanFd => {
+            MyActuatorController::new_socketcanfd(&base.channel).map_err(|e| e.to_string())
+        }
+        Transport::DmSerial => Err("transport dm-serial is damiao-only".to_string()),
+    }
+}
+
+fn open_hexfellow_controller(
+    base: &Target,
+    transport: Transport,
+) -> Result<HexfellowController, String> {
+    match transport {
+        Transport::Auto | Transport::SocketCanFd => {
+            HexfellowController::new_socketcanfd(&base.channel).map_err(|e| e.to_string())
+        }
+        Transport::SocketCan => Err("hexfellow requires transport socketcanfd (or auto)".to_string()),
+        Transport::DmSerial => Err("transport dm-serial is damiao-only".to_string()),
+    }
+}
+
+fn open_hightorque_bus(base: &Target, transport: Transport) -> Result<Box<dyn CanBus>, String> {
+    match transport {
+        Transport::Auto | Transport::SocketCan => {
+            #[cfg(target_os = "linux")]
+            {
+                return Ok(Box::new(SocketCanBus::open(&base.channel).map_err(|e| e.to_string())?));
+            }
+            #[cfg(target_os = "windows")]
+            {
+                return Ok(Box::new(PcanBus::open(&base.channel).map_err(|e| e.to_string())?));
+            }
+            #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+            {
+                Err("no CAN backend for current platform".to_string())
+            }
+        }
+        Transport::SocketCanFd => Err("hightorque currently uses standard CAN transport only".to_string()),
+        Transport::DmSerial => Err("transport dm-serial is damiao-only".to_string()),
     }
 }
 

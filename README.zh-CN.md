@@ -280,6 +280,7 @@ cargo run -p motor_cli --release -- --vendor damiao \
   - `motor_controller_new_socketcan(channel)`
   - `motor_controller_new_dm_serial(serial_port, baud)`（仅 Damiao 串口桥；跨平台，可用 `/dev/ttyACM0` 或 `COM3`）
   - Damiao: `motor_controller_add_damiao_motor(...)`
+  - Hexfellow: `motor_controller_add_hexfellow_motor(...)`（通过 `socketcanfd` 走 CAN-FD）
   - RobStride: `motor_controller_add_robstride_motor(...)`
   - MyActuator: `motor_controller_add_myactuator_motor(...)`
   - HighTorque: `motor_controller_add_hightorque_motor(...)`
@@ -287,6 +288,7 @@ cargo run -p motor_cli --release -- --vendor damiao \
   - `Controller(channel="can0")`
   - `Controller.from_dm_serial("/dev/ttyACM0", 921600)`（仅 Damiao）
   - `Controller.add_damiao_motor(...)`
+  - `Controller.add_hexfellow_motor(...)`
   - `Controller.add_robstride_motor(...)`
   - `Controller.add_myactuator_motor(...)`
   - `Controller.add_hightorque_motor(...)`
@@ -294,6 +296,7 @@ cargo run -p motor_cli --release -- --vendor damiao \
   - `Controller("can0")`
   - `Controller::from_dm_serial("/dev/ttyACM0", 921600)`（仅 Damiao）
   - `Controller::add_damiao_motor(...)`
+  - `Controller::add_hexfellow_motor(...)`
   - `Controller::add_robstride_motor(...)`
   - `Controller::add_myactuator_motor(...)`
   - `Controller::add_hightorque_motor(...)`

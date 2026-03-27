@@ -104,6 +104,8 @@ class Abi:
 
         lib.motor_controller_add_damiao_motor.argtypes = [c_void_p, c_uint16, c_uint16, c_char_p]
         lib.motor_controller_add_damiao_motor.restype = c_void_p
+        lib.motor_controller_add_hexfellow_motor.argtypes = [c_void_p, c_uint16, c_uint16, c_char_p]
+        lib.motor_controller_add_hexfellow_motor.restype = c_void_p
         lib.motor_controller_add_myactuator_motor.argtypes = [c_void_p, c_uint16, c_uint16, c_char_p]
         lib.motor_controller_add_myactuator_motor.restype = c_void_p
         lib.motor_controller_add_robstride_motor.argtypes = [c_void_p, c_uint16, c_uint16, c_char_p]

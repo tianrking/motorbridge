@@ -28,7 +28,7 @@ def _add_common_args(p: argparse.ArgumentParser) -> None:
     p.add_argument(
         "--vendor",
         default="damiao",
-        choices=["damiao", "myactuator", "robstride", "hightorque"],
+        choices=["damiao", "myactuator", "robstride", "hightorque", "hexfellow"],
     )
     p.add_argument("--channel", default="can0")
     p.add_argument(
@@ -61,6 +61,11 @@ def _vendor_defaults(vendor: str, model: str, feedback_id: str) -> tuple[str, st
             resolved_model = "hightorque"
         if resolved_feedback == "0x11":
             resolved_feedback = "0x01"
+    elif vendor == "hexfellow":
+        if resolved_model == "4340":
+            resolved_model = "hexfellow"
+        if resolved_feedback == "0x11":
+            resolved_feedback = "0x00"
     return resolved_model, resolved_feedback
 
 
@@ -71,6 +76,8 @@ def _add_motor(ctrl: Controller, vendor: str, motor_id: int, feedback_id: int, m
         return ctrl.add_robstride_motor(motor_id, feedback_id, model)
     if vendor == "hightorque":
         return ctrl.add_hightorque_motor(motor_id, feedback_id, model)
+    if vendor == "hexfellow":
+        return ctrl.add_hexfellow_motor(motor_id, feedback_id, model)
     return ctrl.add_damiao_motor(motor_id, feedback_id, model)
 
 
@@ -80,6 +87,8 @@ def _open_controller(args: argparse.Namespace, vendor: str) -> Controller:
         if vendor != "damiao":
             raise ValueError("transport=dm-serial is supported only for --vendor damiao")
         return Controller.from_dm_serial(args.serial_port, int(args.serial_baud))
+    if vendor == "hexfellow" and transport == "socketcan":
+        raise ValueError("vendor=hexfellow requires --transport socketcanfd (or auto)")
     # Python SDK currently has a single CAN constructor.
     # Treat auto/socketcan/socketcanfd the same constructor-wise.
     return Controller(args.channel)
@@ -127,7 +136,7 @@ def _build_parser() -> argparse.ArgumentParser:
     scan.add_argument(
         "--vendor",
         default="damiao",
-        choices=["damiao", "myactuator", "robstride", "hightorque", "all"],
+        choices=["damiao", "myactuator", "robstride", "hightorque", "hexfellow", "all"],
     )
     scan.add_argument("--channel", default="can0")
     scan.add_argument(
@@ -250,9 +259,11 @@ def _run_command(args: argparse.Namespace) -> None:
                         raise ValueError("robstride does not support pos-vel command")
                     motor.send_pos_vel(args.pos, args.vlim)
                 elif args.mode == "vel":
+                    if args.vendor == "hexfellow":
+                        raise ValueError("hexfellow does not support vel command")
                     motor.send_vel(args.vel)
                 elif args.mode == "force-pos":
-                    if args.vendor in ("robstride", "myactuator"):
+                    if args.vendor in ("robstride", "myactuator", "hexfellow"):
                         raise ValueError(f"{args.vendor} does not support force-pos command")
                     motor.send_force_pos(args.pos, args.vlim, args.ratio)
 

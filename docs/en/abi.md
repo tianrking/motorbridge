@@ -48,24 +48,26 @@ Common control/state APIs:
 ## Vendor Entry Points
 
 - Damiao: `motor_controller_add_damiao_motor(...)`
+- Hexfellow: `motor_controller_add_hexfellow_motor(...)` (CAN-FD path via `socketcanfd`)
 - RobStride: `motor_controller_add_robstride_motor(...)`
 - MyActuator: `motor_controller_add_myactuator_motor(...)`
 - HighTorque: `motor_controller_add_hightorque_motor(...)`
 
 ## Unified Mode to Native Protocol Mapping
 
-| Unified mode | Damiao native | RobStride native | MyActuator native | HighTorque native |
-|---|---|---|---|---|
-| `MIT` | `Mit` | `Mit` | not available | mapped to native pos+vel+tqe |
-| `POS_VEL` | `PosVel` | not available | `Position` setpoint flow | mapped to native pos+vel+tqe |
-| `VEL` | `Vel` | `Velocity` | `Velocity` setpoint flow | mapped to native velocity command |
-| `FORCE_POS` | `ForcePos` | not available | not available | not available |
+| Unified mode | Damiao native | Hexfellow native | RobStride native | MyActuator native | HighTorque native |
+|---|---|---|---|---|---|
+| `MIT` | `Mit` | mode `5` | `Mit` | not available | mapped to native pos+vel+tqe |
+| `POS_VEL` | `PosVel` | mode `1` | not available | `Position` setpoint flow | mapped to native pos+vel+tqe |
+| `VEL` | `Vel` | not available | `Velocity` | `Velocity` setpoint flow | mapped to native velocity command |
+| `FORCE_POS` | `ForcePos` | not available | not available | not available | not available |
 
 Behavior rule:
 
 - Unsupported calls return non-zero and a readable message via `motor_last_error_message()`.
 - Signatures stay stable even when a vendor ignores part of a signature.
 - Example: HighTorque accepts `send_mit(pos, vel, kp, kd, tau)` for interface consistency, but native protocol does not use `kp/kd`.
+- Hexfellow ABI path supports MIT and POS_VEL, and reports `VEL` / `FORCE_POS` as unsupported.
 - Damiao set-zero sequence rule: call `motor_handle_disable` before `motor_handle_set_zero_position`; otherwise set-zero is rejected by core guard.
 - Damiao set-zero settle rule: core applies an internal fixed settle (`~20ms`) after successful `set_zero_position` (no extra ABI parameter).
 

@@ -48,24 +48,26 @@ ABI 对外保持一套统一控制接口。
 ## 厂商入口
 
 - Damiao：`motor_controller_add_damiao_motor(...)`
+- Hexfellow：`motor_controller_add_hexfellow_motor(...)`（通过 `socketcanfd` 走 CAN-FD）
 - RobStride：`motor_controller_add_robstride_motor(...)`
 - MyActuator：`motor_controller_add_myactuator_motor(...)`
 - HighTorque：`motor_controller_add_hightorque_motor(...)`
 
 ## 统一模式与厂商原生协议映射
 
-| 统一模式 | Damiao 原生 | RobStride 原生 | MyActuator 原生 | HighTorque 原生 |
-|---|---|---|---|---|
-| `MIT` | `Mit` | `Mit` | 不支持 | 映射到原生 pos+vel+tqe |
-| `POS_VEL` | `PosVel` | 不支持 | `Position` 设定流程 | 映射到原生 pos+vel+tqe |
-| `VEL` | `Vel` | `Velocity` | `Velocity` 设定流程 | 映射到原生速度命令 |
-| `FORCE_POS` | `ForcePos` | 不支持 | 不支持 | 不支持 |
+| 统一模式 | Damiao 原生 | Hexfellow 原生 | RobStride 原生 | MyActuator 原生 | HighTorque 原生 |
+|---|---|---|---|---|---|
+| `MIT` | `Mit` | 模式 `5` | `Mit` | 不支持 | 映射到原生 pos+vel+tqe |
+| `POS_VEL` | `PosVel` | 模式 `1` | 不支持 | `Position` 设定流程 | 映射到原生 pos+vel+tqe |
+| `VEL` | `Vel` | 不支持 | `Velocity` | `Velocity` 设定流程 | 映射到原生速度命令 |
+| `FORCE_POS` | `ForcePos` | 不支持 | 不支持 | 不支持 | 不支持 |
 
 行为约定：
 
 - 不支持的调用返回非 0，并可通过 `motor_last_error_message()` 获取清晰错误信息。
 - 即使某厂商忽略部分参数，也保持统一函数签名不变。
 - 例如：HighTorque 支持 `send_mit(pos, vel, kp, kd, tau)` 统一签名，但原生协议不使用 `kp/kd`。
+- Hexfellow 的 ABI 路径支持 `MIT` 和 `POS_VEL`，`VEL` / `FORCE_POS` 会返回不支持。
 - Damiao 置零顺序规则：先调用 `motor_handle_disable`，再调用 `motor_handle_set_zero_position`；否则会被核心防护拒绝。
 - Damiao 置零稳定规则：`set_zero_position` 成功后，核心层内置固定稳定等待（约 `20ms`），ABI 不额外暴露等待参数。
 

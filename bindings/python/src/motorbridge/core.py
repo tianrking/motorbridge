@@ -62,6 +62,14 @@ class Controller:
             raise CallError(f"add_damiao_motor failed: {_err_text()}")
         return Motor(m)
 
+    def add_hexfellow_motor(self, motor_id: int, feedback_id: int, model: str) -> "Motor":
+        m = self._abi.lib.motor_controller_add_hexfellow_motor(
+            self._ptr, motor_id, feedback_id, model.encode()
+        )
+        if not m:
+            raise CallError(f"add_hexfellow_motor failed: {_err_text()}")
+        return Motor(m)
+
     def add_myactuator_motor(self, motor_id: int, feedback_id: int, model: str) -> "Motor":
         m = self._abi.lib.motor_controller_add_myactuator_motor(
             self._ptr, motor_id, feedback_id, model.encode()

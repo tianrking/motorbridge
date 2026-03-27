@@ -276,6 +276,7 @@ Interpretation:
   - `motor_controller_new_socketcan(channel)`
   - `motor_controller_new_dm_serial(serial_port, baud)` (Damiao-only serial bridge; cross-platform, e.g. `/dev/ttyACM0` or `COM3`)
   - Damiao: `motor_controller_add_damiao_motor(...)`
+  - Hexfellow: `motor_controller_add_hexfellow_motor(...)` (CAN-FD path via `socketcanfd`)
   - RobStride: `motor_controller_add_robstride_motor(...)`
   - MyActuator: `motor_controller_add_myactuator_motor(...)`
   - HighTorque: `motor_controller_add_hightorque_motor(...)`
@@ -283,6 +284,7 @@ Interpretation:
   - `Controller(channel="can0")`
   - `Controller.from_dm_serial("/dev/ttyACM0", 921600)` (Damiao-only)
   - `Controller.add_damiao_motor(...)`
+  - `Controller.add_hexfellow_motor(...)`
   - `Controller.add_robstride_motor(...)`
   - `Controller.add_myactuator_motor(...)`
   - `Controller.add_hightorque_motor(...)`
@@ -290,6 +292,7 @@ Interpretation:
   - `Controller("can0")`
   - `Controller::from_dm_serial("/dev/ttyACM0", 921600)` (Damiao-only)
   - `Controller::add_damiao_motor(...)`
+  - `Controller::add_hexfellow_motor(...)`
   - `Controller::add_robstride_motor(...)`
   - `Controller::add_myactuator_motor(...)`
   - `Controller::add_hightorque_motor(...)`

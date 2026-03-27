@@ -1,10 +1,11 @@
 # motorbridge C++ Bindings
 
 <!-- channel-compat-note -->
-## Channel Compatibility (PCAN + slcan + Damiao Serial Bridge)
+## Channel Compatibility (PCAN + slcan + CAN-FD + Damiao Serial Bridge)
 
 - Linux SocketCAN uses interface names directly: `can0`, `can1`, `slcan0`.
 - For USB-serial CAN adapters, bring up `slcan0` first: `sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`.
+- Dedicated CAN-FD transport is available in CLI (`--transport socketcanfd`) and currently used by Hexfellow path.
 - Damiao-only serial bridge transport is also available in CLI (`--transport dm-serial --serial-port /dev/ttyACM0 --serial-baud 921600`).
 - Full Damiao serial-bridge interface list and command patterns are documented in `motor_cli/README.md` (section `3.6` in `motor_cli/README.zh-CN.md`).
 - On Linux SocketCAN, do not append bitrate in `--channel` (for example `can0@1000000` is invalid).
@@ -27,6 +28,7 @@ RAII-style C++ wrapper on top of `motor_abi`.
 - `Controller(channel)` (SocketCAN/PCAN path)
 - `Controller::from_dm_serial(serial_port, baud)` (Damiao-only serial bridge)
 - `add_damiao_motor(motor_id, feedback_id, model)`
+- `add_hexfellow_motor(motor_id, feedback_id, model)`
 - `add_myactuator_motor(motor_id, feedback_id, model)`
 - `add_robstride_motor(motor_id, feedback_id, model)`
 - `add_hightorque_motor(motor_id, feedback_id, model)`

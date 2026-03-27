@@ -1,11 +1,11 @@
 # motorbridge Python SDK
 
 <!-- channel-compat-note -->
-## Channel Compatibility (PCAN + slcan + Damiao Serial Bridge)
+## Channel Compatibility (PCAN + slcan + CAN-FD + Damiao Serial Bridge)
 
 - Linux SocketCAN uses interface names directly: `can0`, `can1`, `slcan0`.
 - For USB-serial CAN adapters, bring up `slcan0` first: `sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`.
-- Damiao-only dedicated CAN-FD transport is also available in CLI (`--transport socketcanfd`).
+- Dedicated CAN-FD transport is available in CLI (`--transport socketcanfd`) and currently used by Hexfellow path.
 - Damiao-only serial bridge transport is also available in CLI (`--transport dm-serial --serial-port /dev/ttyACM0 --serial-baud 921600`).
 - Full Damiao serial-bridge interface list and command patterns are documented in `motor_cli/README.md` (section `3.6` in `motor_cli/README.zh-CN.md`).
 - On Linux SocketCAN, do not append bitrate in `--channel` (for example `can0@1000000` is invalid).
@@ -25,6 +25,7 @@ Python binding layer on top of `motor_abi`.
   - `Controller.from_dm_serial(serial_port="/dev/ttyACM0", baud=921600)` (Damiao-only serial bridge)
 - Vendors:
   - Damiao: `add_damiao_motor(...)`
+  - Hexfellow: `add_hexfellow_motor(...)`
   - MyActuator: `add_myactuator_motor(...)`
   - RobStride: `add_robstride_motor(...)`
   - HighTorque: `add_hightorque_motor(...)`
@@ -209,8 +210,9 @@ python3 bindings/python/examples/robstride_wrapper_demo.py \
 
 ## Notes
 
-- `id-dump` and `id-set` are Damiao workflows; `scan` supports `damiao|myactuator|robstride|hightorque|all`.
+- `id-dump` and `id-set` are Damiao workflows; `scan` supports `damiao|hexfellow|myactuator|robstride|hightorque|all`.
 - `Mode.MIT` and `send_force_pos` are not available for MyActuator in ABI wrapper.
+- Hexfellow supports `MIT` and `POS_VEL` through ABI wrapper; `VEL` and `FORCE_POS` return unsupported.
 - Full Damiao tuning reference stays in:
   - [DAMIAO_API.md](DAMIAO_API.md)
   - [DAMIAO_API.zh-CN.md](DAMIAO_API.zh-CN.md)

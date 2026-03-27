@@ -243,6 +243,7 @@ dependencies = [
  "motor_core",
  "motor_vendor_damiao",
  "motor_vendor_hexfellow",
+ "motor_vendor_hightorque",
  "motor_vendor_myactuator",
  "motor_vendor_robstride",
 ]
@@ -282,6 +283,13 @@ dependencies = [
 
 [[package]]
 name = "motor_vendor_hexfellow"
+version = "0.1.3"
+dependencies = [
+ "motor_core",
+]
+
+[[package]]
+name = "motor_vendor_hightorque"
 version = "0.1.3"
 dependencies = [
  "motor_core",

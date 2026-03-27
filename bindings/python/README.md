@@ -5,7 +5,7 @@
 
 - Linux SocketCAN uses interface names directly: `can0`, `can1`, `slcan0`.
 - For USB-serial CAN adapters, bring up `slcan0` first: `sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`.
-- Dedicated CAN-FD transport is available in CLI (`--transport socketcanfd`) and currently used by Hexfellow path.
+- CAN-FD transport is available both in CLI (`--transport socketcanfd`) and Python SDK (`Controller.from_socketcanfd(...)`), and is required for Hexfellow.
 - Damiao-only serial bridge transport is also available in CLI (`--transport dm-serial --serial-port /dev/ttyACM0 --serial-baud 921600`).
 - Full Damiao serial-bridge interface list and command patterns are documented in `motor_cli/README.md` (section `3.6` in `motor_cli/README.zh-CN.md`).
 - On Linux SocketCAN, do not append bitrate in `--channel` (for example `can0@1000000` is invalid).
@@ -22,6 +22,7 @@ Python binding layer on top of `motor_abi`.
 - CLI: `motorbridge-cli`
 - Controller constructors:
   - `Controller(channel="can0")` (SocketCAN/PCAN path)
+  - `Controller.from_socketcanfd(channel="can0")` (CAN-FD path, required by Hexfellow)
   - `Controller.from_dm_serial(serial_port="/dev/ttyACM0", baud=921600)` (Damiao-only serial bridge)
 - Vendors:
   - Damiao: `add_damiao_motor(...)`
@@ -79,6 +80,20 @@ with Controller("can0") as ctrl:
     ctrl.enable_all()
     motor.ensure_mode(Mode.POS_VEL, 1000)
     motor.send_pos_vel(3.1416, 2.0)  # rad / rad/s
+    print(motor.get_state())
+    motor.close()
+```
+
+Hexfellow quick use (CAN-FD only):
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(1, 0x00, "hexfellow")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)      # Hexfellow supports MIT / POS_VEL
+    motor.send_mit(0.8, 1.0, 30.0, 1.0, 0.1)
     print(motor.get_state())
     motor.close()
 ```
@@ -161,6 +176,7 @@ python -m pip install bindings/python/dist/motorbridge-*.whl
 ## Example Programs
 
 - Damiao wrapper demo: `examples/python_wrapper_demo.py`
+- Hexfellow CAN-FD demo: `examples/hexfellow_canfd_demo.py` (MIT / POS_VEL only)
 - Damiao maintenance demo: `examples/damiao_maintenance_demo.py`
 - Damiao register rw demo: `examples/damiao_register_rw_demo.py`
 - Damiao dm-serial demo: `examples/damiao_dm_serial_demo.py`

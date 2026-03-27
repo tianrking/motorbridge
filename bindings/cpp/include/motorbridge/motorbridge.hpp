@@ -274,6 +274,14 @@ class Controller {
     handle_ = std::make_shared<detail::ControllerHandle>(raw);
   }
 
+  static Controller from_socketcanfd(const std::string& channel = "can0") {
+    MotorController* raw = motor_controller_new_socketcanfd(channel.c_str());
+    if (!raw) {
+      throw Error("new_socketcanfd failed: " + last_error_message());
+    }
+    return Controller(raw);
+  }
+
   static Controller from_dm_serial(const std::string& serial_port = "/dev/ttyACM0",
                                    uint32_t baud = 921600) {
     MotorController* raw = motor_controller_new_dm_serial(serial_port.c_str(), baud);

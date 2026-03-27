@@ -5,7 +5,7 @@
 
 - Linux SocketCAN uses interface names directly: `can0`, `can1`, `slcan0`.
 - For USB-serial CAN adapters, bring up `slcan0` first: `sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`.
-- Dedicated CAN-FD transport is available in CLI (`--transport socketcanfd`) and currently used by Hexfellow path.
+- CAN-FD transport is available both in CLI (`--transport socketcanfd`) and C++ SDK (`Controller::from_socketcanfd(...)`), and is required for Hexfellow.
 - Damiao-only serial bridge transport is also available in CLI (`--transport dm-serial --serial-port /dev/ttyACM0 --serial-baud 921600`).
 - Full Damiao serial-bridge interface list and command patterns are documented in `motor_cli/README.md` (section `3.6` in `motor_cli/README.zh-CN.md`).
 - On Linux SocketCAN, do not append bitrate in `--channel` (for example `can0@1000000` is invalid).
@@ -26,6 +26,7 @@ RAII-style C++ wrapper on top of `motor_abi`.
 ## Controller Entrypoints
 
 - `Controller(channel)` (SocketCAN/PCAN path)
+- `Controller::from_socketcanfd(channel)` (CAN-FD path, required by Hexfellow)
 - `Controller::from_dm_serial(serial_port, baud)` (Damiao-only serial bridge)
 - `add_damiao_motor(motor_id, feedback_id, model)`
 - `add_hexfellow_motor(motor_id, feedback_id, model)`
@@ -97,9 +98,26 @@ int main() {
 }
 ```
 
+Hexfellow (CAN-FD only):
+
+```cpp
+#include "motorbridge/motorbridge.hpp"
+
+int main() {
+  auto ctrl = motorbridge::Controller::from_socketcanfd("can0");
+  auto motor = ctrl.add_hexfellow_motor(0x01, 0x00, "hexfellow");
+  ctrl.enable_all();
+  motor.ensure_mode(motorbridge::Mode::MIT, 1000);  // Hexfellow: MIT / POS_VEL only
+  motor.send_mit(0.8f, 1.0f, 30.0f, 1.0f, 0.1f);
+  ctrl.shutdown();
+  return 0;
+}
+```
+
 ## Example Programs
 
 - `examples/cpp_wrapper_demo.cpp`
+- `examples/hexfellow_canfd_demo.cpp` (Hexfellow, CAN-FD, MIT / POS_VEL only)
 - `examples/robstride_wrapper_demo.cpp`
 - `examples/full_modes_demo.cpp`
 - `examples/pid_register_tune_demo.cpp`

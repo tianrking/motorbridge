@@ -1,11 +1,9 @@
-mod hightorque;
-
-use hightorque::{HightorqueController, HightorqueMotor};
 use motor_vendor_damiao::{ControlMode as DamiaoControlMode, DamiaoController, DamiaoMotor};
 use motor_vendor_hexfellow::{
     HexfellowController, HexfellowMotor, MitTarget as HexfellowMitTarget,
     PosVelTarget as HexfellowPosVelTarget,
 };
+use motor_vendor_hightorque::{HightorqueController, HightorqueMotor};
 use motor_vendor_myactuator::{
     ControlMode as MyActuatorControlMode, MyActuatorController, MyActuatorMotor,
 };
@@ -249,6 +247,20 @@ pub extern "C" fn motor_last_error_message() -> *const c_char {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn motor_controller_new_socketcan(channel: *const c_char) -> *mut MotorController {
+    let channel = match parse_cstr(channel, "channel") {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(e);
+            return ptr::null_mut();
+        }
+    };
+    Box::into_raw(Box::new(MotorController {
+        inner: ControllerInner::Unbound(channel),
+    }))
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn motor_controller_new_socketcanfd(channel: *const c_char) -> *mut MotorController {
     let channel = match parse_cstr(channel, "channel") {
         Ok(v) => v,
         Err(e) => {

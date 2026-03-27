@@ -26,6 +26,15 @@ class Controller:
             raise CallError(f"new_socketcan failed: {_err_text()}")
 
     @classmethod
+    def from_socketcanfd(cls, channel: str = "can0") -> "Controller":
+        self = cls.__new__(cls)
+        self._abi = get_abi()
+        self._ptr = self._abi.lib.motor_controller_new_socketcanfd(channel.encode())
+        if not self._ptr:
+            raise CallError(f"new_socketcanfd failed: {_err_text()}")
+        return self
+
+    @classmethod
     def from_dm_serial(cls, serial_port: str = "/dev/ttyACM0", baud: int = 921600) -> "Controller":
         self = cls.__new__(cls)
         self._abi = get_abi()

@@ -5,7 +5,7 @@
 
 - Linux SocketCAN 直接使用网卡名：`can0`、`can1`、`slcan0`。
 - 串口类 USB-CAN 需先创建并拉起 `slcan0`：`sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`。
-- 可选独立 CAN-FD 链路：`--transport socketcanfd`，当前用于 Hexfellow 路径。
+- CAN-FD 链路可通过 CLI（`--transport socketcanfd`）和 Python SDK（`Controller.from_socketcanfd(...)`）使用，Hexfellow 必须走该链路。
 - 仅 Damiao 可选串口桥链路：`--transport dm-serial --serial-port /dev/ttyACM0 --serial-baud 921600`。
 - Damiao 串口桥完整接口与命令模板见 `motor_cli/README.zh-CN.md` 第 `3.6` 节（英文见 `motor_cli/README.md`）。
 - Linux SocketCAN 下 `--channel` 不要带 `@bitrate`（例如 `can0@1000000` 无效）。
@@ -22,6 +22,7 @@
 - CLI: `motorbridge-cli`
 - Controller 构造入口：
   - `Controller(channel=\"can0\")`（SocketCAN/PCAN 路径）
+  - `Controller.from_socketcanfd(channel=\"can0\")`（CAN-FD 路径，Hexfellow 必须使用）
   - `Controller.from_dm_serial(serial_port=\"/dev/ttyACM0\", baud=921600)`（仅 Damiao 串口桥）
 - 厂商入口:
   - Damiao: `add_damiao_motor(...)`
@@ -79,6 +80,20 @@ with Controller("can0") as ctrl:
     ctrl.enable_all()
     motor.ensure_mode(Mode.POS_VEL, 1000)
     motor.send_pos_vel(3.1416, 2.0)  # rad / rad/s
+    print(motor.get_state())
+    motor.close()
+```
+
+Hexfellow 快速示例（仅 CAN-FD）:
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(1, 0x00, "hexfellow")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)      # Hexfellow 仅支持 MIT / POS_VEL
+    motor.send_mit(0.8, 1.0, 30.0, 1.0, 0.1)
     print(motor.get_state())
     motor.close()
 ```
@@ -161,6 +176,7 @@ python -m pip install bindings/python/dist/motorbridge-*.whl
 ## 示例程序
 
 - Damiao wrapper 示例: `examples/python_wrapper_demo.py`
+- Hexfellow CAN-FD 示例: `examples/hexfellow_canfd_demo.py`（仅 MIT / POS_VEL）
 - Damiao 维护接口示例: `examples/damiao_maintenance_demo.py`
 - Damiao 寄存器读写示例: `examples/damiao_register_rw_demo.py`
 - Damiao 串口桥链路示例: `examples/damiao_dm_serial_demo.py`

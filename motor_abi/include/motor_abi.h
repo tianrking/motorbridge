@@ -35,7 +35,7 @@ typedef struct MotorState {
 //
 // Vendor support in current ABI:
 // - Damiao
-// - Hexfellow (CAN-FD transport via motor_controller_new_socketcan)
+// - Hexfellow (CAN-FD transport via motor_controller_new_socketcanfd)
 // - RobStride
 // - MyActuator
 // - HighTorque (native ht_can v1.5.5)
@@ -43,6 +43,7 @@ typedef struct MotorState {
 const char* motor_last_error_message(void);
 
 MotorController* motor_controller_new_socketcan(const char* channel);
+MotorController* motor_controller_new_socketcanfd(const char* channel);
 MotorController* motor_controller_new_dm_serial(const char* serial_port, uint32_t baud);
 void motor_controller_free(MotorController* controller);
 int32_t motor_controller_poll_feedback_once(MotorController* controller);

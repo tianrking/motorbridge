@@ -1,10 +1,11 @@
 # Python Practical Demos
 
 <!-- channel-compat-note -->
-## Channel Compatibility (PCAN + slcan + Damiao Serial Bridge)
+## Channel Compatibility (PCAN + slcan + CAN-FD + Damiao Serial Bridge)
 
 - Linux SocketCAN uses interface names directly: `can0`, `can1`, `slcan0`.
 - For USB-serial CAN adapters, bring up `slcan0` first: `sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`.
+- Hexfellow examples require CAN-FD path (`Controller.from_socketcanfd(...)` / CLI `--transport socketcanfd`).
 - Damiao-only serial bridge transport is also available in CLI (`--transport dm-serial --serial-port /dev/ttyACM0 --serial-baud 921600`).
 - Full Damiao serial-bridge interface list and command patterns are documented in `motor_cli/README.md` (section `3.6` in `motor_cli/README.zh-CN.md`).
 - On Linux SocketCAN, do not append bitrate in `--channel` (for example `can0@1000000` is invalid).
@@ -31,6 +32,7 @@ Examples built on the Python SDK.
 - `dm_serial_08_negative_enable_setzero_guard_demo.py`: SOP-08 dm-serial negative test (`enable` state `set_zero` should be rejected by core guard)
 - `dm_serial_leader_monitor_demo.py`: Damiao dm-serial leader monitor (enable-all + selected-ID full state stream)
 - `robstride_wrapper_demo.py`: RobStride ping / read-param / mit / vel demo
+- `hexfellow_canfd_demo.py`: Hexfellow CAN-FD demo (`mit` / `pos-vel` only)
 - `full_modes_demo.py`: Damiao full-mode demo
 - `pid_register_tune_demo.py`: Damiao register tuning
 - `scan_ids_demo.py`: Damiao fast scan (legacy helper)
@@ -165,6 +167,13 @@ RobStride read parameter:
 ```bash
 PYTHONPATH=bindings/python/src python3 bindings/python/examples/robstride_wrapper_demo.py \
   --channel can0 --model rs-00 --motor-id 127 --mode read-param --param-id 0x7019
+```
+
+Hexfellow (CAN-FD only):
+
+```bash
+PYTHONPATH=bindings/python/src python3 bindings/python/examples/hexfellow_canfd_demo.py \
+  --channel can0 --motor-id 0x01 --feedback-id 0x00 --mode mit --loop 20 --dt-ms 50
 ```
 
 Unified vendor scan via CLI:

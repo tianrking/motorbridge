@@ -61,7 +61,7 @@ WS API 主链路已实现。
 | robstride | 原生 MIT | 不支持 | 原生 Velocity 模式 | 不支持 | `vel` 映射到 vendor velocity target | 参数读写走 `robstride_*` |
 | hexfellow | 原生 MIT | 原生 POS_VEL | 不支持 | 不支持 | `mit` 支持 `kp/kd/tau`，无独立 `vel` | CAN-FD 链路 |
 | myactuator | 不支持 | 不支持 | 原生速度设定 | 不支持 | 基线里仅 `vel` 可用 | 强项是 current/position/version/mode-query |
-| hightorque | 原生 MIT（ht_can 映射） | 不支持 | 原生速度帧 | 不支持 | `mit/vel` 为原生帧映射 | 当前子集 scan/read/mit/vel/stop |
+| hightorque | 原生 MIT（ht_can 映射） | 不支持 | 原生速度帧 | 不支持 | `mit/vel` 为原生帧映射；`kp/kd` 为统一签名保留但协议侧忽略 | 当前子集 scan/read/mit/vel/stop；`enable/disable` 接受但为 no-op |
 
 ### 统一核心操作支持矩阵
 
@@ -76,6 +76,7 @@ WS API 主链路已实现。
 ### 模式参数差异说明
 
 - `mit`：统一字段一致，但各厂商内部缩放/编码不同，由网关适配层处理。
+  HighTorque 细节：当前协议路径会忽略 `kp/kd`。
 - `pos_vel`：仅对具备等价模式的厂商可用。
 - `vel`：方向与量纲转换由厂商适配层内部处理。
 - `force_pos`：当前统一路径仅 Damiao 支持。

@@ -61,7 +61,7 @@ If a vendor does not support one of these four baseline modes, gateway returns `
 | robstride | native MIT | unsupported | native Velocity mode | unsupported | `vel` maps to vendor velocity target | native param read/write via `robstride_*` |
 | hexfellow | native MIT | native POS_VEL | unsupported | unsupported | `mit` supports `kp/kd/tau`; no standalone `vel` | CAN-FD path |
 | myactuator | unsupported | unsupported | native velocity setpoint | unsupported | `vel` only in baseline set | native strengths: current/position/version/mode-query |
-| hightorque | native MIT (ht_can mapping) | unsupported | native velocity frame | unsupported | `mit/vel` are raw-frame mapped | current subset: scan/read/mit/vel/stop |
+| hightorque | native MIT (ht_can mapping) | unsupported | native velocity frame | unsupported | `mit/vel` are raw-frame mapped; `kp/kd` are accepted for unified signature but ignored by protocol | current subset: scan/read/mit/vel/stop; `enable/disable` accepted as no-op |
 
 ### Unified Core Ops Support Matrix
 
@@ -76,6 +76,7 @@ If a vendor does not support one of these four baseline modes, gateway returns `
 ### Parameter Notes by Mode
 
 - `mit`: same unified fields, but vendor scaling differs internally (gateway adapter handles conversion).
+  HighTorque detail: `kp/kd` are currently ignored by protocol path.
 - `pos_vel`: only valid where vendor has equivalent mode.
 - `vel`: sign/scale conversion is vendor-specific internally.
 - `force_pos`: currently Damiao-only in unified path.

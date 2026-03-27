@@ -38,6 +38,98 @@ WS API 主链路已实现。
 - V1 载荷：JSON 文本帧
 - 按 `--dt-ms` 周期推送状态
 
+## 统一模式映射（草案）
+
+目标：应用层优先使用统一操作集；厂商专属操作保留可用，但不作为默认推荐路径。
+
+### 统一控制模式（应用层，固定基线）
+
+| 统一模式 | 统一操作 | 核心参数 |
+| --- | --- | --- |
+| `mit` | `{"op":"mit", ...}` | `pos`, `vel`, `kp`, `kd`, `tau` |
+| `pos_vel` | `{"op":"pos_vel", ...}` | `pos`, `vlim` |
+| `vel` | `{"op":"vel", ...}` | `vel` |
+| `force_pos` | `{"op":"force_pos", ...}` | `pos`, `vlim`, `ratio` |
+
+若某厂商不支持这四种基线模式，网关统一返回 `unsupported`。
+
+### 厂商映射表（统一模式 -> 厂商原生）
+
+| 厂商 | `mit` | `pos_vel` | `vel` | `force_pos` | 参数差异 | 备注 |
+| --- | --- | --- | --- | --- | --- | --- |
+| damiao | 原生 MIT | 原生 POS_VEL | 原生 VEL | 原生 FORCE_POS | 参数完整对齐 | 基线参考实现 |
+| robstride | 原生 MIT | 不支持 | 原生 Velocity 模式 | 不支持 | `vel` 映射到 vendor velocity target | 参数读写走 `robstride_*` |
+| hexfellow | 原生 MIT | 原生 POS_VEL | 不支持 | 不支持 | `mit` 支持 `kp/kd/tau`，无独立 `vel` | CAN-FD 链路 |
+| myactuator | 不支持 | 不支持 | 原生速度设定 | 不支持 | 基线里仅 `vel` 可用 | 强项是 current/position/version/mode-query |
+| hightorque | 原生 MIT（ht_can 映射） | 不支持 | 原生速度帧 | 不支持 | `mit/vel` 为原生帧映射 | 当前子集 scan/read/mit/vel/stop |
+
+### 统一核心操作支持矩阵
+
+| 厂商 | `scan` | `set_id` | `enable` | `disable` | `stop` | `state_once/status` |
+| --- | --- | --- | --- | --- | --- | --- |
+| damiao | 支持 | 支持 | 支持 | 支持 | 支持 | 支持 |
+| robstride | 支持 | 支持 | 支持 | 支持 | 支持 | 支持 |
+| hexfellow | 支持 | 不支持 | 支持 | 支持 | 支持 | 支持 |
+| myactuator | 支持 | 不支持 | 支持 | 支持 | 支持 | 支持 |
+| hightorque | 支持 | 不支持 | 接受（no-op） | 接受（no-op） | 支持 | 支持 |
+
+### 模式参数差异说明
+
+- `mit`：统一字段一致，但各厂商内部缩放/编码不同，由网关适配层处理。
+- `pos_vel`：仅对具备等价模式的厂商可用。
+- `vel`：方向与量纲转换由厂商适配层内部处理。
+- `force_pos`：当前统一路径仅 Damiao 支持。
+
+## WS `capabilities` 响应结构（草案）
+
+建议：客户端连接后先调用 `{"op":"capabilities"}`，根据返回能力矩阵自动适配 UI 与流程。
+
+### 响应示例
+
+```json
+{
+  "ok": true,
+  "op": "capabilities",
+  "data": {
+    "api_version": "v1",
+    "default_vendor": "damiao",
+    "vendors": {
+      "damiao": {
+        "transports": ["auto", "socketcan", "socketcanfd", "dm-serial"],
+        "modes": ["mit", "pos_vel", "vel", "force_pos"],
+        "ops_unified": ["scan", "set_id", "enable", "disable", "stop", "state_once", "status", "verify"],
+        "ops_vendor_native": ["write_register_u32", "write_register_f32", "get_register_u32", "get_register_f32"]
+      },
+      "robstride": {
+        "transports": ["auto", "socketcan", "socketcanfd"],
+        "modes": ["mit", "vel"],
+        "ops_unified": ["scan", "set_id", "enable", "disable", "stop", "state_once", "status", "verify"],
+        "ops_vendor_native": ["robstride_ping", "robstride_read_param", "robstride_write_param"]
+      },
+      "hexfellow": {
+        "transports": ["auto", "socketcanfd"],
+        "modes": ["mit", "pos_vel"],
+        "ops_unified": ["scan", "enable", "disable", "stop", "state_once", "status", "verify"],
+        "ops_vendor_native": []
+      },
+      "myactuator": {
+        "transports": ["auto", "socketcan", "socketcanfd"],
+        "modes": ["vel"],
+        "ops_unified": ["scan", "enable", "disable", "stop", "state_once", "status", "verify"],
+        "ops_vendor_native": ["status", "version", "mode-query"]
+      },
+      "hightorque": {
+        "transports": ["auto", "socketcan"],
+        "modes": ["mit", "vel"],
+        "ops_unified": ["scan", "stop", "state_once", "status", "verify"],
+        "ops_vendor_native": ["read"]
+      }
+    },
+    "unsupported_behavior": "return {ok:false,error:'unsupported ...'}"
+  }
+}
+```
+
 ## 构建
 
 ```bash
@@ -134,15 +226,17 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --mod
 
 ## 说明
 
-- `--vendor damiao|robstride` 用于设置会话默认厂商。
-- `set_target` 可在单个会话中动态切换厂商/通道/型号/ID。
+- `--vendor damiao|robstride|hexfellow|myactuator|hightorque` 用于设置会话默认厂商。
+- `set_target` 可在单个会话中动态切换厂商/transport/通道/串口/型号/ID。
 - `continuous=true` 会在每个 tick 持续发送该控制命令。
 - `stop` 用于清除持续控制。
 - `set_id` 按厂商处理：
   - Damiao：先写 `MST_ID`，再写 `ESC_ID`。
   - RobStride：使用 `SET_DEVICE_ID` 更新设备 ID。
-- Damiao 专属操作：`pos_vel`、`force_pos`、`write/get_register_*`。
+- Damiao 专属操作：`write/get_register_*` 与 `dm-serial` transport。
 - RobStride 专属操作：`robstride_ping`、`robstride_read_param`、`robstride_write_param`。
+- MyActuator 专属操作：`current`、`pos`、`version`、`mode-query`。
+- HighTorque 专属操作：`read`。
 - 后续 V2 可升级为二进制帧，同时保留同一语义。
 
 ## 简易上位机（快速联调）

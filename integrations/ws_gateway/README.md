@@ -38,6 +38,98 @@ The bundled web HMI (`tools/ws_test_client.html`) is still under active developm
 - V1 payload: JSON text frames
 - Periodic state push on each `--dt-ms` tick
 
+## Unified Mode Mapping (Draft)
+
+Goal: application layer uses one unified operation set first; vendor-specific ops remain available but are not recommended as default.
+
+### Unified Control Modes (app-facing, fixed baseline)
+
+| Unified Mode | Unified Op | Core Parameters |
+| --- | --- | --- |
+| `mit` | `{"op":"mit", ...}` | `pos`, `vel`, `kp`, `kd`, `tau` |
+| `pos_vel` | `{"op":"pos_vel", ...}` | `pos`, `vlim` |
+| `vel` | `{"op":"vel", ...}` | `vel` |
+| `force_pos` | `{"op":"force_pos", ...}` | `pos`, `vlim`, `ratio` |
+
+If a vendor does not support one of these four baseline modes, gateway returns `unsupported`.
+
+### Vendor Mapping Table (unified mode -> vendor-native)
+
+| Vendor | `mit` | `pos_vel` | `vel` | `force_pos` | Parameter Differences | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| damiao | native MIT | native POS_VEL | native VEL | native FORCE_POS | full parameter match | baseline reference |
+| robstride | native MIT | unsupported | native Velocity mode | unsupported | `vel` maps to vendor velocity target | native param read/write via `robstride_*` |
+| hexfellow | native MIT | native POS_VEL | unsupported | unsupported | `mit` supports `kp/kd/tau`; no standalone `vel` | CAN-FD path |
+| myactuator | unsupported | unsupported | native velocity setpoint | unsupported | `vel` only in baseline set | native strengths: current/position/version/mode-query |
+| hightorque | native MIT (ht_can mapping) | unsupported | native velocity frame | unsupported | `mit/vel` are raw-frame mapped | current subset: scan/read/mit/vel/stop |
+
+### Unified Core Ops Support Matrix
+
+| Vendor | `scan` | `set_id` | `enable` | `disable` | `stop` | `state_once/status` |
+| --- | --- | --- | --- | --- | --- | --- |
+| damiao | supported | supported | supported | supported | supported | supported |
+| robstride | supported | supported | supported | supported | supported | supported |
+| hexfellow | supported | unsupported | supported | supported | supported | supported |
+| myactuator | supported | unsupported | supported | supported | supported | supported |
+| hightorque | supported | unsupported | accepted (no-op) | accepted (no-op) | supported | supported |
+
+### Parameter Notes by Mode
+
+- `mit`: same unified fields, but vendor scaling differs internally (gateway adapter handles conversion).
+- `pos_vel`: only valid where vendor has equivalent mode.
+- `vel`: sign/scale conversion is vendor-specific internally.
+- `force_pos`: currently Damiao-only in unified path.
+
+## WS `capabilities` Response (Draft)
+
+Recommended: client calls `{"op":"capabilities"}` on connect and adapts UI/flows by returned support matrix.
+
+### Example response
+
+```json
+{
+  "ok": true,
+  "op": "capabilities",
+  "data": {
+    "api_version": "v1",
+    "default_vendor": "damiao",
+    "vendors": {
+      "damiao": {
+        "transports": ["auto", "socketcan", "socketcanfd", "dm-serial"],
+        "modes": ["mit", "pos_vel", "vel", "force_pos"],
+        "ops_unified": ["scan", "set_id", "enable", "disable", "stop", "state_once", "status", "verify"],
+        "ops_vendor_native": ["write_register_u32", "write_register_f32", "get_register_u32", "get_register_f32"]
+      },
+      "robstride": {
+        "transports": ["auto", "socketcan", "socketcanfd"],
+        "modes": ["mit", "vel"],
+        "ops_unified": ["scan", "set_id", "enable", "disable", "stop", "state_once", "status", "verify"],
+        "ops_vendor_native": ["robstride_ping", "robstride_read_param", "robstride_write_param"]
+      },
+      "hexfellow": {
+        "transports": ["auto", "socketcanfd"],
+        "modes": ["mit", "pos_vel"],
+        "ops_unified": ["scan", "enable", "disable", "stop", "state_once", "status", "verify"],
+        "ops_vendor_native": []
+      },
+      "myactuator": {
+        "transports": ["auto", "socketcan", "socketcanfd"],
+        "modes": ["vel"],
+        "ops_unified": ["scan", "enable", "disable", "stop", "state_once", "status", "verify"],
+        "ops_vendor_native": ["status", "version", "mode-query"]
+      },
+      "hightorque": {
+        "transports": ["auto", "socketcan"],
+        "modes": ["mit", "vel"],
+        "ops_unified": ["scan", "stop", "state_once", "status", "verify"],
+        "ops_vendor_native": ["read"]
+      }
+    },
+    "unsupported_behavior": "return {ok:false,error:'unsupported ...'}"
+  }
+}
+```
+
 ## Build
 
 ```bash
@@ -134,15 +226,17 @@ State stream frame:
 
 ## Notes
 
-- `--vendor damiao|robstride` controls default target vendor.
-- `set_target` can switch vendor/channel/model/id on the fly per session.
+- `--vendor damiao|robstride|hexfellow|myactuator|hightorque` controls default target vendor.
+- `set_target` can switch vendor/transport/channel/serial/model/id on the fly per session.
 - `continuous=true` keeps sending that control command every tick.
 - `stop` clears continuous control.
 - `set_id` is vendor-aware:
   - Damiao: write `MST_ID` first, then `ESC_ID`.
   - RobStride: device ID update via `SET_DEVICE_ID`.
-- Damiao-only ops: `pos_vel`, `force_pos`, `write/get_register_*`.
+- Damiao-only ops: `write/get_register_*` and `dm-serial` transport.
 - RobStride-only ops: `robstride_ping`, `robstride_read_param`, `robstride_write_param`.
+- MyActuator-native ops: `current`, `pos`, `version`, `mode-query`.
+- HighTorque-native op: `read`.
 - V2 plan can switch to binary frames while preserving operation semantics.
 
 ## Simple HMI (for quick testing)

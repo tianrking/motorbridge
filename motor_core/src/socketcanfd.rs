@@ -105,10 +105,19 @@ fn socketcanfd_hint(raw_os_error: Option<i32>, iface: &str) -> String {
 pub struct SocketCanFdBus {
     fd: Mutex<Option<RawFd>>,
     interface: String,
+    enable_brs: bool,
 }
 
 impl SocketCanFdBus {
     pub fn open(interface: &str) -> Result<Self> {
+        let enable_brs = std::env::var("MOTOR_SOCKETCANFD_BRS")
+            .ok()
+            .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "on" | "ON"))
+            .unwrap_or(false);
+        Self::open_with_brs(interface, enable_brs)
+    }
+
+    pub fn open_with_brs(interface: &str, enable_brs: bool) -> Result<Self> {
         let iface = CString::new(interface)
             .map_err(|_| MotorError::InvalidArgument("interface contains NUL".to_string()))?;
 
@@ -170,6 +179,7 @@ impl SocketCanFdBus {
         Ok(Self {
             fd: Mutex::new(Some(fd)),
             interface: interface.to_string(),
+            enable_brs,
         })
     }
 
@@ -215,7 +225,7 @@ impl CanBus for SocketCanFdBus {
                     frame.arbitration_id
                 },
                 len: frame.dlc,
-                flags: CANFD_BRS,
+                flags: if self.enable_brs { CANFD_BRS } else { 0 },
                 __res0: 0,
                 __res1: 0,
                 data: [0u8; 64],

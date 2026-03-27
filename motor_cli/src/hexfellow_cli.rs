@@ -83,7 +83,15 @@ pub fn run_hexfellow(
             let tau = get_f32(args, "tau", 0.0)?;
             let kp = get_f32(args, "kp", 1000.0)? as u16;
             let kd = get_f32(args, "kd", 100.0)? as u16;
-            let limit_permille = get_u64(args, "limit-permille", 1000)? as u16;
+            let limit_permille_u64 = get_u64(args, "limit-permille", 1000)?;
+            if limit_permille_u64 > 1000 {
+                return Err(format!(
+                    "invalid --limit-permille {} (expected 0..=1000)",
+                    limit_permille_u64
+                )
+                .into());
+            }
+            let limit_permille = limit_permille_u64 as u16;
             motor.command_mit(
                 MitTarget {
                     position_rev: to_rev(pos_rad),

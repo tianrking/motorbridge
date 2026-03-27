@@ -1,11 +1,9 @@
-mod hightorque;
-
-use hightorque::{HightorqueController, HightorqueMotor};
 use motor_vendor_damiao::{ControlMode as DamiaoControlMode, DamiaoController, DamiaoMotor};
 use motor_vendor_hexfellow::{
     HexfellowController, HexfellowMotor, MitTarget as HexfellowMitTarget,
     PosVelTarget as HexfellowPosVelTarget,
 };
+use motor_vendor_hightorque::{HightorqueController, HightorqueMotor};
 use motor_vendor_myactuator::{
     ControlMode as MyActuatorControlMode, MyActuatorController, MyActuatorMotor,
 };

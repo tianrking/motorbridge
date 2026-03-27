@@ -5,6 +5,7 @@ members = [
   "motor_vendors/robstride",
   "motor_vendors/myactuator",
   "motor_vendors/hexfellow",
+  "motor_vendors/hightorque",
   "motor_vendors/template",
   "motor_cli",
   "motor_abi",

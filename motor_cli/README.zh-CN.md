@@ -50,10 +50,13 @@ motor_cli -h
 ## 传输标识
 
 - `[STD-CAN]` => `--transport auto|socketcan`
-- `[CAN-FD]` => `--transport socketcanfd`（仅 Damiao，Linux）
+- `[CAN-FD]` => `--transport socketcanfd`（仅 Linux；Hexfellow 必须使用）
 - `[DM-SERIAL]` => `--transport dm-serial`（仅 Damiao）
 
-当前状态：`[CAN-FD]` 仅表示链路已接入，电机验证矩阵待补。
+当前状态：
+- Hexfellow：`socketcanfd` 路径已实测，统一 `mit` / `pos-vel` 可用。
+- HighTorque：标准 CAN 下统一 `mit` / `vel` 已实测可用（协议层忽略 `kp/kd`）。
+- Damiao：统一 `mit` / `pos-vel` / `vel` / `force-pos` 的基线实现。
 
 ## 1. 参数解析规则
 
@@ -79,7 +82,7 @@ motor_cli \
 ```
 
 说明：
-- `socketcanfd` 与 `dm-serial` 仅 Damiao 可用；其他品牌统一走标准 CAN（SocketCAN/PCAN）。
+- `socketcanfd` 为 Hexfellow 必需链路；Damiao 可按型号做 CAN-FD 验证；`dm-serial` 仅 Damiao 可用。
 - `vendor=all` 当前仅用于统一扫描（`--mode scan`）。
 
 ### 1.2 通用参数语义（先理解这些）
@@ -112,7 +115,7 @@ motor_cli \
 |---|---|---|---|
 | `--help` | flag | 关闭 | 输出帮助并退出 |
 | `--vendor` | string | `damiao` | `damiao` / `robstride` / `hightorque` / `myactuator` / `hexfellow` / `all` |
-| `--transport` | string | `auto` | `auto` / `socketcan` / `socketcanfd` / `dm-serial`（`socketcanfd` 与 `dm-serial` 仅 Damiao） |
+| `--transport` | string | `auto` | `auto` / `socketcan` / `socketcanfd` / `dm-serial`（`socketcanfd` 为 Hexfellow 必需；`dm-serial` 仅 Damiao） |
 | `--channel` | string | `can0` | Linux：SocketCAN 网卡名（`can0`/`slcan0`）；Windows（PCAN 后端）：`can0`/`can1`，可加 `@bitrate`（如 `can0@1000000`） |
 | `--serial-port` | string | `/dev/ttyACM0` | `--transport dm-serial` 时使用 |
 | `--serial-baud` | u64 | `921600` | `--transport dm-serial` 时使用 |

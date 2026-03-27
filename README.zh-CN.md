@@ -64,6 +64,8 @@ flowchart LR
   ROOT --> INTS["integrations/*"]
   ROOT --> BIND["bindings/*"]
   VENDORS --> VD["damiao"]
+  VENDORS --> VH["hexfellow"]
+  VENDORS --> VHT["hightorque"]
   VENDORS --> VR["robstride"]
   VENDORS --> VM["myactuator"]
   VENDORS --> VT["template"]
@@ -75,6 +77,8 @@ flowchart LR
 
 - [`motor_core`](motor_core): 与厂商无关的控制器、路由、CAN 总线层（Linux SocketCAN / Windows 实验性 PCAN）
 - [`motor_vendors/damiao`](motor_vendors/damiao): Damiao 协议 / 型号 / 寄存器
+- [`motor_vendors/hexfellow`](motor_vendors/hexfellow): Hexfellow CANopen-over-CAN-FD 实现
+- [`motor_vendors/hightorque`](motor_vendors/hightorque): HighTorque 原生 ht_can 协议实现
 - [`motor_vendors/robstride`](motor_vendors/robstride): RobStride 扩展 CAN 协议 / 型号 / 参数
 - [`motor_vendors/myactuator`](motor_vendors/myactuator): MyActuator CAN 协议实现
 - [`motor_cli`](motor_cli): 统一 Rust CLI

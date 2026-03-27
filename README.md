@@ -64,6 +64,8 @@ flowchart LR
   ROOT --> INTS["integrations/*"]
   ROOT --> BIND["bindings/*"]
   VENDORS --> VD["damiao"]
+  VENDORS --> VH["hexfellow"]
+  VENDORS --> VHT["hightorque"]
   VENDORS --> VR["robstride"]
   VENDORS --> VM["myactuator"]
   VENDORS --> VT["template"]
@@ -75,6 +77,8 @@ flowchart LR
 
 - [`motor_core`](motor_core): vendor-agnostic controller, routing, CAN bus layer (Linux SocketCAN / Windows experimental PCAN)
 - [`motor_vendors/damiao`](motor_vendors/damiao): Damiao protocol / models / registers
+- [`motor_vendors/hexfellow`](motor_vendors/hexfellow): Hexfellow CANopen-over-CAN-FD implementation
+- [`motor_vendors/hightorque`](motor_vendors/hightorque): HighTorque native ht_can protocol implementation
 - [`motor_vendors/robstride`](motor_vendors/robstride): RobStride extended CAN protocol / models / parameters
 - [`motor_vendors/myactuator`](motor_vendors/myactuator): MyActuator CAN protocol implementation
 - [`motor_cli`](motor_cli): unified Rust CLI

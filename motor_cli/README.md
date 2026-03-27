@@ -50,10 +50,13 @@ motor_cli -h
 ## Transport Legend
 
 - `[STD-CAN]` => `--transport auto|socketcan`
-- `[CAN-FD]` => `--transport socketcanfd` (Damiao-only, Linux-only)
+- `[CAN-FD]` => `--transport socketcanfd` (Linux-only; required by Hexfellow)
 - `[DM-SERIAL]` => `--transport dm-serial` (Damiao-only)
 
-Current status: `[CAN-FD]` path is integrated, but motor-level validation matrix is pending.
+Current status:
+- Hexfellow: validated on `socketcanfd` with unified `mit` / `pos-vel`.
+- HighTorque: validated on standard CAN with unified `mit` / `vel` (`kp/kd` ignored by protocol).
+- Damiao: baseline implementation for unified `mit` / `pos-vel` / `vel` / `force-pos`.
 
 ## 1. Argument Parsing Rules
 
@@ -68,7 +71,7 @@ Current status: `[CAN-FD]` path is integrated, but motor-level validation matrix
 |---|---|---|---|
 | `--help` | flag | off | Prints CLI help and exits |
 | `--vendor` | string | `damiao` | `damiao`, `robstride`, `hightorque`, `myactuator`, `hexfellow`, `all` |
-| `--transport` | string | `auto` | `auto`, `socketcan`, `socketcanfd`, `dm-serial` (`socketcanfd` and `dm-serial` are Damiao-only) |
+| `--transport` | string | `auto` | `auto`, `socketcan`, `socketcanfd`, `dm-serial` (`socketcanfd` is Hexfellow-required path; `dm-serial` is Damiao-only) |
 | `--channel` | string | `can0` | Linux: SocketCAN interface name (`can0`/`slcan0`); Windows (PCAN backend): `can0`/`can1` with optional `@bitrate` suffix (for example `can0@1000000`) |
 | `--serial-port` | string | `/dev/ttyACM0` | Used when `--transport dm-serial` |
 | `--serial-baud` | u64 | `921600` | Used when `--transport dm-serial` |
@@ -99,9 +102,10 @@ Current status: `[CAN-FD]` path is integrated, but motor-level validation matrix
 ### 2.3 Damiao Dedicated CAN-FD Quick Reference (`--transport socketcanfd`)
 
 - This path is Linux-only and independent from classic SocketCAN transport.
+- Hexfellow must use this path (`--vendor hexfellow --transport socketcanfd`).
 - Typical flags: `--transport socketcanfd --channel can0`.
 - Ensure the interface is in FD mode first (`scripts/canfd_restart.sh can0`).
-- Current status: transport integrated; no model is marked as CAN-FD validated yet.
+- Current status: Hexfellow validated; Damiao CAN-FD matrix can be validated per model.
 
 ## 3. Vendor = `damiao`
 

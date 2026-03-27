@@ -98,9 +98,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     if transport == "dm-serial" && vendor != "damiao" {
-        return Err(
-            "transport=dm-serial is currently supported only for --vendor damiao".into(),
-        );
+        return Err("transport=dm-serial is currently supported only for --vendor damiao".into());
     }
 
     if vendor == "all" {

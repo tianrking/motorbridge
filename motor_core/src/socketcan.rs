@@ -184,7 +184,10 @@ impl CanBus for SocketCanBus {
                 )
             };
             if n != size_of::<CanFrameRaw>() as isize {
-                return Err(last_os_error("socketcan write failed", Some(&self.interface)));
+                return Err(last_os_error(
+                    "socketcan write failed",
+                    Some(&self.interface),
+                ));
             }
             Ok(())
         })
@@ -229,7 +232,10 @@ impl CanBus for SocketCanBus {
                 )
             };
             if n != size_of::<CanFrameRaw>() as isize {
-                return Err(last_os_error("socketcan read failed", Some(&self.interface)));
+                return Err(last_os_error(
+                    "socketcan read failed",
+                    Some(&self.interface),
+                ));
             }
 
             Ok(Some(CanFrame {

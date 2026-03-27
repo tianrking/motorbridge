@@ -672,8 +672,7 @@ mod tests {
 
         let sent = bus_impl.sent.lock().expect("sent lock");
         let has_set_zero = sent.iter().any(|f| {
-            f.arbitration_id == 0x04
-                && f.data == [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE]
+            f.arbitration_id == 0x04 && f.data == [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE]
         });
         assert!(has_set_zero, "set_zero command frame should be sent");
     }

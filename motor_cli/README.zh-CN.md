@@ -111,7 +111,7 @@ motor_cli \
 | 参数 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `--help` | flag | 关闭 | 输出帮助并退出 |
-| `--vendor` | string | `damiao` | `damiao` / `robstride` / `hightorque` / `myactuator` / `all` |
+| `--vendor` | string | `damiao` | `damiao` / `robstride` / `hightorque` / `myactuator` / `hexfellow` / `all` |
 | `--transport` | string | `auto` | `auto` / `socketcan` / `socketcanfd` / `dm-serial`（`socketcanfd` 与 `dm-serial` 仅 Damiao） |
 | `--channel` | string | `can0` | Linux：SocketCAN 网卡名（`can0`/`slcan0`）；Windows（PCAN 后端）：`can0`/`can1`，可加 `@bitrate`（如 `can0@1000000`） |
 | `--serial-port` | string | `/dev/ttyACM0` | `--transport dm-serial` 时使用 |
@@ -439,7 +439,41 @@ motor_cli \
   --mode set-zero --loop 1
 ```
 
-## 7. 实用建议
+## 7. vendor=`hexfellow`
+
+链路限制：
+- Hexfellow 在本仓库按“仅 CAN-FD”接入（`--transport socketcanfd`）。
+- 当前支持范围：`scan / status / pos-vel / mit / enable / disable`。
+- 当前状态：链路已接入，电机验证矩阵待补。
+
+### 7.1 Hexfellow 示例
+
+```bash
+# 扫描 ID
+motor_cli \
+  --vendor hexfellow --transport socketcanfd --channel can0 \
+  --mode scan --start-id 1 --end-id 32
+
+# 状态查询
+motor_cli \
+  --vendor hexfellow --transport socketcanfd --channel can0 \
+  --model hexfellow --motor-id 1 --feedback-id 0 \
+  --mode status
+
+# 位置速度（pos 单位 rad，vlim 单位 rad/s）
+motor_cli \
+  --vendor hexfellow --transport socketcanfd --channel can0 \
+  --model hexfellow --motor-id 1 --feedback-id 0 \
+  --mode pos-vel --pos 3.1415926 --vlim 2.0
+
+# MIT（pos/vel 单位 rad/rad/s）
+motor_cli \
+  --vendor hexfellow --transport socketcanfd --channel can0 \
+  --model hexfellow --motor-id 1 --feedback-id 0 \
+  --mode mit --pos 0.0 --vel 0.0 --kp 1000 --kd 100 --tau 0
+```
+
+## 8. 实用建议
 
 - Damiao 改 ID 建议始终使用 `--store 1 --verify-id 1`。
 - 若扫描偶发漏检，重启 CAN 后重试。

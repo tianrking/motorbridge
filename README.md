@@ -28,6 +28,9 @@ Current status:
 - HighTorque:
   - models: `hightorque` (runtime string; native `ht_can v1.5.5`)
   - modes: `scan`, `read`, `mit`, `pos-vel`, `vel`, `stop`, `brake`, `rezero`
+- Hexfellow:
+  - models: `hexfellow` (runtime string; CANopen profile)
+  - modes: `scan`, `status`, `enable`, `disable`, `pos-vel`, `mit` (via `socketcanfd`)
 
 ## Architecture
 
@@ -124,6 +127,16 @@ cargo run -p motor_cli --release -- \
   --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 50 --dt-ms 20
 ```
 `[STD-CAN]`
+
+Hexfellow CLI:
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor hexfellow --transport socketcanfd --channel can0 \
+  --model hexfellow --motor-id 1 --feedback-id 0 \
+  --mode status
+```
+`[CAN-FD]`
 
 RobStride CLI:
 

@@ -109,6 +109,7 @@ Vendors:\n\
   --vendor damiao    default\n\
   --vendor robstride\n\
   --vendor hightorque (native ht_can v1.5.5 direct-CAN mode)\n\
+  --vendor hexfellow (CANopen over dedicated CAN-FD path)\n\
   --vendor myactuator\n\
   --vendor all       scan all vendors\n\n\
 Damiao modes:\n\
@@ -120,8 +121,11 @@ HighTorque modes:\n\
 MyActuator modes:\n\
   --mode scan | enable | disable | stop | set-zero | status | current | vel | pos | version | mode-query\n\n\
 \n\
+Hexfellow modes:\n\
+  --mode scan | status | enable | disable | pos-vel | mit\n\n\
+\n\
 Common args:\n\
-  --transport   auto|socketcan|socketcanfd|dm-serial (default auto; socketcanfd and dm-serial are Damiao-only)\n\
+  --transport   auto|socketcan|socketcanfd|dm-serial (default auto; hexfellow uses auto/socketcanfd only, dm-serial is Damiao-only)\n\
   --channel      default can0\n\
   --serial-port  default /dev/ttyACM0 (used when --transport dm-serial)\n\
   --serial-baud  default 921600 (used when --transport dm-serial)\n\

@@ -28,6 +28,9 @@
 - HighTorque:
   - 型号: `hightorque`（运行时字符串，原生 `ht_can v1.5.5`）
   - 模式: `scan`, `read`, `mit`, `pos-vel`, `vel`, `stop`, `brake`, `rezero`
+- Hexfellow:
+  - 型号: `hexfellow`（运行时字符串，CANopen 配置）
+  - 模式: `scan`, `status`, `enable`, `disable`, `pos-vel`, `mit`（通过 `socketcanfd`）
 
 ## 架构
 
@@ -124,6 +127,16 @@ cargo run -p motor_cli --release -- \
   --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 50 --dt-ms 20
 ```
 `[STD-CAN]`
+
+Hexfellow CLI：
+
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor hexfellow --transport socketcanfd --channel can0 \
+  --model hexfellow --motor-id 1 --feedback-id 0 \
+  --mode status
+```
+`[CAN-FD]`
 
 RobStride CLI:
 

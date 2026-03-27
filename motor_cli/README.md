@@ -67,7 +67,7 @@ Current status: `[CAN-FD]` path is integrated, but motor-level validation matrix
 | Argument | Type | Default | Notes |
 |---|---|---|---|
 | `--help` | flag | off | Prints CLI help and exits |
-| `--vendor` | string | `damiao` | `damiao`, `robstride`, `hightorque`, `myactuator`, `all` |
+| `--vendor` | string | `damiao` | `damiao`, `robstride`, `hightorque`, `myactuator`, `hexfellow`, `all` |
 | `--transport` | string | `auto` | `auto`, `socketcan`, `socketcanfd`, `dm-serial` (`socketcanfd` and `dm-serial` are Damiao-only) |
 | `--channel` | string | `can0` | Linux: SocketCAN interface name (`can0`/`slcan0`); Windows (PCAN backend): `can0`/`can1` with optional `@bitrate` suffix (for example `can0@1000000`) |
 | `--serial-port` | string | `/dev/ttyACM0` | Used when `--transport dm-serial` |
@@ -347,7 +347,41 @@ motor_cli \
   --mode set-zero --loop 1
 ```
 
-## 7. Practical Notes
+## 7. Vendor = `hexfellow`
+
+Transport constraint:
+- Hexfellow is CAN-FD-only in this repository (`--transport socketcanfd`).
+- Current support scope: scan / status / pos-vel / mit / enable / disable.
+- Current status: transport integrated; model validation matrix pending.
+
+### 7.1 Hexfellow Examples
+
+```bash
+# Scan IDs
+motor_cli \
+  --vendor hexfellow --transport socketcanfd --channel can0 \
+  --mode scan --start-id 1 --end-id 32
+
+# Status query
+motor_cli \
+  --vendor hexfellow --transport socketcanfd --channel can0 \
+  --model hexfellow --motor-id 1 --feedback-id 0 \
+  --mode status
+
+# Position-velocity (pos in rad, vlim in rad/s)
+motor_cli \
+  --vendor hexfellow --transport socketcanfd --channel can0 \
+  --model hexfellow --motor-id 1 --feedback-id 0 \
+  --mode pos-vel --pos 3.1415926 --vlim 2.0
+
+# MIT (pos/vel in rad / rad/s)
+motor_cli \
+  --vendor hexfellow --transport socketcanfd --channel can0 \
+  --model hexfellow --motor-id 1 --feedback-id 0 \
+  --mode mit --pos 0.0 --vel 0.0 --kp 1000 --kd 100 --tau 0
+```
+
+## 8. Practical Notes
 
 - For Damiao ID updates, prefer keeping `--store 1 --verify-id 1`.
 - If scan intermittently misses motors, retry after CAN restart.

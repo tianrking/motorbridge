@@ -1,11 +1,13 @@
 mod args;
 mod damiao_cli;
+mod hexfellow_cli;
 mod hightorque_cli;
 mod myactuator_cli;
 mod robstride_cli;
 
 use args::{get_str, get_u16_hex_or_dec, print_help};
 use damiao_cli::run_damiao;
+use hexfellow_cli::run_hexfellow;
 use hightorque_cli::run_hightorque;
 use myactuator_cli::run_myactuator;
 use robstride_cli::run_robstride;
@@ -26,6 +28,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "hightorque"
     } else if vendor == "myactuator" {
         "X8"
+    } else if vendor == "hexfellow" {
+        "hexfellow"
     } else {
         "4340"
     };
@@ -37,6 +41,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         0x0001
     } else if vendor == "myactuator" {
         0x0241
+    } else if vendor == "hexfellow" {
+        0x0000
     } else {
         0x0011
     };
@@ -49,6 +55,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else if vendor == "hightorque" {
             "read"
         } else if vendor == "myactuator" {
+            "status"
+        } else if vendor == "hexfellow" {
             "status"
         } else if vendor == "all" {
             "scan"
@@ -100,6 +108,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if transport == "dm-serial" && vendor != "damiao" {
         return Err("transport=dm-serial is currently supported only for --vendor damiao".into());
     }
+    if vendor == "hexfellow" && transport != "auto" && transport != "socketcanfd" {
+        return Err("vendor=hexfellow supports only --transport auto|socketcanfd".into());
+    }
 
     if vendor == "all" {
         if mode != "scan" {
@@ -141,6 +152,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "robstride" => run_robstride(&args, &channel, &model, motor_id, feedback_id, "robstride"),
         "hightorque" => run_hightorque(&args, &channel, motor_id),
         "myactuator" => run_myactuator(&args, &channel, &model, motor_id, feedback_id),
+        "hexfellow" => run_hexfellow(&args, &channel, &model, motor_id, feedback_id),
         _ => Err(format!("unknown vendor: {vendor}").into()),
     }
 }

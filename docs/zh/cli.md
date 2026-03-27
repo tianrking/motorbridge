@@ -29,7 +29,7 @@ cargo build -p motor_cli --release
 
 ## 通用参数
 
-- `--vendor damiao|robstride|hightorque|myactuator|all`
+- `--vendor damiao|robstride|hightorque|myactuator|hexfellow|all`
 - `--transport auto|socketcan|socketcanfd|dm-serial`（`socketcanfd` 与 `dm-serial` 仅 Damiao）
 - `--channel can0`
 - `--serial-port /dev/ttyACM0 --serial-baud 921600`（配合 `--transport dm-serial`）
@@ -62,6 +62,25 @@ cargo run -p motor_cli --release -- \
   --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode mit --verify-model 0 --ensure-mode 0 \
   --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
+```
+`[CAN-FD]`
+
+## Hexfellow 示例
+
+```bash
+# Hexfellow 扫描（CAN-FD 链路）
+cargo run -p motor_cli --release -- \
+  --vendor hexfellow --transport socketcanfd --channel can0 \
+  --mode scan --start-id 1 --end-id 32
+```
+`[CAN-FD]`
+
+```bash
+# Hexfellow 状态查询
+cargo run -p motor_cli --release -- \
+  --vendor hexfellow --transport socketcanfd --channel can0 \
+  --model hexfellow --motor-id 1 --feedback-id 0 \
+  --mode status
 ```
 `[CAN-FD]`
 

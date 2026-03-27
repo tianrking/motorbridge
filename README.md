@@ -4,6 +4,16 @@ Unified CAN motor control stack with a vendor-agnostic Rust core, stable C ABI, 
 
 > Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
+## Transport Legend
+
+- `[STD-CAN]`: classic CAN path (`socketcan`/`pcan`)
+- `[CAN-FD]`: dedicated FD path (`socketcanfd`)
+- `[DM-SERIAL]`: Damiao serial-bridge path (`dm-serial`)
+
+Current status:
+- `[CAN-FD]` has been integrated as an independent transport path.
+- No motor model is officially marked as CAN-FD validated in this repository yet.
+
 ## Current Vendor Support
 
 - Damiao:
@@ -113,6 +123,7 @@ cargo run -p motor_cli --release -- \
   --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 50 --dt-ms 20
 ```
+`[STD-CAN]`
 
 RobStride CLI:
 
@@ -195,6 +206,23 @@ Then use `slcan0` as CLI channel:
 cargo run -p motor_cli --release -- --vendor damiao --channel slcan0 --mode scan --start-id 1 --end-id 255
 ```
 
+## Damiao Dedicated CAN-FD Transport (`socketcanfd`)
+
+Use this Linux-only transport when you want an independent CAN-FD path without changing existing classic CAN or `dm-serial` behavior.
+
+```bash
+# Bring up CAN-FD interface first
+scripts/canfd_restart.sh can0
+
+# Damiao over dedicated socketcanfd transport
+cargo run -p motor_cli --release -- --vendor damiao \
+  --transport socketcanfd --channel can0 \
+  --model 4310 --motor-id 0x04 --feedback-id 0x14 \
+  --mode mit --verify-model 0 --ensure-mode 0 \
+  --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
+```
+`[CAN-FD]` (transport integrated; motor verification matrix pending)
+
 ## Damiao Serial Bridge Quick Guide (`dm-serial`)
 
 Use this path only when your Damiao adapter exposes a serial bridge (for example `/dev/ttyACM1`) and you want to run Damiao through that private transport:
@@ -212,6 +240,7 @@ cargo run -p motor_cli --release -- --vendor damiao \
   --mode mit --verify-model 0 --ensure-mode 0 \
   --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
 ```
+`[DM-SERIAL]`
 
 ## CAN Debugging (Professional Playbook)
 

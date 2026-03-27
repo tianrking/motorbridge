@@ -47,6 +47,14 @@ motor_cli -h
 - Professional Linux `slcan` + Windows `pcan` troubleshooting: `../docs/en/can_debugging.md`
 - 中文调试手册：`../docs/zh/can_debugging.md`
 
+## Transport Legend
+
+- `[STD-CAN]` => `--transport auto|socketcan`
+- `[CAN-FD]` => `--transport socketcanfd` (Damiao-only, Linux-only)
+- `[DM-SERIAL]` => `--transport dm-serial` (Damiao-only)
+
+Current status: `[CAN-FD]` path is integrated, but motor-level validation matrix is pending.
+
 ## 1. Argument Parsing Rules
 
 - Only `--key value` style options are parsed.
@@ -60,7 +68,7 @@ motor_cli -h
 |---|---|---|---|
 | `--help` | flag | off | Prints CLI help and exits |
 | `--vendor` | string | `damiao` | `damiao`, `robstride`, `hightorque`, `myactuator`, `all` |
-| `--transport` | string | `auto` | `auto`, `socketcan`, `dm-serial` (`dm-serial` is Damiao-only) |
+| `--transport` | string | `auto` | `auto`, `socketcan`, `socketcanfd`, `dm-serial` (`socketcanfd` and `dm-serial` are Damiao-only) |
 | `--channel` | string | `can0` | Linux: SocketCAN interface name (`can0`/`slcan0`); Windows (PCAN backend): `can0`/`can1` with optional `@bitrate` suffix (for example `can0@1000000`) |
 | `--serial-port` | string | `/dev/ttyACM0` | Used when `--transport dm-serial` |
 | `--serial-baud` | u64 | `921600` | Used when `--transport dm-serial` |
@@ -87,6 +95,13 @@ motor_cli -h
 - This path is adapter-specific and intended for Damiao motors.
 - Typical flags: `--transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600`.
 - In `dm-serial` mode, `--channel` is ignored by transport creation.
+
+### 2.3 Damiao Dedicated CAN-FD Quick Reference (`--transport socketcanfd`)
+
+- This path is Linux-only and independent from classic SocketCAN transport.
+- Typical flags: `--transport socketcanfd --channel can0`.
+- Ensure the interface is in FD mode first (`scripts/canfd_restart.sh can0`).
+- Current status: transport integrated; no model is marked as CAN-FD validated yet.
 
 ## 3. Vendor = `damiao`
 
@@ -136,11 +151,13 @@ motor_cli -h
 # Scan a range
 motor_cli \
   --vendor damiao --channel can0 --mode scan --start-id 1 --end-id 16
+# [STD-CAN]
 
 # MIT control
 motor_cli \
   --vendor damiao --channel can0 --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode mit --pos 1.57 --vel 2.0 --kp 35 --kd 1.2 --tau 0.3 --loop 120 --dt-ms 20
+# [STD-CAN]
 
 # MIT control via Damiao serial bridge
 motor_cli \
@@ -148,11 +165,13 @@ motor_cli \
   --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode mit --verify-model 0 --ensure-mode 0 \
   --pos 1.0 --vel 0 --kp 2 --kd 1 --tau 0 --loop 80 --dt-ms 20
+# [DM-SERIAL]
 
 # Position-velocity control
 motor_cli \
   --vendor damiao --channel can0 --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode pos-vel --pos 3.14 --vlim 4.0 --loop 120 --dt-ms 20
+# [STD-CAN]
 
 # Update ID and persist
 motor_cli \

@@ -31,7 +31,11 @@ def _add_common_args(p: argparse.ArgumentParser) -> None:
         choices=["damiao", "myactuator", "robstride", "hightorque"],
     )
     p.add_argument("--channel", default="can0")
-    p.add_argument("--transport", default="auto", choices=["auto", "socketcan", "dm-serial"])
+    p.add_argument(
+        "--transport",
+        default="auto",
+        choices=["auto", "socketcan", "socketcanfd", "dm-serial"],
+    )
     p.add_argument("--serial-port", default="/dev/ttyACM0")
     p.add_argument("--serial-baud", type=int, default=921600)
     p.add_argument("--model", default="4340")
@@ -76,8 +80,8 @@ def _open_controller(args: argparse.Namespace, vendor: str) -> Controller:
         if vendor != "damiao":
             raise ValueError("transport=dm-serial is supported only for --vendor damiao")
         return Controller.from_dm_serial(args.serial_port, int(args.serial_baud))
-    # Python SDK currently has a single standard-CAN constructor.
-    # Treat auto/socketcan the same as `motor_cli` socketcan path.
+    # Python SDK currently has a single CAN constructor.
+    # Treat auto/socketcan/socketcanfd the same constructor-wise.
     return Controller(args.channel)
 
 
@@ -126,7 +130,11 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=["damiao", "myactuator", "robstride", "hightorque", "all"],
     )
     scan.add_argument("--channel", default="can0")
-    scan.add_argument("--transport", default="auto", choices=["auto", "socketcan", "dm-serial"])
+    scan.add_argument(
+        "--transport",
+        default="auto",
+        choices=["auto", "socketcan", "socketcanfd", "dm-serial"],
+    )
     scan.add_argument("--serial-port", default="/dev/ttyACM0")
     scan.add_argument("--serial-baud", type=int, default=921600)
     scan.add_argument("--model", default="4340")

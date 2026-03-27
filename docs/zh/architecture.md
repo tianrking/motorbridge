@@ -75,7 +75,8 @@ motorbridge/
 - `device.rs`：统一 `MotorDevice` 接口
 - `controller.rs`：调度/路由/轮询
 - `model.rs`：型号目录抽象
-- `socketcan.rs`：Linux SocketCAN 后端
+- `socketcan.rs`：Linux 经典 SocketCAN 后端
+- `socketcanfd.rs`：Linux 独立 SocketCAN-FD 后端
 - `pcan.rs`：Windows PEAK PCAN 后端（实验性）
 
 ### 2) `motor_vendors/*`

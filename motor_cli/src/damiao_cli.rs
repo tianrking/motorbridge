@@ -82,9 +82,10 @@ fn open_damiao_controller(
 ) -> Result<DamiaoController, Box<dyn std::error::Error>> {
     match transport {
         "auto" | "socketcan" => Ok(DamiaoController::new_socketcan(channel)?),
+        "socketcanfd" => Ok(DamiaoController::new_socketcanfd(channel)?),
         "dm-serial" => Ok(DamiaoController::new_dm_serial(serial_port, serial_baud)?),
         _ => Err(format!(
-            "unknown Damiao transport: {} (expected auto|socketcan|dm-serial)",
+            "unknown Damiao transport: {} (expected auto|socketcan|socketcanfd|dm-serial)",
             transport
         )
         .into()),

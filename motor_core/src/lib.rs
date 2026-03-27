@@ -7,6 +7,8 @@ pub mod model;
 #[cfg(target_os = "windows")]
 pub mod pcan;
 pub mod socketcan;
+#[cfg(target_os = "linux")]
+pub mod socketcanfd;
 
 pub use bus::{CanBus, CanFrame};
 pub use controller::CoreController;

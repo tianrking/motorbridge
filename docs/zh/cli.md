@@ -5,9 +5,17 @@
 
 - Linux SocketCAN 直接使用网卡名：`can0`、`can1`、`slcan0`。
 - 串口类 USB-CAN 需先创建并拉起 `slcan0`：`sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`。
+- 仅 Damiao 可选独立 CAN-FD 链路：`--transport socketcanfd`（与经典 `socketcan` 并存）。
 - 仅 Damiao 可选串口桥链路：`--transport dm-serial --serial-port /dev/ttyACM0 --serial-baud 921600`。
 - Linux SocketCAN 下 `--channel` 不要带 `@bitrate`（例如 `can0@1000000` 无效）。
 - Windows（PCAN 后端）中，`can0/can1` 映射 `PCAN_USBBUS1/2`，可选 `@bitrate` 后缀。
+
+传输标识：
+- `[STD-CAN]` => `--transport auto|socketcan`
+- `[CAN-FD]` => `--transport socketcanfd`
+- `[DM-SERIAL]` => `--transport dm-serial`
+
+`[CAN-FD]` 说明：目前是“链路已接入”，电机验证矩阵尚未声明完成。
 
 ## 调试入口
 
@@ -22,7 +30,7 @@ cargo build -p motor_cli --release
 ## 通用参数
 
 - `--vendor damiao|robstride|hightorque|myactuator|all`
-- `--transport auto|socketcan|dm-serial`（`dm-serial` 仅 Damiao）
+- `--transport auto|socketcan|socketcanfd|dm-serial`（`socketcanfd` 与 `dm-serial` 仅 Damiao）
 - `--channel can0`
 - `--serial-port /dev/ttyACM0 --serial-baud 921600`（配合 `--transport dm-serial`）
 - `--motor-id <id>`
@@ -35,6 +43,7 @@ cargo run -p motor_cli --release -- \
   --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 50 --dt-ms 20
 ```
+`[STD-CAN]`
 
 ```bash
 # Damiao 串口桥链路
@@ -44,6 +53,17 @@ cargo run -p motor_cli --release -- \
   --mode mit --verify-model 0 --ensure-mode 0 \
   --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
 ```
+`[DM-SERIAL]`
+
+```bash
+# Damiao 独立 CAN-FD 链路
+cargo run -p motor_cli --release -- \
+  --vendor damiao --transport socketcanfd --channel can0 \
+  --model 4310 --motor-id 0x04 --feedback-id 0x14 \
+  --mode mit --verify-model 0 --ensure-mode 0 \
+  --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
+```
+`[CAN-FD]`
 
 ## RobStride 示例
 

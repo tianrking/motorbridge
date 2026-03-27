@@ -6,6 +6,8 @@ use motor_core::error::{MotorError, Result};
 use motor_core::pcan::PcanBus;
 #[cfg(target_os = "linux")]
 use motor_core::socketcan::SocketCanBus;
+#[cfg(target_os = "linux")]
+use motor_core::socketcanfd::SocketCanFdBus;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -38,6 +40,21 @@ impl MyActuatorController {
             let _ = channel;
             Err(MotorError::InvalidArgument(
                 "No CAN backend for current platform".to_string(),
+            ))
+        }
+    }
+
+    pub fn new_socketcanfd(channel: &str) -> Result<Self> {
+        #[cfg(target_os = "linux")]
+        {
+            let bus: Arc<dyn CanBus> = Arc::new(SocketCanFdBus::open(channel)?);
+            return Ok(Self::new(bus));
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            let _ = channel;
+            Err(MotorError::InvalidArgument(
+                "socketcanfd transport is only available on Linux".to_string(),
             ))
         }
     }

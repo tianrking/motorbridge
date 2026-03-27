@@ -4,6 +4,16 @@
 
 > English version: [README.md](README.md)
 
+## 传输链路标识
+
+- `[STD-CAN]`：标准 CAN 路径（`socketcan` / `pcan`）
+- `[CAN-FD]`：独立 CAN-FD 路径（`socketcanfd`）
+- `[DM-SERIAL]`：Damiao 串口桥路径（`dm-serial`）
+
+当前状态：
+- `[CAN-FD]` 已完成独立链路接入。
+- 仓库内尚未声明“某个电机型号已完成 CAN-FD 量产级验证矩阵”。
+
 ## 当前支持的厂商
 
 - Damiao:
@@ -113,6 +123,7 @@ cargo run -p motor_cli --release -- \
   --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 \
   --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 --loop 50 --dt-ms 20
 ```
+`[STD-CAN]`
 
 RobStride CLI:
 
@@ -195,6 +206,23 @@ ip -details link show slcan0
 cargo run -p motor_cli --release -- --vendor damiao --channel slcan0 --mode scan --start-id 1 --end-id 255
 ```
 
+## Damiao 独立 CAN-FD 传输（`socketcanfd`）
+
+当你希望增加一条与经典 CAN、`dm-serial` 并存的 Linux CAN-FD 链路时，可使用该 transport。
+
+```bash
+# 先把 can0 配成 FD 模式
+scripts/canfd_restart.sh can0
+
+# Damiao 走独立 socketcanfd 链路
+cargo run -p motor_cli --release -- --vendor damiao \
+  --transport socketcanfd --channel can0 \
+  --model 4310 --motor-id 0x04 --feedback-id 0x14 \
+  --mode mit --verify-model 0 --ensure-mode 0 \
+  --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
+```
+`[CAN-FD]`（已接入链路，电机验证矩阵待补）
+
 ## Damiao 串口桥速查（`dm-serial`）
 
 当你的 Damiao 转接板提供串口桥（例如 `/dev/ttyACM1`）且希望走这条私有链路时，可使用：
@@ -212,6 +240,7 @@ cargo run -p motor_cli --release -- --vendor damiao \
   --mode mit --verify-model 0 --ensure-mode 0 \
   --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
 ```
+`[DM-SERIAL]`
 
 ## CAN 专业调试手册
 

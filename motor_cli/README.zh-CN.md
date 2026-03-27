@@ -47,6 +47,14 @@ motor_cli -h
 - Linux `slcan` + Windows `pcan` 专业排障：`../docs/zh/can_debugging.md`
 - English guide: `../docs/en/can_debugging.md`
 
+## 传输标识
+
+- `[STD-CAN]` => `--transport auto|socketcan`
+- `[CAN-FD]` => `--transport socketcanfd`（仅 Damiao，Linux）
+- `[DM-SERIAL]` => `--transport dm-serial`（仅 Damiao）
+
+当前状态：`[CAN-FD]` 仅表示链路已接入，电机验证矩阵待补。
+
 ## 1. 参数解析规则
 
 - 仅解析 `--key value` 形式。
@@ -61,7 +69,7 @@ motor_cli -h
 ```bash
 motor_cli \
   --vendor <damiao|robstride|hightorque|myactuator|all> \
-  --transport <auto|socketcan|dm-serial> \
+  --transport <auto|socketcan|socketcanfd|dm-serial> \
   --channel <can0|slcan0|can0@1000000...> \
   --model <model-name> \
   --motor-id <id> --feedback-id <id> \
@@ -71,7 +79,7 @@ motor_cli \
 ```
 
 说明：
-- `dm-serial` 仅 Damiao 可用；其他品牌统一走标准 CAN（SocketCAN/PCAN）。
+- `socketcanfd` 与 `dm-serial` 仅 Damiao 可用；其他品牌统一走标准 CAN（SocketCAN/PCAN）。
 - `vendor=all` 当前仅用于统一扫描（`--mode scan`）。
 
 ### 1.2 通用参数语义（先理解这些）
@@ -104,7 +112,7 @@ motor_cli \
 |---|---|---|---|
 | `--help` | flag | 关闭 | 输出帮助并退出 |
 | `--vendor` | string | `damiao` | `damiao` / `robstride` / `hightorque` / `myactuator` / `all` |
-| `--transport` | string | `auto` | `auto` / `socketcan` / `dm-serial`（`dm-serial` 仅 Damiao） |
+| `--transport` | string | `auto` | `auto` / `socketcan` / `socketcanfd` / `dm-serial`（`socketcanfd` 与 `dm-serial` 仅 Damiao） |
 | `--channel` | string | `can0` | Linux：SocketCAN 网卡名（`can0`/`slcan0`）；Windows（PCAN 后端）：`can0`/`can1`，可加 `@bitrate`（如 `can0@1000000`） |
 | `--serial-port` | string | `/dev/ttyACM0` | `--transport dm-serial` 时使用 |
 | `--serial-baud` | u64 | `921600` | `--transport dm-serial` 时使用 |
@@ -132,6 +140,13 @@ motor_cli \
 - 常用参数：`--transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600`。
 - `dm-serial` 模式下，传输层创建会忽略 `--channel`。
 - `dm-serial` 仅改变“传输层”（走串口桥），Damiao 的业务参数与模式接口保持一致（`--mode`、`--motor-id`、`--feedback-id`、`--verify-model`、`--ensure-mode` 等）。
+
+### 2.3 Damiao 独立 CAN-FD 链路速查（`--transport socketcanfd`）
+
+- 该链路为 Linux 专用，并与经典 `socketcan` 链路并存。
+- 常用参数：`--transport socketcanfd --channel can0`。
+- 使用前先确保网口处于 FD 模式（`scripts/canfd_restart.sh can0`）。
+- 当前状态：链路已接入，尚未标注“已完成 CAN-FD 电机验证”的型号列表。
 
 ## 3. vendor=`damiao`
 
@@ -181,11 +196,13 @@ motor_cli \
 # 扫描 1..16
 motor_cli \
   --vendor damiao --channel can0 --mode scan --start-id 1 --end-id 16
+# [STD-CAN]
 
 # MIT 控制
 motor_cli \
   --vendor damiao --channel can0 --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode mit --pos 1.57 --vel 2.0 --kp 35 --kd 1.2 --tau 0.3 --loop 120 --dt-ms 20
+# [STD-CAN]
 
 # 通过 Damiao 串口桥执行 MIT
 motor_cli \
@@ -193,11 +210,13 @@ motor_cli \
   --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode mit --verify-model 0 --ensure-mode 0 \
   --pos 1.0 --vel 0 --kp 2 --kd 1 --tau 0 --loop 80 --dt-ms 20
+# [DM-SERIAL]
 
 # 位置速度控制
 motor_cli \
   --vendor damiao --channel can0 --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode pos-vel --pos 3.14 --vlim 4.0 --loop 120 --dt-ms 20
+# [STD-CAN]
 
 # 改 ID + 保存 + 校验
 motor_cli \

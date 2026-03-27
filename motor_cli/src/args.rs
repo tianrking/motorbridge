@@ -121,7 +121,7 @@ MyActuator modes:\n\
   --mode scan | enable | disable | stop | set-zero | status | current | vel | pos | version | mode-query\n\n\
 \n\
 Common args:\n\
-  --transport   auto|socketcan|dm-serial (default auto; dm-serial is Damiao-only)\n\
+  --transport   auto|socketcan|socketcanfd|dm-serial (default auto; socketcanfd and dm-serial are Damiao-only)\n\
   --channel      default can0\n\
   --serial-port  default /dev/ttyACM0 (used when --transport dm-serial)\n\
   --serial-baud  default 921600 (used when --transport dm-serial)\n\

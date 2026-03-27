@@ -75,7 +75,8 @@ motorbridge/
 - `device.rs`: unified `MotorDevice` trait
 - `controller.rs`: scheduling/routing/polling
 - `model.rs`: model catalog abstraction
-- `socketcan.rs`: Linux SocketCAN backend
+- `socketcan.rs`: Linux classic SocketCAN backend
+- `socketcanfd.rs`: Linux dedicated SocketCAN-FD backend
 - `pcan.rs`: Windows PEAK PCAN backend (experimental)
 
 ### 2) `motor_vendors/*`

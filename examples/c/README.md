@@ -1,10 +1,11 @@
 # C ABI Examples
 
 <!-- channel-compat-note -->
-## Channel Compatibility (PCAN + slcan + Damiao Serial Bridge)
+## Channel Compatibility (PCAN + slcan + CAN-FD + Damiao Serial Bridge)
 
 - Linux SocketCAN uses interface names directly: `can0`, `can1`, `slcan0`.
 - For USB-serial CAN adapters, bring up `slcan0` first: `sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`.
+- Hexfellow examples require CAN-FD path (`motor_controller_new_socketcanfd(...)` / CLI `--transport socketcanfd`).
 - Damiao-only serial bridge transport is also available in CLI (`--transport dm-serial --serial-port /dev/ttyACM0 --serial-baud 921600`).
 - Full Damiao serial-bridge interface list and command patterns are documented in `motor_cli/README.md` (section `3.6` in `motor_cli/README.zh-CN.md`).
 - On Linux SocketCAN, do not append bitrate in `--channel` (for example `can0@1000000` is invalid).
@@ -17,18 +18,21 @@ Direct C demos for `motor_abi`.
 
 ## Files
 
-- `c_abi_demo.c`: unified demo for both vendors
+- `c_abi_demo.c`: unified demo for Damiao + RobStride
+- `hexfellow_canfd_demo.c`: Hexfellow CAN-FD demo (`mit` / `pos-vel` only)
 
 Vendor coverage:
 
 - Damiao: `enable`, `disable`, `mit`, `pos-vel`, `vel`, `force-pos`
 - RobStride: `ping`, `enable`, `disable`, `mit`, `vel`, `read-param`, `write-param`
+- Hexfellow (CAN-FD only): `mit`, `pos-vel`
 
 ## Build
 
 ```bash
 cargo build -p motor_abi --release
 cc examples/c/c_abi_demo.c -I motor_abi/include -L target/release -lmotor_abi -o c_abi_demo
+cc examples/c/hexfellow_canfd_demo.c -I motor_abi/include -L target/release -lmotor_abi -o hexfellow_canfd_demo
 LD_LIBRARY_PATH=target/release ./c_abi_demo --help
 ```
 
@@ -63,4 +67,11 @@ RobStride low-gain MIT:
 LD_LIBRARY_PATH=target/release ./c_abi_demo \
   --vendor robstride --channel can0 --model rs-00 --motor-id 127 \
   --mode mit --pos 0 --vel 0 --kp 8 --kd 0.2 --tau 0 --loop 20 --dt-ms 50
+```
+
+Hexfellow (CAN-FD only):
+
+```bash
+LD_LIBRARY_PATH=target/release ./hexfellow_canfd_demo \
+  --channel can0 --motor-id 0x01 --feedback-id 0x00 --mode mit --loop 20 --dt-ms 50
 ```

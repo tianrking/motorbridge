@@ -1,10 +1,11 @@
 # C++ Example Programs
 
 <!-- channel-compat-note -->
-## Channel Compatibility (PCAN + slcan + Damiao Serial Bridge)
+## Channel Compatibility (PCAN + slcan + CAN-FD + Damiao Serial Bridge)
 
 - Linux SocketCAN uses interface names directly: `can0`, `can1`, `slcan0`.
 - For USB-serial CAN adapters, bring up `slcan0` first: `sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`.
+- Hexfellow examples require CAN-FD path (`Controller::from_socketcanfd(...)` / CLI `--transport socketcanfd`).
 - Damiao-only serial bridge transport is also available in CLI (`--transport dm-serial --serial-port /dev/ttyACM0 --serial-baud 921600`).
 - Full Damiao serial-bridge interface list and command patterns are documented in `motor_cli/README.md` (section `3.6` in `motor_cli/README.zh-CN.md`).
 - On Linux SocketCAN, do not append bitrate in `--channel` (for example `can0@1000000` is invalid).
@@ -29,6 +30,7 @@ Files:
 
 - `cpp_wrapper_demo.cpp`: Damiao MIT loop
 - `robstride_wrapper_demo.cpp`: RobStride ping / read-param / mit / vel demo
+- `hexfellow_canfd_demo.cpp`: Hexfellow CAN-FD demo (`mit` / `pos-vel` only)
 - `full_modes_demo.cpp`: Damiao full-mode control
 - `pid_register_tune_demo.cpp`: Damiao tuning
 - `scan_ids_demo.cpp`: Damiao scan (legacy helper)

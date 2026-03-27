@@ -41,6 +41,9 @@ if(MOTORBRIDGE_CPP_BUILD_EXAMPLES)
     add_executable(robstride_wrapper_demo examples/robstride_wrapper_demo.cpp)
     target_link_libraries(robstride_wrapper_demo PRIVATE motorbridge::cpp "${MOTORBRIDGE_ABI_LIBRARY}")
 
+    add_executable(hexfellow_canfd_demo examples/hexfellow_canfd_demo.cpp)
+    target_link_libraries(hexfellow_canfd_demo PRIVATE motorbridge::cpp "${MOTORBRIDGE_ABI_LIBRARY}")
+
     add_executable(scan_ids_demo examples/scan_ids_demo.cpp)
     target_link_libraries(scan_ids_demo PRIVATE motorbridge::cpp "${MOTORBRIDGE_ABI_LIBRARY}")
 

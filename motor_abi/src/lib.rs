@@ -262,6 +262,20 @@ pub extern "C" fn motor_controller_new_socketcan(channel: *const c_char) -> *mut
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn motor_controller_new_socketcanfd(channel: *const c_char) -> *mut MotorController {
+    let channel = match parse_cstr(channel, "channel") {
+        Ok(v) => v,
+        Err(e) => {
+            set_last_error(e);
+            return ptr::null_mut();
+        }
+    };
+    Box::into_raw(Box::new(MotorController {
+        inner: ControllerInner::Unbound(channel),
+    }))
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn motor_controller_new_dm_serial(
     serial_port: *const c_char,
     baud: u32,

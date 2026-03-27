@@ -5,7 +5,7 @@
 
 - Linux SocketCAN 直接使用网卡名：`can0`、`can1`、`slcan0`。
 - 串口类 USB-CAN 需先创建并拉起 `slcan0`：`sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0 && sudo ip link set slcan0 up`。
-- 可选独立 CAN-FD 链路：`--transport socketcanfd`，当前用于 Hexfellow 路径。
+- CAN-FD 链路可通过 CLI（`--transport socketcanfd`）和 C++ SDK（`Controller::from_socketcanfd(...)`）使用，Hexfellow 必须走该链路。
 - 仅 Damiao 可选串口桥链路：`--transport dm-serial --serial-port /dev/ttyACM0 --serial-baud 921600`。
 - Damiao 串口桥完整接口与命令模板见 `motor_cli/README.zh-CN.md` 第 `3.6` 节（英文见 `motor_cli/README.md`）。
 - Linux SocketCAN 下 `--channel` 不要带 `@bitrate`（例如 `can0@1000000` 无效）。
@@ -26,6 +26,7 @@
 ## Controller 入口
 
 - `Controller(channel)`（SocketCAN/PCAN 路径）
+- `Controller::from_socketcanfd(channel)`（CAN-FD 路径，Hexfellow 必须使用）
 - `Controller::from_dm_serial(serial_port, baud)`（仅 Damiao 串口桥）
 - `add_damiao_motor(motor_id, feedback_id, model)`
 - `add_hexfellow_motor(motor_id, feedback_id, model)`
@@ -97,9 +98,26 @@ int main() {
 }
 ```
 
+Hexfellow（仅 CAN-FD）：
+
+```cpp
+#include "motorbridge/motorbridge.hpp"
+
+int main() {
+  auto ctrl = motorbridge::Controller::from_socketcanfd("can0");
+  auto motor = ctrl.add_hexfellow_motor(0x01, 0x00, "hexfellow");
+  ctrl.enable_all();
+  motor.ensure_mode(motorbridge::Mode::MIT, 1000);  // Hexfellow 仅支持 MIT / POS_VEL
+  motor.send_mit(0.8f, 1.0f, 30.0f, 1.0f, 0.1f);
+  ctrl.shutdown();
+  return 0;
+}
+```
+
 ## 示例程序
 
 - `examples/cpp_wrapper_demo.cpp`
+- `examples/hexfellow_canfd_demo.cpp`（Hexfellow，CAN-FD，仅 MIT / POS_VEL）
 - `examples/robstride_wrapper_demo.cpp`
 - `examples/full_modes_demo.cpp`
 - `examples/pid_register_tune_demo.cpp`

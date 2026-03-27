@@ -87,10 +87,12 @@ def _open_controller(args: argparse.Namespace, vendor: str) -> Controller:
         if vendor != "damiao":
             raise ValueError("transport=dm-serial is supported only for --vendor damiao")
         return Controller.from_dm_serial(args.serial_port, int(args.serial_baud))
-    if vendor == "hexfellow" and transport == "socketcan":
-        raise ValueError("vendor=hexfellow requires --transport socketcanfd (or auto)")
-    # Python SDK currently has a single CAN constructor.
-    # Treat auto/socketcan/socketcanfd the same constructor-wise.
+    if vendor == "hexfellow":
+        if transport == "socketcan":
+            raise ValueError("vendor=hexfellow requires --transport socketcanfd (or auto)")
+        return Controller.from_socketcanfd(args.channel)
+    if transport == "socketcanfd":
+        return Controller.from_socketcanfd(args.channel)
     return Controller(args.channel)
 
 

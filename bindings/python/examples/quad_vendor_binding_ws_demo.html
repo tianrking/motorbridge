@@ -25,7 +25,15 @@
         radial-gradient(900px 500px at 110% 120%, #10384d 0%, transparent 60%),
         var(--bg);
     }
-    .shell { max-width: 1180px; margin: 0 auto; }
+    .shell { max-width: 1480px; margin: 0 auto; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(720px, 1fr) 360px;
+      gap: 12px;
+      align-items: start;
+    }
+    .main-col { min-width: 0; }
+    .side-col { min-width: 0; }
     .card {
       border: 1px solid var(--line);
       border-radius: 14px;
@@ -64,22 +72,54 @@
       font-size: 11px;
       margin-left: 6px;
     }
+    .log-card {
+      position: sticky;
+      top: 10px;
+      max-height: calc(100vh - 24px);
+      display: flex;
+      flex-direction: column;
+    }
+    .log-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
     #log {
-      min-height: 130px;
-      max-height: 280px;
+      min-height: 280px;
+      max-height: calc(100vh - 120px);
       overflow: auto;
-      white-space: pre-wrap;
+      scroll-behavior: smooth;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 12px;
       background: #09101f;
       border: 1px solid var(--line);
       border-radius: 10px;
       padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .log-item {
+      border: 1px solid #243a60;
+      background: #0c1528;
+      border-radius: 8px;
+      padding: 6px 8px;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+    .log-ts { color: #9ac6ff; margin-right: 6px; }
+    @media (max-width: 1180px) {
+      .layout { grid-template-columns: 1fr; }
+      .log-card { position: static; max-height: none; }
+      #log { max-height: 280px; }
     }
   </style>
 </head>
 <body>
   <div class="shell">
+  <div class="layout">
+  <div class="main-col">
   <div class="card">
     <h3 class="title">Binding WS 4-Motor Control <span class="badge">Real-time Mode</span></h3>
     <div class="row">
@@ -89,10 +129,12 @@
       <button id="btnDisable">Pause Sending</button>
       <button id="btnState">Get State</button>
       <label><input id="autoStateOn" type="checkbox" checked /> Auto State Refresh</label>
-      <label>State Poll (ms)</label><input id="stateMs" value="200" size="5" />
+      <label>State Poll (ms)</label><input id="stateMs" value="50" size="5" />
       <label><input id="rtOn" type="checkbox" checked /> Real-time Send on Drag</label>
       <label>Throttle (ms)</label><input id="rtMs" value="40" size="5" />
+      <label>My Display Scale</label><input id="myScale" value="100.000" size="7" />
       <label><input id="unifyOn" type="checkbox" /> Unified Slider Mode</label>
+      <label><input id="verboseLog" type="checkbox" /> Verbose WS Log</label>
     </div>
     <div class="row" style="margin-top:8px;">
       <label>Unified Pos</label>
@@ -108,7 +150,21 @@
     <div class="grid" id="cards"></div>
   </div>
   <div class="card">
+    <div class="row" style="justify-content:space-between;">
+      <strong>Live Position Curves</strong>
+    </div>
+    <canvas id="posChart" height="210" style="width:100%; margin-top:8px; border:1px solid var(--line); border-radius:10px; background:#09101f;"></canvas>
+  </div>
+  </div>
+  <div class="side-col">
+  <div class="card log-card">
+    <div class="log-head">
+      <strong>Event Log</strong>
+      <button id="btnClearLog">Clear</button>
+    </div>
     <div id="log"></div>
+  </div>
+  </div>
   </div>
   </div>
 
@@ -117,7 +173,16 @@
     const model = {
       dm1: { pos: 0 }, dm2: { pos: 0 }, my: { pos: 0 }, rs: { pos: 0 }
     };
+    const cfgState = {
+      dm1: { dir_sign: 1.0 },
+      dm2: { dir_sign: 1.0 },
+      my: { dir_sign: 1.0 },
+      rs: { dir_sign: -1.0 },
+    };
     const feedback = { dm1: {}, dm2: {}, my: {}, rs: {} };
+    const colors = { dm1: "#45c7ff", dm2: "#7ae0b6", my: "#ffd166", rs: "#ff7b72" };
+    const posHistory = { dm1: [], dm2: [], my: [], rs: [] };
+    const MAX_POINTS = 260;
     const lastSentAt = { dm1: 0, dm2: 0, my: 0, rs: 0 };
     let ws = null;
     let stateTimer = null;
@@ -126,7 +191,8 @@
     function log(msg) {
       const t = new Date().toLocaleTimeString();
       const div = document.createElement("div");
-      div.textContent = `[${t}] ${msg}`;
+      div.className = "log-item";
+      div.innerHTML = `<span class="log-ts">[${t}]</span><span>${String(msg)}</span>`;
       $("log").appendChild(div);
       $("log").scrollTop = $("log").scrollHeight;
     }
@@ -137,7 +203,7 @@
     function startStatePolling() {
       stopStatePolling();
       if (!$("autoStateOn").checked) return;
-      const ms = Math.max(50, Number($("stateMs").value) || 200);
+      const ms = Math.max(20, Number($("stateMs").value) || 50);
       stateTimer = setInterval(() => send({ op: "get_state" }), ms);
     }
     function stopStatePolling() {
@@ -150,15 +216,136 @@
       if (v === undefined || v === null || Number.isNaN(Number(v))) return "-";
       return Number(v).toFixed(n);
     }
+    function myScale() {
+      const s = Number($("myScale")?.value ?? 1.0);
+      return Number.isFinite(s) && Math.abs(s) > 1e-9 ? s : 1.0;
+    }
+    function toDisplayPos(m, rawPos) {
+      if (!Number.isFinite(rawPos)) return rawPos;
+      if (m === "my") return rawPos * myScale();
+      if (m === "rs") {
+        const sign = Number(cfgState[m]?.dir_sign ?? 1.0);
+        return rawPos * sign;
+      }
+      return rawPos;
+    }
+    function toCommandPos(m, displayPos) {
+      if (!Number.isFinite(displayPos)) return displayPos;
+      // Command path stays unchanged for MyActuator.
+      // Only telemetry/curve display uses My Display Scale.
+      if (m === "my") return displayPos;
+      return displayPos;
+    }
     function updateFeedbackUi() {
       motors.forEach((m) => {
         const e = $(`fb-${m}`);
         if (!e) return;
         const f = feedback[m] || {};
+        const rawPos = Number(f.pos);
+        const dispPos = Number.isFinite(rawPos) ? toDisplayPos(m, rawPos) : undefined;
         e.textContent =
           `status=${f.status_code ?? "-"} can=${f.can_id ?? "-"} arb=${f.arbitration_id ?? "-"}  ` +
-          `pos=${fmt(f.pos)} vel=${fmt(f.vel)} torq=${fmt(f.torq)}  ` +
+          `pos=${fmt(dispPos)} vel=${fmt(f.vel)} torq=${fmt(f.torq)}  ` +
           `t_mos=${fmt(f.t_mos, 1)} t_rotor=${fmt(f.t_rotor, 1)}`;
+      });
+    }
+    function pushHistoryFromFeedback() {
+      motors.forEach((m) => {
+        let p = Number(feedback[m]?.pos);
+        if (Number.isFinite(p)) p = toDisplayPos(m, p);
+        if (!Number.isFinite(p)) return;
+        const arr = posHistory[m];
+        arr.push(p);
+        if (arr.length > MAX_POINTS) arr.splice(0, arr.length - MAX_POINTS);
+      });
+    }
+    function drawChart() {
+      const c = $("posChart");
+      if (!c) return;
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.max(320, c.clientWidth || 320);
+      const h = c.clientHeight || 220;
+      c.width = Math.floor(w * dpr);
+      c.height = Math.floor(h * dpr);
+      const ctx = c.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      const pad = { l: 44, r: 14, t: 10, b: 24 };
+      const cw = w - pad.l - pad.r;
+      const ch = h - pad.t - pad.b;
+      if (cw <= 10 || ch <= 10) return;
+
+      const all = motors.flatMap((m) => posHistory[m]);
+      let minY = -3.2, maxY = 3.2;
+      if (all.length > 0) {
+        const lo = Math.min(...all), hi = Math.max(...all);
+        const span = Math.max(0.2, hi - lo);
+        minY = lo - span * 0.12;
+        maxY = hi + span * 0.12;
+      }
+      const yOf = (v) => pad.t + (maxY - v) * ch / (maxY - minY || 1);
+      const xOf = (i, n) => pad.l + (n <= 1 ? 0 : (i / (n - 1)) * cw);
+
+      ctx.strokeStyle = "#23385d";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.t + (i / 4) * ch;
+        ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+      }
+      ctx.fillStyle = "#9cb0d9";
+      ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+      ctx.fillText(maxY.toFixed(2), 4, pad.t + 4);
+      ctx.fillText(((maxY + minY) / 2).toFixed(2), 4, pad.t + ch / 2 + 4);
+      ctx.fillText(minY.toFixed(2), 4, pad.t + ch + 4);
+
+      motors.forEach((m) => {
+        const arr = posHistory[m];
+        if (arr.length < 2) return;
+        ctx.strokeStyle = colors[m];
+        ctx.lineWidth = 2;
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        arr.forEach((v, i) => {
+          const x = xOf(i, arr.length);
+          const y = yOf(v);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      });
+
+      // In-chart legend (top-right)
+      const legendItems = [
+        ["dm1", colors.dm1],
+        ["dm2", colors.dm2],
+        ["my(display scaled)", colors.my],
+        ["rs(norm)", colors.rs],
+      ];
+      const lx = pad.l + cw - 190;
+      const ly = pad.t + 8;
+      const lh = 18;
+      const lw = 178;
+      const bh = legendItems.length * lh + 10;
+      ctx.fillStyle = "rgba(10,18,34,0.78)";
+      ctx.strokeStyle = "#2b426c";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(lx - 8, ly - 8, lw, bh, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+      legendItems.forEach((it, i) => {
+        const y = ly + i * lh;
+        ctx.strokeStyle = it[1];
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(lx, y);
+        ctx.lineTo(lx + 18, y);
+        ctx.stroke();
+        ctx.fillStyle = "#d7e6ff";
+        ctx.fillText(it[0], lx + 24, y + 4);
       });
     }
     function sendTarget(m, pos, force=false) {
@@ -166,7 +353,7 @@
       const ms = Math.max(0, Number($("rtMs").value) || 0);
       if (!force && now - (lastSentAt[m] || 0) < ms) return;
       lastSentAt[m] = now;
-      send({ op: "set_target", motor: m, pos });
+      send({ op: "set_target", motor: m, pos: toCommandPos(m, pos) });
     }
     function sendAllTargets(pos, force=false) {
       motors.forEach((m) => sendTarget(m, pos, force));
@@ -229,12 +416,17 @@
       };
       ws.onerror = () => log("socket error");
       ws.onmessage = (ev) => {
-        log(ev.data);
+        if ($("verboseLog").checked) log(`rx ${ev.data}`);
         try {
           const msg = JSON.parse(ev.data);
           if (msg.state && msg.state.motors) {
             Object.keys(msg.state.motors).forEach((k) => {
-              if (model[k]) model[k].pos = Number(msg.state.motors[k].pos ?? model[k].pos);
+              if (model[k]) {
+                const raw = Number(msg.state.motors[k].pos ?? model[k].pos);
+                // Keep control target in raw command unit (no My scaling).
+                model[k].pos = Number.isFinite(raw) ? raw : model[k].pos;
+              }
+              if (cfgState[k]) cfgState[k] = { ...cfgState[k], ...msg.state.motors[k] };
             });
             if (msg.state.feedback) {
               Object.keys(msg.state.feedback).forEach((k) => {
@@ -243,6 +435,10 @@
             }
             render();
             updateFeedbackUi();
+            pushHistoryFromFeedback();
+            drawChart();
+          } else if (msg.ok === false) {
+            log(`error: ${msg.error || "unknown"}`);
           }
         } catch (_) {}
       };
@@ -256,8 +452,16 @@
     };
     $("stateMs").onchange = () => {
       startStatePolling();
-      log(`State poll interval set to ${Math.max(50, Number($("stateMs").value) || 200)} ms`);
+      log(`State poll interval set to ${Math.max(20, Number($("stateMs").value) || 50)} ms`);
     };
+    $("myScale").onchange = () => {
+      const s = myScale();
+      $("myScale").value = s.toFixed(3);
+      log(`MyActuator display scale set to ${s.toFixed(3)} (display = raw * scale, command unchanged)`);
+      render();
+      drawChart();
+    };
+    $("btnClearLog").onclick = () => { $("log").innerHTML = ""; };
     $("unifyOn").onchange = () => {
       render();
       log($("unifyOn").checked ? "Unified slider mode: ON" : "Unified slider mode: OFF");
@@ -290,6 +494,8 @@
     };
 
     render();
+    drawChart();
+    window.addEventListener("resize", drawChart);
   </script>
 </body>
 </html>

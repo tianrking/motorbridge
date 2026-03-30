@@ -243,6 +243,7 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --mod
 ## 简易上位机（快速联调）
 
 - 文件：`integrations/ws_gateway/tools/ws_test_client.html`
+- 四电机同步专用示例：`examples/web/ws_quad_sync_hmi.html`
 - 直接浏览器打开（双击或 `xdg-open`），连接 `ws://127.0.0.1:9002`。
 - 当前状态：**开发中**（界面与交互会持续调整）。
 - 若要稳定联调，建议优先使用 JSON 直连客户端（wscat/websocat/自定义客户端）。
@@ -251,3 +252,6 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --mod
   - 扫描结果进设备表（vendor + motor_id + feedback_id + model）
   - 可选择任意扫描到的设备作为当前目标，执行使能/失能/速度/MIT
   - 支持勾选批量操作：批量使能/停转/失能、批量 MIT 同步到角度
+- 四电机同角度拖杆控制建议用本地静态服务打开：
+  - `python3 -m http.server 18080`
+  - 浏览器访问 `http://127.0.0.1:18080/examples/web/ws_quad_sync_hmi.html`

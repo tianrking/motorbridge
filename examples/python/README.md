@@ -18,6 +18,7 @@ Python demos that call the Rust ABI directly through `ctypes`.
 ## File
 
 - `python_ctypes_demo.py`: unified two-vendor demo
+- `four_vendor_pos_sync.py`: concurrent multi-vendor position sync helper
 
 Vendor coverage:
 
@@ -62,4 +63,22 @@ RobStride write parameter:
 python3 examples/python/python_ctypes_demo.py \
   --vendor robstride --channel can0 --model rs-00 --motor-id 127 \
   --mode write-param --param-id 0x700A --param-type f32 --param-value 0.2
+```
+
+Multi-vendor position sync (Damiao x2 + MyActuator + HighTorque):
+
+```bash
+python3 examples/python/four_vendor_pos_sync.py \
+  damiao 0x01 damiao 0x07 myactuator 1 hightorque 1 \
+  --pos 1.57 \
+  --damiao-model-by-id "0x01=4340P,0x07=4310" \
+  --stagger-ms 50
+```
+
+Dry-run (print generated `motor_cli` commands only):
+
+```bash
+python3 examples/python/four_vendor_pos_sync.py \
+  damiao:0x01 damiao:0x07 myactuator:1 hightorque:1 \
+  --pos 1.57 --dry-run
 ```

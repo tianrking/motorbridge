@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WS Quad Motor Sync HMI</title>
+  <style>
+    :root {
+      --bg: #0e1525;
+      --card: #131c30;
+      --line: #2a3a5d;
+      --text: #e9efff;
+      --muted: #9fb0d6;
+      --ok: #42d39b;
+      --bad: #ff6f7d;
+    }
+    body {
+      margin: 0;
+      background: radial-gradient(1300px 700px at 10% -10%, #1f2e4d 0%, var(--bg) 55%);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 20px; display: grid; gap: 14px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    input, button, select {
+      background: #0d1524; color: var(--text); border: 1px solid var(--line);
+      border-radius: 8px; padding: 8px 10px; font-size: 14px;
+    }
+    button { cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+    .ok { color: var(--ok); }
+    .bad { color: var(--bad); }
+    .muted { color: var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    #log {
+      min-height: 180px; max-height: 320px; overflow: auto;
+      white-space: pre-wrap; font-size: 12px; background: #0a101b;
+      border: 1px solid var(--line); border-radius: 8px; padding: 10px;
+    }
+    input[type="range"] { width: min(880px, 100%); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h3>四电机同步位置控制（WebSocket）</h3>
+      <div class="row">
+        <label>WS URL</label>
+        <input id="wsUrl" value="ws://127.0.0.1:9002" size="28" />
+        <label>CAN</label>
+        <input id="channel" value="can0" size="8" />
+        <button id="btnConnectAll">连接全部</button>
+        <button id="btnCloseAll">断开全部</button>
+        <button id="btnEnableAll">使能全部</button>
+        <button id="btnStopAll">停止全部</button>
+        <button id="btnDisableAll">失能全部</button>
+      </div>
+      <div class="muted" style="margin-top:8px;">
+        先启动网关：
+        <span class="mono">cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>单拖杆同步角度（rad）</h4>
+      <div class="row">
+        <label>最小</label><input id="minPos" value="-2.5" size="6" />
+        <label>最大</label><input id="maxPos" value="2.5" size="6" />
+        <label>当前</label><input id="curPos" value="0.0" size="7" />
+        <label>发送周期(ms)</label><input id="txPeriod" value="80" size="5" />
+        <label>错峰(ms)</label><input id="fanoutDelayMs" value="12" size="5" />
+        <label><input id="autoSend" type="checkbox" /> 周期自动发送</label>
+      </div>
+      <div style="margin-top:8px;">
+        <input id="posSlider" type="range" min="-2.5" max="2.5" step="0.01" value="0.0" />
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button id="btnSendOnce">发送一次</button>
+        <span class="muted">拖动滑条会让四台电机转到同一角度。</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>目标设备</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>vendor</th>
+            <th>model</th>
+            <th>motor_id</th>
+            <th>feedback_id</th>
+            <th>状态</th>
+          </tr>
+        </thead>
+        <tbody id="motorRows"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h4>日志</h4>
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <script>
+    const motors = [
+      { vendor: "damiao", model: "4340P", motor_id: 0x01, feedback_id: 0x11, vlim: 1.2 },
+      { vendor: "damiao", model: "4310",  motor_id: 0x07, feedback_id: 0x17, vlim: 1.2 },
+      { vendor: "myactuator", model: "X8", motor_id: 1, feedback_id: 0x241, max_speed: 1.2 },
+      { vendor: "hightorque", model: "hightorque", motor_id: 1, feedback_id: 0x01, vel: 0.8, tau: 0.8 },
+    ];
+
+    const sockets = new Map();
+    const wantedConnections = new Set();
+    const reconnectTimers = new Map();
+    let timer = null;
+
+    const $ = (id) => document.getElementById(id);
+    const logEl = $("log");
+    const rowsEl = $("motorRows");
+
+    function log(msg, cls = "") {
+      const t = new Date().toLocaleTimeString();
+      const div = document.createElement("div");
+      if (cls) div.className = cls;
+      div.textContent = `[${t}] ${msg}`;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function rowKey(m) { return `${m.vendor}:${m.motor_id}:${m.feedback_id}`; }
+
+    function renderRows() {
+      rowsEl.innerHTML = "";
+      motors.forEach((m, idx) => {
+        const key = rowKey(m);
+        const ws = sockets.get(key);
+        const state = ws && ws.readyState === WebSocket.OPEN ? "已连接" : "未连接";
+        const cls = ws && ws.readyState === WebSocket.OPEN ? "ok" : "bad";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td>${m.vendor}</td>
+          <td>${m.model}</td>
+          <td>${m.motor_id}</td>
+          <td>${m.feedback_id}</td>
+          <td class="${cls}">${state}</td>
+        `;
+        rowsEl.appendChild(tr);
+      });
+    }
+
+    function sendJson(ws, obj) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+      ws.send(JSON.stringify(obj));
+      return true;
+    }
+
+    function buildPosOp(m, pos) {
+      if (m.vendor === "damiao") {
+        return { op: "pos_vel", pos, vlim: m.vlim ?? 1.0, continuous: false };
+      }
+      if (m.vendor === "myactuator") {
+        return { op: "pos", pos, max_speed: m.max_speed ?? 1.0 };
+      }
+      if (m.vendor === "hightorque") {
+        return { op: "mit", pos, vel: m.vel ?? 0.8, kp: 0, kd: 0, tau: m.tau ?? 0.8, continuous: false };
+      }
+      if (m.vendor === "robstride") {
+        return { op: "mit", pos, vel: 0, kp: 8.0, kd: 0.2, tau: 0, continuous: false };
+      }
+      return { op: "state_once" };
+    }
+
+    function connectMotor(m) {
+      const url = $("wsUrl").value.trim();
+      const channel = $("channel").value.trim() || "can0";
+      const key = rowKey(m);
+      wantedConnections.add(key);
+
+      if (sockets.has(key)) {
+        const old = sockets.get(key);
+        try { old.close(); } catch (_) {}
+      }
+      if (reconnectTimers.has(key)) {
+        clearTimeout(reconnectTimers.get(key));
+        reconnectTimers.delete(key);
+      }
+
+      const ws = new WebSocket(url);
+      sockets.set(key, ws);
+
+      ws.onopen = () => {
+        sendJson(ws, {
+          op: "set_target",
+          vendor: m.vendor,
+          channel,
+          model: m.model,
+          motor_id: m.motor_id,
+          feedback_id: m.feedback_id,
+        });
+        log(`connected ${key}`, "ok");
+        renderRows();
+      };
+
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.ok === false) {
+            log(`${key} error: ${msg.error || "unknown"}`, "bad");
+          }
+        } catch (_) {}
+      };
+
+      ws.onerror = () => {
+        log(`socket error ${key}`, "bad");
+      };
+      ws.onclose = () => {
+        log(`closed ${key}`, "muted");
+        sockets.delete(key);
+        if (wantedConnections.has(key)) {
+          const t = setTimeout(() => {
+            reconnectTimers.delete(key);
+            connectMotor(m);
+          }, 800);
+          reconnectTimers.set(key, t);
+        }
+        renderRows();
+      };
+    }
+
+    function broadcast(opBuilder) {
+      const fanoutDelay = Math.max(0, Number($("fanoutDelayMs").value) || 0);
+      motors.forEach((m, idx) => {
+        const key = rowKey(m);
+        const ws = sockets.get(key);
+        const op = opBuilder(m);
+        setTimeout(() => {
+          if (!sendJson(ws, op)) {
+            log(`skip ${key} (not connected)`, "muted");
+          }
+        }, idx * fanoutDelay);
+      });
+    }
+
+    function getPos() {
+      const v = Number($("curPos").value);
+      return Number.isFinite(v) ? v : 0;
+    }
+
+    function applySliderBounds() {
+      const mn = Number($("minPos").value);
+      const mx = Number($("maxPos").value);
+      const min = Number.isFinite(mn) ? mn : -2.5;
+      const max = Number.isFinite(mx) ? mx : 2.5;
+      $("posSlider").min = String(min);
+      $("posSlider").max = String(max);
+      if (Number($("posSlider").value) < min) $("posSlider").value = String(min);
+      if (Number($("posSlider").value) > max) $("posSlider").value = String(max);
+    }
+
+    function sendPositionNow() {
+      const pos = getPos();
+      broadcast((m) => buildPosOp(m, pos));
+    }
+
+    $("btnConnectAll").onclick = () => {
+      motors.forEach(connectMotor);
+      setTimeout(renderRows, 120);
+    };
+
+    $("btnCloseAll").onclick = () => {
+      wantedConnections.clear();
+      reconnectTimers.forEach((t) => clearTimeout(t));
+      reconnectTimers.clear();
+      sockets.forEach((ws) => { try { ws.close(); } catch (_) {} });
+      sockets.clear();
+      renderRows();
+    };
+
+    $("btnEnableAll").onclick = () => broadcast(() => ({ op: "enable" }));
+    $("btnStopAll").onclick = () => broadcast(() => ({ op: "stop" }));
+    $("btnDisableAll").onclick = () => broadcast(() => ({ op: "disable" }));
+    $("btnSendOnce").onclick = () => sendPositionNow();
+
+    $("minPos").onchange = applySliderBounds;
+    $("maxPos").onchange = applySliderBounds;
+
+    $("posSlider").oninput = () => {
+      $("curPos").value = Number($("posSlider").value).toFixed(3);
+      if ($("autoSend").checked) sendPositionNow();
+    };
+
+    $("curPos").onchange = () => {
+      $("posSlider").value = $("curPos").value;
+      if ($("autoSend").checked) sendPositionNow();
+    };
+
+    function restartTimer() {
+      if (timer) clearInterval(timer);
+      const ms = Math.max(10, Number($("txPeriod").value) || 30);
+      timer = setInterval(() => {
+        if (!$("autoSend").checked) return;
+        sendPositionNow();
+      }, ms);
+    }
+
+    $("txPeriod").onchange = restartTimer;
+    restartTimer();
+    applySliderBounds();
+    renderRows();
+  </script>
+</body>
+</html>

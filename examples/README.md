@@ -21,6 +21,8 @@ Cross-language example entry for the current `motorbridge` stack.
 - C ABI demo: `examples/c/c_abi_demo.c`
 - C++ ABI demo: `examples/cpp/cpp_abi_demo.cpp`
 - Python ctypes demo: `examples/python/python_ctypes_demo.py`
+- Multi-vendor position sync script: `examples/python/four_vendor_pos_sync.py`
+- WS quad sync HMI: `examples/web/ws_quad_sync_hmi.html`
 - Python SDK demos: `bindings/python/examples/*`
 - C++ wrapper demos: `bindings/cpp/examples/*`
 - Damiao tuning reference:
@@ -164,6 +166,16 @@ cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs
 
 # 4) MyActuator position (radians)
 cargo run -p motor_cli --release -- --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 --mode pos --pos 3.1416 --max-speed 5.236 --loop 1 --dt-ms 50
+
+# 5) Multi-vendor position sync helper (Damiao x2 + MyActuator + HighTorque)
+python3 examples/python/four_vendor_pos_sync.py \
+  damiao 0x01 damiao 0x07 myactuator 1 hightorque 1 \
+  --pos 1.57 --damiao-model-by-id "0x01=4340P,0x07=4310" --stagger-ms 50
+
+# 6) Web HMI (one slider drives 4 motors to same angle via ws_gateway)
+cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+python3 -m http.server 18080
+# open: http://127.0.0.1:18080/examples/web/ws_quad_sync_hmi.html
 ```
 
 ## Notes

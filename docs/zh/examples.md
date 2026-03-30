@@ -16,6 +16,8 @@
 - C ABI: `examples/c/c_abi_demo.c`
 - C++ ABI: `examples/cpp/cpp_abi_demo.cpp`
 - Python ctypes: `examples/python/python_ctypes_demo.py`
+- 多厂商位置同步脚本: `examples/python/four_vendor_pos_sync.py`
+- WS 四电机同步上位机: `examples/web/ws_quad_sync_hmi.html`
 - Python SDK: `bindings/python/examples/*`
 - C++ wrapper: `bindings/cpp/examples/*`
 
@@ -42,4 +44,22 @@ RobStride C ABI:
 ```bash
 cc examples/c/c_abi_demo.c -I motor_abi/include -L target/release -lmotor_abi -o c_abi_demo
 LD_LIBRARY_PATH=target/release ./c_abi_demo --vendor robstride --channel can0 --model rs-00 --motor-id 127 --mode read-param --param-id 0x7019 --param-type f32
+```
+
+多厂商位置同步脚本：
+
+```bash
+python3 examples/python/four_vendor_pos_sync.py \
+  damiao 0x01 damiao 0x07 myactuator 1 hightorque 1 \
+  --pos 1.57 \
+  --damiao-model-by-id "0x01=4340P,0x07=4310" \
+  --stagger-ms 50
+```
+
+Web 上位机（单拖杆同步四电机角度）：
+
+```bash
+cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+python3 -m http.server 18080
+# 浏览器打开 http://127.0.0.1:18080/examples/web/ws_quad_sync_hmi.html
 ```

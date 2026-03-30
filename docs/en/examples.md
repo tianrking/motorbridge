@@ -16,6 +16,8 @@
 - C ABI: `examples/c/c_abi_demo.c`
 - C++ ABI: `examples/cpp/cpp_abi_demo.cpp`
 - Python ctypes: `examples/python/python_ctypes_demo.py`
+- Multi-vendor position sync script: `examples/python/four_vendor_pos_sync.py`
+- WS quad sync HMI: `examples/web/ws_quad_sync_hmi.html`
 - Python SDK: `bindings/python/examples/*`
 - C++ wrapper: `bindings/cpp/examples/*`
 
@@ -42,4 +44,22 @@ RobStride C ABI:
 ```bash
 cc examples/c/c_abi_demo.c -I motor_abi/include -L target/release -lmotor_abi -o c_abi_demo
 LD_LIBRARY_PATH=target/release ./c_abi_demo --vendor robstride --channel can0 --model rs-00 --motor-id 127 --mode read-param --param-id 0x7019 --param-type f32
+```
+
+Multi-vendor position sync helper:
+
+```bash
+python3 examples/python/four_vendor_pos_sync.py \
+  damiao 0x01 damiao 0x07 myactuator 1 hightorque 1 \
+  --pos 1.57 \
+  --damiao-model-by-id "0x01=4340P,0x07=4310" \
+  --stagger-ms 50
+```
+
+Web HMI (single slider controls 4 motors to the same angle):
+
+```bash
+cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+python3 -m http.server 18080
+# open http://127.0.0.1:18080/examples/web/ws_quad_sync_hmi.html
 ```

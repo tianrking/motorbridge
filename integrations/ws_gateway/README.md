@@ -243,6 +243,7 @@ State stream frame:
 ## Simple HMI (for quick testing)
 
 - File: `integrations/ws_gateway/tools/ws_test_client.html`
+- Dedicated 4-motor sync example: `examples/web/ws_quad_sync_hmi.html`
 - Open directly in browser (double-click or `xdg-open`), then connect to `ws://127.0.0.1:9002`.
 - Current status: **in development** (UI/flow may change quickly).
 - For stable validation, prefer sending JSON commands directly (wscat/websocat/custom client).
@@ -251,3 +252,6 @@ State stream frame:
   - scan hits are shown in a device table (vendor + motor_id + feedback_id + model)
   - pick any scanned motor as current target and run enable/disable/vel/mit
   - checkbox batch ops: batch enable/stop/disable and batch MIT sync-to-position
+- For the 4-motor same-angle slider workflow, start a local static server:
+  - `python3 -m http.server 18080`
+  - open `http://127.0.0.1:18080/examples/web/ws_quad_sync_hmi.html`

@@ -710,6 +710,10 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
     }
 
     let mut ticker = time::interval(Duration::from_millis(cfg.dt_ms));
+    // State polling sends extra CAN traffic (e.g. Damiao request_motor_feedback).
+    // Keep control tick frequency, but decimate periodic state polling per session.
+    let mut state_tick_counter: u64 = 0;
+    let state_tick_div: u64 = 5;
     loop {
         tokio::select! {
             maybe_msg = rx.next() => {
@@ -1368,9 +1372,12 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
                     }
                 }
                 if ctx.motor.is_some() {
-                    match ctx.build_state_snapshot() {
-                        Ok(st) => send_json(&mut tx, json!({"type":"state", "data": st})).await?,
-                        Err(err) => send_json(&mut tx, json!({"ok": false, "op":"state_tick","error": err})).await?,
+                    state_tick_counter = state_tick_counter.wrapping_add(1);
+                    if state_tick_counter % state_tick_div == 0 {
+                        match ctx.build_state_snapshot() {
+                            Ok(st) => send_json(&mut tx, json!({"type":"state", "data": st})).await?,
+                            Err(err) => send_json(&mut tx, json!({"ok": false, "op":"state_tick","error": err})).await?,
+                        }
                     }
                 }
             }

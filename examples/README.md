@@ -23,6 +23,7 @@ Cross-language example entry for the current `motorbridge` stack.
 - Python ctypes demo: `examples/python/python_ctypes_demo.py`
 - Multi-vendor position sync script: `examples/python/four_vendor_pos_sync.py`
 - WS quad sync HMI: `examples/web/ws_quad_sync_hmi.html`
+- WS quad independent-slider HMI: `examples/http_quad_control_demo/README.zh-CN.md`
 - Python SDK demos: `bindings/python/examples/*`
 - C++ wrapper demos: `bindings/cpp/examples/*`
 - Damiao tuning reference:

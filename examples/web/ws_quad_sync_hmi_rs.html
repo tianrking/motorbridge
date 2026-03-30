@@ -46,7 +46,7 @@
 <body>
   <div class="wrap">
     <div class="card">
-      <h3>四电机同步位置控制（WebSocket）</h3>
+      <h3>四电机同步位置控制（WebSocket，RobStride版）</h3>
       <div class="row">
         <label>WS URL</label>
         <input id="wsUrl" value="ws://127.0.0.1:9002" size="28" />
@@ -111,7 +111,7 @@
       { vendor: "damiao", model: "4340P", motor_id: 0x01, feedback_id: 0x11, vel: 0.0, kp: 10.0, kd: 2.0, tau: 0.0 },
       { vendor: "damiao", model: "4310",  motor_id: 0x07, feedback_id: 0x17, vel: 0.0, kp: 10.0, kd: 2.0, tau: 0.0 },
       { vendor: "myactuator", model: "X8", motor_id: 1, feedback_id: 0x241, max_speed: 1.2 },
-      { vendor: "hightorque", model: "hightorque", motor_id: 1, feedback_id: 0x01, vel: 0.8, tau: 0.8 },
+      { vendor: "robstride", model: "rs-00", motor_id: 127, feedback_id: 0xFE, vel: 0.8, tau: 0.8 },
     ];
 
     const sockets = new Map();

@@ -14,10 +14,74 @@
 
 Examples built on the Python SDK.
 
-> Chinese version: [README.zh-CN.md](README.zh-CN.md)
+> Chinese version (Python binding overview): [../README.zh-CN.md](../README.zh-CN.md)
+
+## Start Here (Simplest 2 Examples)
+
+If you are new to this repository, start with these two files first:
+
+- `simple_01_motor_control.py`: single-motor minimal template (default Damiao, other vendors as commented snippets).
+- `simple_02_quad_motor_control.py`: minimal 4-motor multi-vendor swing demo (2 Damiao + 1 MyActuator + 1 RobStride).
+
+Recommended order:
+
+1. Run `simple_01_motor_control.py` to verify your CAN channel and one motor first.
+2. Then run `simple_02_quad_motor_control.py` to verify multi-controller / multi-vendor behavior.
+
+Quick start commands:
+
+```bash
+# 1) single motor (safest first step)
+PYTHONPATH=bindings/python/src LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH} \
+python3 bindings/python/examples/simple_01_motor_control.py \
+  --channel can0 --loop 120 --dt-ms 20 --pos 1.0 --vlim 1.0
+
+# 2) quad motor swing
+PYTHONPATH=bindings/python/src LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH} \
+python3 bindings/python/examples/simple_02_quad_motor_control.py \
+  --channel can0 --pos 1.0 --loop 240 --dt-ms 20 --swing-loop 60
+```
+
+### Parameter Cheat Sheet (for the two simplest scripts)
+
+`simple_01_motor_control.py`
+- `--channel`: CAN interface name, e.g. `can0`, `can1`, `slcan0`.
+- `--loop`: number of control iterations.
+- `--dt-ms`: control period (ms). Start with `20`; if bus is busy, use `30`/`50`.
+- `--pos`: target position (radians).
+- `--vlim`: speed limit for POS_VEL.
+
+`simple_02_quad_motor_control.py`
+- `--channel`: CAN interface name.
+- `--loop`: total loop count.
+- `--dt-ms`: control period (ms), same tuning rule as above.
+- `--pos`: swing amplitude (radians), used as `+pos/-pos`.
+- `--swing-loop`: switch sign every N loops.
+- `--rs-dir-sign`: `-1` means RobStride direction opposite to others; `+1` means same.
+- `--dm-vlim`: Damiao speed limit in POS_VEL.
+- `--my-vlim`: MyActuator speed limit in POS_VEL.
+- `--rs-kp` / `--rs-kd`: RobStride MIT gains.
+
+### What to Read Next (recommended order)
+
+1. [../README.zh-CN.md](../README.zh-CN.md) or [../README.md](../README.md)  
+   Start here for Python binding installation and base API concepts.
+2. [../../motor_cli/README.zh-CN.md](../../motor_cli/README.zh-CN.md) or [../../motor_cli/README.md](../../motor_cli/README.md)  
+   Use this for vendor scan commands and ID confirmation.
+3. [../../examples/README.zh-CN.md](../../examples/README.zh-CN.md) or [../../examples/README.md](../../examples/README.md)  
+   Broader demo index (web/WS/other integration examples).
+
+### Key Points Beginners Must Know
+
+- One `Controller` instance cannot mix vendors; use separate controllers for mixed-vendor control.
+- `os error 105` usually means send rate is too high or another process is also writing to CAN.
+- Streaming control needs periodic sends; single-shot command is often not enough for stable holding.
+- Confirm motor IDs/feedback IDs with scan before running these demos.
 
 ## Files
 
+- `simple_01_motor_control.py`: simplest single-motor template (default Damiao; includes commented vendor switch snippets)
+- `simple_02_quad_motor_control.py`: simplest 4-motor multi-vendor demo with fixed-rate loop and swing target
 - `python_wrapper_demo.py`: minimal Damiao MIT loop
 - `damiao_maintenance_demo.py`: Damiao maintenance flow (`clear_error` / `set_zero_position` / `set_can_timeout_ms` / `request_feedback`)
 - `damiao_register_rw_demo.py`: Damiao register read/write (`f32` + `u32` + optional `store_parameters`)
@@ -32,6 +96,9 @@ Examples built on the Python SDK.
 - `dm_serial_08_negative_enable_setzero_guard_demo.py`: SOP-08 dm-serial negative test (`enable` state `set_zero` should be rejected by core guard)
 - `dm_serial_leader_monitor_demo.py`: Damiao dm-serial leader monitor (enable-all + selected-ID full state stream)
 - `robstride_wrapper_demo.py`: RobStride ping / read-param / mit / vel demo
+- `quad_vendor_pos_binding_demo.py`: 4-motor sync position demo via Python binding (no ws_gateway)
+- `quad_vendor_binding_ws_demo.py`: Python binding WS bridge backend (for web UI control)
+- `quad_vendor_binding_ws_demo.html`: simple web UI for `quad_vendor_binding_ws_demo.py`
 - `hexfellow_canfd_demo.py`: Hexfellow CAN-FD demo (`mit` / `pos-vel` only)
 - `full_modes_demo.py`: Damiao full-mode demo
 - `pid_register_tune_demo.py`: Damiao register tuning
@@ -210,3 +277,8 @@ Damiao examples now cover the full high-level SDK usage surface:
 - Maintenance ops: `clear_error`, `set_zero_position`, `set_can_timeout_ms`, `request_feedback`
 - Register APIs: `get/write f32`, `get/write u32`, `store_parameters`
 - Scan helper and tuning workflows
+
+## Scope Notes
+
+- Recent multi-motor demo updates are mainly in `examples/*` and WS bridge scripts.
+- `motor_core` behavior was not changed in this batch; WS-related tuning is done in `integrations/ws_gateway`.

@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WS 四路独立电机控制</title>
+  <style>
+    :root {
+      --bg: #0e1525;
+      --card: #131c30;
+      --line: #2a3a5d;
+      --text: #e9efff;
+      --muted: #9fb0d6;
+      --ok: #42d39b;
+      --bad: #ff6f7d;
+    }
+    body {
+      margin: 0;
+      background: radial-gradient(1300px 700px at 10% -10%, #1f2e4d 0%, var(--bg) 55%);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 20px; display: grid; gap: 14px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    input, button {
+      background: #0d1524; color: var(--text); border: 1px solid var(--line);
+      border-radius: 8px; padding: 8px 10px; font-size: 14px;
+    }
+    input[type="range"] { width: 100%; }
+    button { cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+    .ok { color: var(--ok); }
+    .bad { color: var(--bad); }
+    .muted { color: var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .motor { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: #10192c; }
+    #log {
+      min-height: 180px; max-height: 320px; overflow: auto;
+      white-space: pre-wrap; font-size: 12px; background: #0a101b;
+      border: 1px solid var(--line); border-radius: 8px; padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h3>四路独立滑杆控制（WebSocket）</h3>
+      <div class="row">
+        <label>WS URL</label>
+        <input id="wsUrl" value="ws://127.0.0.1:9002" size="28" />
+        <label>CAN</label>
+        <input id="channel" value="can0" size="8" />
+        <label>前端补发周期(ms,0=关)</label>
+        <input id="txPeriod" value="0" size="6" />
+        <label>错峰(ms)</label>
+        <input id="fanoutDelayMs" value="12" size="6" />
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button id="btnConnectAll">连接全部</button>
+        <button id="btnCloseAll">断开全部</button>
+        <button id="btnEnableAll">使能全部</button>
+        <button id="btnStopAll">停止全部</button>
+        <button id="btnDisableAll">失能全部</button>
+      </div>
+      <div class="muted" style="margin-top:8px;">
+        先启动网关：
+        <span class="mono">cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 50</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>四路独立滑杆</h4>
+      <div class="grid" id="motorCards"></div>
+    </div>
+
+    <div class="card">
+      <h4>连接状态</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>vendor</th>
+            <th>model</th>
+            <th>motor_id</th>
+            <th>feedback_id</th>
+            <th>状态</th>
+          </tr>
+        </thead>
+        <tbody id="motorRows"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h4>日志</h4>
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <script>
+    const motors = [
+      { vendor: "damiao", model: "4340P", motor_id: 0x01, feedback_id: 0x11, pos: 0.0, min: -2.5, max: 2.5, auto: false, vlim: 1.0 },
+      { vendor: "damiao", model: "4310",  motor_id: 0x07, feedback_id: 0x17, pos: 0.0, min: -2.5, max: 2.5, auto: false, vlim: 1.0 },
+      { vendor: "myactuator", model: "X8", motor_id: 1, feedback_id: 0x241, pos: 0.0, min: -2.5, max: 2.5, auto: false, max_speed: 1.2 },
+      { vendor: "robstride", model: "rs-00", motor_id: 127, feedback_id: 0xFE, pos: 0.0, min: -2.5, max: 2.5, auto: false, vel: 0, kp: 8, kd: 0.2, tau: 0 },
+    ];
+
+    const sockets = new Map();
+    const wantedConnections = new Set();
+    const reconnectTimers = new Map();
+    let timer = null;
+
+    const $ = (id) => document.getElementById(id);
+    const logEl = $("log");
+    const rowsEl = $("motorRows");
+    const cardsEl = $("motorCards");
+
+    function log(msg, cls = "") {
+      const t = new Date().toLocaleTimeString();
+      const div = document.createElement("div");
+      if (cls) div.className = cls;
+      div.textContent = `[${t}] ${msg}`;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function rowKey(m) { return `${m.vendor}:${m.motor_id}:${m.feedback_id}`; }
+
+    function sendJson(ws, obj) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+      ws.send(JSON.stringify(obj));
+      return true;
+    }
+
+    function buildPosOp(m, pos) {
+      if (m.vendor === "damiao") {
+        return { op: "pos_vel", pos, vlim: m.vlim ?? 1.0, continuous: true };
+      }
+      if (m.vendor === "myactuator") {
+        return { op: "pos", pos, max_speed: m.max_speed ?? 1.0 };
+      }
+      if (m.vendor === "robstride") {
+        return { op: "mit", pos, vel: m.vel ?? 0, kp: m.kp ?? 8, kd: m.kd ?? 0.2, tau: m.tau ?? 0, continuous: false };
+      }
+      return { op: "state_once" };
+    }
+
+    function renderRows() {
+      rowsEl.innerHTML = "";
+      motors.forEach((m, idx) => {
+        const key = rowKey(m);
+        const ws = sockets.get(key);
+        const state = ws && ws.readyState === WebSocket.OPEN ? "已连接" : "未连接";
+        const cls = ws && ws.readyState === WebSocket.OPEN ? "ok" : "bad";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td>${m.vendor}</td>
+          <td>${m.model}</td>
+          <td>${m.motor_id}</td>
+          <td>${m.feedback_id}</td>
+          <td class="${cls}">${state}</td>
+        `;
+        rowsEl.appendChild(tr);
+      });
+    }
+
+    function renderCards() {
+      cardsEl.innerHTML = "";
+      motors.forEach((m, idx) => {
+        let paramHtml = "";
+        if (m.vendor === "damiao") {
+          paramHtml = `
+          <div class="row" style="margin-top:8px;">
+            <label>vlim</label><input id="vlim-${idx}" value="${m.vlim ?? 1.0}" size="6" />
+          </div>
+          `;
+        } else if (m.vendor === "robstride") {
+          paramHtml = `
+          <div class="row" style="margin-top:8px;">
+            <label>vel</label><input id="vel-${idx}" value="${m.vel ?? 0}" size="5" />
+            <label>kp</label><input id="kp-${idx}" value="${m.kp ?? 0}" size="5" />
+            <label>kd</label><input id="kd-${idx}" value="${m.kd ?? 0}" size="5" />
+            <label>tau</label><input id="tau-${idx}" value="${m.tau ?? 0}" size="5" />
+          </div>
+          `;
+        } else if (m.vendor === "myactuator") {
+          paramHtml = `
+          <div class="row" style="margin-top:8px;">
+            <label>max_speed</label><input id="maxspeed-${idx}" value="${m.max_speed ?? 1.0}" size="6" />
+          </div>
+          `;
+        }
+
+        const card = document.createElement("div");
+        card.className = "motor";
+        card.innerHTML = `
+          <div class="row">
+            <strong>#${idx + 1} ${m.vendor}</strong>
+            <span class="muted mono">${m.model} id=${m.motor_id} fb=${m.feedback_id}</span>
+          </div>
+          <div class="row">
+            <label>min</label><input id="min-${idx}" value="${m.min}" size="5" />
+            <label>max</label><input id="max-${idx}" value="${m.max}" size="5" />
+            <label>pos</label><input id="pos-${idx}" value="${m.pos.toFixed(3)}" size="7" />
+          </div>
+          <div style="margin-top:8px;">
+            <input id="slider-${idx}" type="range" min="${m.min}" max="${m.max}" step="0.01" value="${m.pos}" />
+          </div>
+          ${paramHtml}
+          <div class="row" style="margin-top:8px;">
+            <label><input id="auto-${idx}" type="checkbox" ${m.auto ? "checked" : ""}/> 自动发送</label>
+            <button id="send-${idx}">发送该路</button>
+          </div>
+        `;
+        cardsEl.appendChild(card);
+      });
+
+      motors.forEach((m, idx) => {
+        const minEl = $(`min-${idx}`);
+        const maxEl = $(`max-${idx}`);
+        const posEl = $(`pos-${idx}`);
+        const sliderEl = $(`slider-${idx}`);
+        const autoEl = $(`auto-${idx}`);
+        const sendBtn = $(`send-${idx}`);
+        const vlimEl = $(`vlim-${idx}`);
+        const velEl = $(`vel-${idx}`);
+        const kpEl = $(`kp-${idx}`);
+        const kdEl = $(`kd-${idx}`);
+        const tauEl = $(`tau-${idx}`);
+        const maxSpeedEl = $(`maxspeed-${idx}`);
+
+        function applyBounds() {
+          const mn = Number(minEl.value);
+          const mx = Number(maxEl.value);
+          m.min = Number.isFinite(mn) ? mn : -2.5;
+          m.max = Number.isFinite(mx) ? mx : 2.5;
+          sliderEl.min = String(m.min);
+          sliderEl.max = String(m.max);
+          if (Number(sliderEl.value) < m.min) sliderEl.value = String(m.min);
+          if (Number(sliderEl.value) > m.max) sliderEl.value = String(m.max);
+          m.pos = Number(sliderEl.value);
+          posEl.value = m.pos.toFixed(3);
+        }
+
+        function setPos(v) {
+          m.pos = Number.isFinite(v) ? v : 0;
+          sliderEl.value = String(m.pos);
+          posEl.value = m.pos.toFixed(3);
+        }
+
+        minEl.onchange = applyBounds;
+        maxEl.onchange = applyBounds;
+
+        sliderEl.oninput = () => {
+          setPos(Number(sliderEl.value));
+          if (autoEl.checked) sendPositionFor(idx);
+        };
+        sliderEl.onchange = () => {
+          if (autoEl.checked) sendPositionFor(idx);
+        };
+
+        posEl.onchange = () => {
+          setPos(Number(posEl.value));
+          if (autoEl.checked) sendPositionFor(idx);
+        };
+
+        autoEl.onchange = () => {
+          m.auto = autoEl.checked;
+          if (m.auto) {
+            sendPositionFor(idx);
+            log(`auto on -> start periodic send ${rowKey(m)} target=${m.pos.toFixed(3)}`);
+          } else {
+            log(`auto off -> stop periodic send ${rowKey(m)}`);
+          }
+        };
+        sendBtn.onclick = () => sendPositionFor(idx);
+
+        if (vlimEl) {
+          vlimEl.onchange = () => {
+            const v = Number(vlimEl.value);
+            m.vlim = Number.isFinite(v) ? v : (m.vlim ?? 1.0);
+            if (autoEl.checked) sendPositionFor(idx);
+          };
+        }
+        if (velEl) {
+          velEl.onchange = () => {
+            const v = Number(velEl.value);
+            m.vel = Number.isFinite(v) ? v : (m.vel ?? 0);
+            if (autoEl.checked) sendPositionFor(idx);
+          };
+        }
+        if (kpEl) {
+          kpEl.onchange = () => {
+            const v = Number(kpEl.value);
+            m.kp = Number.isFinite(v) ? v : (m.kp ?? 0);
+            if (autoEl.checked) sendPositionFor(idx);
+          };
+        }
+        if (kdEl) {
+          kdEl.onchange = () => {
+            const v = Number(kdEl.value);
+            m.kd = Number.isFinite(v) ? v : (m.kd ?? 0);
+            if (autoEl.checked) sendPositionFor(idx);
+          };
+        }
+        if (tauEl) {
+          tauEl.onchange = () => {
+            const v = Number(tauEl.value);
+            m.tau = Number.isFinite(v) ? v : (m.tau ?? 0);
+            if (autoEl.checked) sendPositionFor(idx);
+          };
+        }
+        if (maxSpeedEl) {
+          maxSpeedEl.onchange = () => {
+            const v = Number(maxSpeedEl.value);
+            m.max_speed = Number.isFinite(v) ? v : (m.max_speed ?? 1.0);
+            if (autoEl.checked) sendPositionFor(idx);
+          };
+        }
+      });
+    }
+
+    function connectMotor(idx) {
+      const m = motors[idx];
+      const url = $("wsUrl").value.trim();
+      const channel = $("channel").value.trim() || "can0";
+      const key = rowKey(m);
+      wantedConnections.add(key);
+
+      if (sockets.has(key)) {
+        const old = sockets.get(key);
+        try { old.close(); } catch (_) {}
+      }
+      if (reconnectTimers.has(key)) {
+        clearTimeout(reconnectTimers.get(key));
+        reconnectTimers.delete(key);
+      }
+
+      const ws = new WebSocket(url);
+      sockets.set(key, ws);
+
+      ws.onopen = () => {
+        sendJson(ws, {
+          op: "set_target",
+          vendor: m.vendor,
+          channel,
+          model: m.model,
+          motor_id: m.motor_id,
+          feedback_id: m.feedback_id,
+        });
+        log(`connected ${key}`, "ok");
+        renderRows();
+      };
+
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.ok === false) log(`${key} error: ${msg.error || "unknown"}`, "bad");
+        } catch (_) {}
+      };
+
+      ws.onerror = () => log(`socket error ${key}`, "bad");
+      ws.onclose = () => {
+        log(`closed ${key}`, "muted");
+        sockets.delete(key);
+        if (wantedConnections.has(key)) {
+          const t = setTimeout(() => {
+            reconnectTimers.delete(key);
+            connectMotor(idx);
+          }, 800);
+          reconnectTimers.set(key, t);
+        }
+        renderRows();
+      };
+    }
+
+    function sendPositionFor(idx) {
+      const m = motors[idx];
+      const key = rowKey(m);
+      const ws = sockets.get(key);
+      const op = buildPosOp(m, m.pos);
+      if (!sendJson(ws, op)) {
+        log(`skip ${key} (not connected)`, "muted");
+        return;
+      }
+      log(`send ${key} pos=${m.pos.toFixed(3)} continuous=${m.auto}`);
+    }
+
+    function broadcast(opBuilder) {
+      const fanoutDelay = Math.max(0, Number($("fanoutDelayMs").value) || 0);
+      motors.forEach((m, idx) => {
+        const key = rowKey(m);
+        const ws = sockets.get(key);
+        setTimeout(() => {
+          if (!sendJson(ws, opBuilder(m))) log(`skip ${key} (not connected)`, "muted");
+        }, idx * fanoutDelay);
+      });
+    }
+
+    function restartTimer() {
+      if (timer) clearInterval(timer);
+      const raw = Number($("txPeriod").value);
+      if (!Number.isFinite(raw) || raw <= 0) {
+        timer = null;
+        return;
+      }
+      const ms = Math.max(20, raw);
+      timer = setInterval(() => {
+        motors.forEach((m, idx) => {
+          if (!m.auto) return;
+          sendPositionFor(idx);
+        });
+      }, ms);
+    }
+
+    $("btnConnectAll").onclick = () => {
+      motors.forEach((_, idx) => connectMotor(idx));
+      setTimeout(renderRows, 120);
+    };
+
+    $("btnCloseAll").onclick = () => {
+      wantedConnections.clear();
+      reconnectTimers.forEach((t) => clearTimeout(t));
+      reconnectTimers.clear();
+      sockets.forEach((ws) => { try { ws.close(); } catch (_) {} });
+      sockets.clear();
+      renderRows();
+    };
+
+    $("btnEnableAll").onclick = () => broadcast(() => ({ op: "enable" }));
+    $("btnStopAll").onclick = () => broadcast(() => ({ op: "stop" }));
+    $("btnDisableAll").onclick = () => broadcast(() => ({ op: "disable" }));
+    $("txPeriod").onchange = restartTimer;
+
+    renderCards();
+    renderRows();
+    restartTimer();
+  </script>
+</body>
+</html>

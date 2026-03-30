@@ -23,6 +23,7 @@
 - Python ctypes 示例: `examples/python/python_ctypes_demo.py`
 - 多厂商位置同步脚本: `examples/python/four_vendor_pos_sync.py`
 - WS 四电机同步上位机: `examples/web/ws_quad_sync_hmi.html`
+- WS 四路独立滑杆上位机: `examples/http_quad_control_demo/README.zh-CN.md`
 - Python SDK 示例: `bindings/python/examples/*`
 - C++ wrapper 示例: `bindings/cpp/examples/*`
 - Damiao 调参总表:

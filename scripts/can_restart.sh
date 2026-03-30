@@ -10,6 +10,7 @@ set -euo pipefail
 BITRATE=1000000
 RESTART_MS=100
 LOOPBACK=off
+TX_QLEN=2000
 IFS_LIST=()
 
 while [[ $# -gt 0 ]]; do
@@ -26,6 +27,10 @@ while [[ $# -gt 0 ]]; do
       LOOPBACK="$2"
       shift 2
       ;;
+    --txqueuelen)
+      TX_QLEN="$2"
+      shift 2
+      ;;
     -h|--help)
       cat <<'EOF'
 Restart SocketCAN interfaces.
@@ -34,12 +39,14 @@ Options:
   --bitrate <num>     CAN bitrate (default: 1000000)
   --restart-ms <num>  bus-off auto-restart (default: 100)
   --loopback <on|off> loopback mode (default: off)
+  --txqueuelen <num>  TX queue length (default: 2000)
   -h, --help          show help
 
 Examples:
   scripts/can_restart.sh
   scripts/can_restart.sh can0 can1
   scripts/can_restart.sh --bitrate 500000 can0 can1
+  scripts/can_restart.sh --txqueuelen 2000 can0
 EOF
       exit 0
       ;;
@@ -61,8 +68,9 @@ restart_one() {
     return 0
   fi
 
-  echo "[can_restart] restarting ${ifn} bitrate=${BITRATE} restart-ms=${RESTART_MS} loopback=${LOOPBACK}"
+  echo "[can_restart] restarting ${ifn} bitrate=${BITRATE} restart-ms=${RESTART_MS} loopback=${LOOPBACK} txqueuelen=${TX_QLEN}"
   sudo ip link set "$ifn" down 2>/dev/null || true
+  sudo ip link set "$ifn" txqueuelen "$TX_QLEN"
   sudo ip link set "$ifn" type can bitrate "$BITRATE" restart-ms "$RESTART_MS" loopback "$LOOPBACK"
   sudo ip link set "$ifn" up
   ip -details link show "$ifn"
@@ -71,4 +79,3 @@ restart_one() {
 for ifn in "${IFS_LIST[@]}"; do
   restart_one "$ifn"
 done
-

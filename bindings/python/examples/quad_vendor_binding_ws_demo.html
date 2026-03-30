@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Binding WS 四电机控制</title>
+  <style>
+    :root {
+      --bg: #090f1c;
+      --card: #0f1930;
+      --line: #2a3b63;
+      --text: #e8efff;
+      --muted: #9cb0d9;
+      --accent: #45c7ff;
+      --accent2: #7ae0b6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 18px;
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(900px 500px at -10% -20%, #1a2f56 0%, transparent 65%),
+        radial-gradient(900px 500px at 110% 120%, #10384d 0%, transparent 60%),
+        var(--bg);
+    }
+    .shell { max-width: 1180px; margin: 0 auto; }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+      background: linear-gradient(180deg, #101c36 0%, #0e1730 100%);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+    }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    label { color: var(--muted); font-size: 13px; }
+    input, button {
+      background: #0b1222;
+      color: var(--text);
+      border: 1px solid #344a7a;
+      border-radius: 10px;
+      padding: 7px 9px;
+      transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+    }
+    input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(69, 199, 255, 0.18); }
+    input[type="range"] { width: 100%; accent-color: var(--accent); }
+    button {
+      cursor: pointer;
+      background: linear-gradient(180deg, #16335f 0%, #122c52 100%);
+      border-color: #2f5a95;
+    }
+    button:hover { transform: translateY(-1px); border-color: #4b77b6; }
+    .title { margin: 0 0 8px 0; font-size: 18px; }
+    .muted { color: var(--muted); font-size: 12px; }
+    .badge {
+      display: inline-block;
+      border: 1px solid #37527f;
+      color: #b9d0ff;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      margin-left: 6px;
+    }
+    #log {
+      min-height: 130px;
+      max-height: 280px;
+      overflow: auto;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      background: #09101f;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+  <div class="card">
+    <h3 class="title">Binding WS 四电机控制 <span class="badge">实时模式</span></h3>
+    <div class="row">
+      <label>WS</label><input id="wsUrl" value="ws://127.0.0.1:9010" size="30" />
+      <button id="btnConn">连接</button>
+      <button id="btnEnable">启用发送</button>
+      <button id="btnDisable">暂停发送</button>
+      <button id="btnState">读取状态</button>
+      <label><input id="rtOn" type="checkbox" checked /> 实时拖动下发</label>
+      <label>节流(ms)</label><input id="rtMs" value="40" size="5" />
+      <label><input id="unifyOn" type="checkbox" /> 统一滑杆模式</label>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <label>统一pos</label>
+      <input id="allPos" value="0.000" size="8" />
+      <button id="btnSendAll">发送到全部</button>
+    </div>
+    <div style="margin-top:8px;">
+      <input id="allSlider" type="range" min="-3.14" max="3.14" step="0.01" value="0" />
+    </div>
+    <div class="muted" style="margin-top:8px;">拖动滑杆时按节流周期实时下发目标角度，避免总线突发拥塞。</div>
+  </div>
+  <div class="card">
+    <div class="grid" id="cards"></div>
+  </div>
+  <div class="card">
+    <div id="log"></div>
+  </div>
+  </div>
+
+  <script>
+    const motors = ["dm1", "dm2", "my", "rs"];
+    const model = {
+      dm1: { pos: 0 }, dm2: { pos: 0 }, my: { pos: 0 }, rs: { pos: 0 }
+    };
+    const lastSentAt = { dm1: 0, dm2: 0, my: 0, rs: 0 };
+    let ws = null;
+
+    const $ = (id) => document.getElementById(id);
+    function log(msg) {
+      const t = new Date().toLocaleTimeString();
+      const div = document.createElement("div");
+      div.textContent = `[${t}] ${msg}`;
+      $("log").appendChild(div);
+      $("log").scrollTop = $("log").scrollHeight;
+    }
+    function send(obj) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(JSON.stringify(obj));
+    }
+    function sendTarget(m, pos, force=false) {
+      const now = Date.now();
+      const ms = Math.max(0, Number($("rtMs").value) || 0);
+      if (!force && now - (lastSentAt[m] || 0) < ms) return;
+      lastSentAt[m] = now;
+      send({ op: "set_target", motor: m, pos });
+    }
+    function sendAllTargets(pos, force=false) {
+      motors.forEach((m) => sendTarget(m, pos, force));
+    }
+    function render() {
+      const root = $("cards");
+      const unified = $("unifyOn").checked;
+      root.innerHTML = "";
+      motors.forEach((m) => {
+        const c = document.createElement("div");
+        c.className = "card";
+        c.innerHTML = `
+          <div class="row"><strong>${m}</strong><span class="badge">target</span></div>
+          <div class="row">
+            <label>pos</label>
+            <input id="pos-${m}" value="${Number(model[m].pos).toFixed(3)}" size="8" ${unified ? "disabled" : ""} />
+            <button id="send-${m}" ${unified ? "disabled" : ""}>发送</button>
+          </div>
+          <div><input id="slider-${m}" type="range" min="-3.14" max="3.14" step="0.01" value="${model[m].pos}" ${unified ? "disabled" : ""} /></div>
+        `;
+        root.appendChild(c);
+      });
+      motors.forEach((m) => {
+        const pe = $(`pos-${m}`);
+        const se = $(`slider-${m}`);
+        $(`send-${m}`).onclick = () => {
+          const pos = Number(pe.value);
+          model[m].pos = pos;
+          se.value = String(pos);
+          sendTarget(m, pos, true);
+        };
+        pe.onchange = () => {
+          const pos = Number(pe.value);
+          model[m].pos = pos;
+          se.value = String(pos);
+          sendTarget(m, pos, true);
+        };
+        se.oninput = () => {
+          const pos = Number(se.value);
+          model[m].pos = pos;
+          pe.value = pos.toFixed(3);
+          if ($("rtOn").checked) sendTarget(m, pos, false);
+        };
+      });
+    }
+
+    $("btnConn").onclick = () => {
+      const url = $("wsUrl").value.trim();
+      ws = new WebSocket(url);
+      ws.onopen = () => log("connected");
+      ws.onclose = () => log("closed");
+      ws.onerror = () => log("socket error");
+      ws.onmessage = (ev) => {
+        log(ev.data);
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.state && msg.state.motors) {
+            Object.keys(msg.state.motors).forEach((k) => {
+              if (model[k]) model[k].pos = Number(msg.state.motors[k].pos ?? model[k].pos);
+            });
+            render();
+          }
+        } catch (_) {}
+      };
+    };
+    $("btnEnable").onclick = () => send({ op: "set_enabled", enabled: true });
+    $("btnDisable").onclick = () => send({ op: "set_enabled", enabled: false });
+    $("btnState").onclick = () => send({ op: "get_state" });
+    $("unifyOn").onchange = () => {
+      render();
+      log($("unifyOn").checked ? "统一滑杆模式: ON" : "统一滑杆模式: OFF");
+    };
+    $("btnSendAll").onclick = () => {
+      const pos = Number($("allPos").value);
+      if (!Number.isFinite(pos)) return;
+      motors.forEach((m) => { model[m].pos = pos; });
+      $("allSlider").value = String(pos);
+      render();
+      sendAllTargets(pos, true);
+    };
+    $("allPos").onchange = () => {
+      const pos = Number($("allPos").value);
+      if (!Number.isFinite(pos)) return;
+      $("allSlider").value = String(pos);
+      if ($("unifyOn").checked && $("rtOn").checked) {
+        motors.forEach((m) => { model[m].pos = pos; });
+        render();
+        sendAllTargets(pos, true);
+      }
+    };
+    $("allSlider").oninput = () => {
+      const pos = Number($("allSlider").value);
+      $("allPos").value = pos.toFixed(3);
+      if (!$("unifyOn").checked) return;
+      motors.forEach((m) => { model[m].pos = pos; });
+      render();
+      if ($("rtOn").checked) sendAllTargets(pos, false);
+    };
+
+    render();
+  </script>
+</body>
+</html>

@@ -39,6 +39,14 @@ class SharedState:
     enabled: bool = False
     last_error: str = ""
     tick_hz: float = 50.0
+    feedback: Dict[str, Dict[str, Any]] = field(
+        default_factory=lambda: {
+            "dm1": {},
+            "dm2": {},
+            "my": {},
+            "rs": {},
+        }
+    )
     motors: Dict[str, MotorCfg] = field(
         default_factory=lambda: {
             # Tuned defaults: a bit faster than previous profile, still conservative.
@@ -79,11 +87,26 @@ class Bridge:
                     }
                     for k, v in self.state.motors.items()
                 },
+                "feedback": dict(self.state.feedback),
             }
 
     def _set_error(self, text: str) -> None:
         with self.lock:
             self.state.last_error = text
+
+    def _update_feedback(self, key: str, st: Any) -> None:
+        with self.lock:
+            self.state.feedback[key] = {
+                "can_id": int(getattr(st, "can_id", 0)),
+                "arbitration_id": int(getattr(st, "arbitration_id", 0)),
+                "status_code": int(getattr(st, "status_code", 0)),
+                "pos": float(getattr(st, "pos", 0.0)),
+                "vel": float(getattr(st, "vel", 0.0)),
+                "torq": float(getattr(st, "torq", 0.0)),
+                "t_mos": float(getattr(st, "t_mos", 0.0)),
+                "t_rotor": float(getattr(st, "t_rotor", 0.0)),
+                "ts": time.time(),
+            }
 
     def apply_message(self, msg: Dict[str, Any]) -> Dict[str, Any]:
         op = str(msg.get("op", "")).strip().lower()
@@ -178,6 +201,12 @@ class Bridge:
                                 if rs_cfg.active:
                                     rs_pos = rs_cfg.pos * rs_cfg.dir_sign
                                     rsm.send_mit(rs_pos, rs_cfg.vel, rs_cfg.kp, rs_cfg.kd, rs_cfg.tau)
+
+                            # Always refresh telemetry snapshot so web UI can observe live motor state.
+                            self._update_feedback("dm1", dm1.get_state())
+                            self._update_feedback("dm2", dm2.get_state())
+                            self._update_feedback("my", mym.get_state())
+                            self._update_feedback("rs", rsm.get_state())
                             time.sleep(max(1, a.dt_ms) / 1000.0)
                     finally:
                         for m in (dm1, dm2, mym, rsm):

@@ -88,6 +88,8 @@
       <button id="btnEnable">Enable Sending</button>
       <button id="btnDisable">Pause Sending</button>
       <button id="btnState">Get State</button>
+      <label><input id="autoStateOn" type="checkbox" checked /> Auto State Refresh</label>
+      <label>State Poll (ms)</label><input id="stateMs" value="200" size="5" />
       <label><input id="rtOn" type="checkbox" checked /> Real-time Send on Drag</label>
       <label>Throttle (ms)</label><input id="rtMs" value="40" size="5" />
       <label><input id="unifyOn" type="checkbox" /> Unified Slider Mode</label>
@@ -115,8 +117,10 @@
     const model = {
       dm1: { pos: 0 }, dm2: { pos: 0 }, my: { pos: 0 }, rs: { pos: 0 }
     };
+    const feedback = { dm1: {}, dm2: {}, my: {}, rs: {} };
     const lastSentAt = { dm1: 0, dm2: 0, my: 0, rs: 0 };
     let ws = null;
+    let stateTimer = null;
 
     const $ = (id) => document.getElementById(id);
     function log(msg) {
@@ -129,6 +133,33 @@
     function send(obj) {
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
       ws.send(JSON.stringify(obj));
+    }
+    function startStatePolling() {
+      stopStatePolling();
+      if (!$("autoStateOn").checked) return;
+      const ms = Math.max(50, Number($("stateMs").value) || 200);
+      stateTimer = setInterval(() => send({ op: "get_state" }), ms);
+    }
+    function stopStatePolling() {
+      if (stateTimer) {
+        clearInterval(stateTimer);
+        stateTimer = null;
+      }
+    }
+    function fmt(v, n=3) {
+      if (v === undefined || v === null || Number.isNaN(Number(v))) return "-";
+      return Number(v).toFixed(n);
+    }
+    function updateFeedbackUi() {
+      motors.forEach((m) => {
+        const e = $(`fb-${m}`);
+        if (!e) return;
+        const f = feedback[m] || {};
+        e.textContent =
+          `status=${f.status_code ?? "-"} can=${f.can_id ?? "-"} arb=${f.arbitration_id ?? "-"}  ` +
+          `pos=${fmt(f.pos)} vel=${fmt(f.vel)} torq=${fmt(f.torq)}  ` +
+          `t_mos=${fmt(f.t_mos, 1)} t_rotor=${fmt(f.t_rotor, 1)}`;
+      });
     }
     function sendTarget(m, pos, force=false) {
       const now = Date.now();
@@ -155,6 +186,7 @@
             <button id="send-${m}" ${unified ? "disabled" : ""}>Send</button>
           </div>
           <div><input id="slider-${m}" type="range" min="-3.14" max="3.14" step="0.01" value="${model[m].pos}" ${unified ? "disabled" : ""} /></div>
+          <div id="fb-${m}" class="muted" style="margin-top:8px;">status=- can=- arb=- pos=- vel=- torq=- t_mos=- t_rotor=-</div>
         `;
         root.appendChild(c);
       });
@@ -180,13 +212,21 @@
           if ($("rtOn").checked) sendTarget(m, pos, false);
         };
       });
+      updateFeedbackUi();
     }
 
     $("btnConn").onclick = () => {
       const url = $("wsUrl").value.trim();
       ws = new WebSocket(url);
-      ws.onopen = () => log("connected");
-      ws.onclose = () => log("closed");
+      ws.onopen = () => {
+        log("connected");
+        send({ op: "get_state" });
+        startStatePolling();
+      };
+      ws.onclose = () => {
+        log("closed");
+        stopStatePolling();
+      };
       ws.onerror = () => log("socket error");
       ws.onmessage = (ev) => {
         log(ev.data);
@@ -196,7 +236,13 @@
             Object.keys(msg.state.motors).forEach((k) => {
               if (model[k]) model[k].pos = Number(msg.state.motors[k].pos ?? model[k].pos);
             });
+            if (msg.state.feedback) {
+              Object.keys(msg.state.feedback).forEach((k) => {
+                if (feedback[k] !== undefined) feedback[k] = msg.state.feedback[k] || {};
+              });
+            }
             render();
+            updateFeedbackUi();
           }
         } catch (_) {}
       };
@@ -204,6 +250,14 @@
     $("btnEnable").onclick = () => send({ op: "set_enabled", enabled: true });
     $("btnDisable").onclick = () => send({ op: "set_enabled", enabled: false });
     $("btnState").onclick = () => send({ op: "get_state" });
+    $("autoStateOn").onchange = () => {
+      startStatePolling();
+      log($("autoStateOn").checked ? "Auto state refresh: ON" : "Auto state refresh: OFF");
+    };
+    $("stateMs").onchange = () => {
+      startStatePolling();
+      log(`State poll interval set to ${Math.max(50, Number($("stateMs").value) || 200)} ms`);
+    };
     $("unifyOn").onchange = () => {
       render();
       log($("unifyOn").checked ? "Unified slider mode: ON" : "Unified slider mode: OFF");

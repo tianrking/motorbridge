@@ -16,6 +16,25 @@
 
 > English version: [README.md](README.md)
 
+## README 导航（先看哪个）
+
+如果你是第一次接触这个目录，建议按下面顺序阅读：
+
+1. 本文档 [README.zh-CN.md](README.zh-CN.md)  
+   作用：Python binding 总览（安装、API 范围、常用命令）。
+2. [examples/READMEzh_cn.md](examples/READMEzh_cn.md)（中文） / [examples/README.md](examples/README.md)（英文）  
+   作用：所有 Python 示例的入口说明（从最简单到高级示例）。
+3. [DAMIAO_PYTHON_REFERENCE.zh-CN.md](DAMIAO_PYTHON_REFERENCE.zh-CN.md)  
+   作用：Damiao Python 接口参考，偏“按接口查参数”。
+4. [DAMIAO_binding.md](DAMIAO_binding.md)  
+   作用：Damiao 绑定实现说明，偏“原理/实现细节”。
+5. [README.md](README.md)  
+   作用：英文版总览（给英文协作成员）。
+
+补充：
+- 如果你主要想“马上跑起来”，优先看 `examples/READMEzh_cn.md` 的“新手优先（最简单的 2 个示例）”。
+- 如果你主要想查 CLI 参数，去 `../../motor_cli/README.zh-CN.md`。
+
 ## 范围
 
 - 高层 API: `Controller`、`Motor`、`Mode`
@@ -188,7 +207,7 @@ python -m pip install bindings/python/dist/motorbridge-*.whl
   - `examples/pos_ctrl_demo.py`
   - `examples/pos_repl_demo.py`
 
-详细见 [examples/README.md](examples/README.md)。
+详细见 [examples/READMEzh_cn.md](examples/READMEzh_cn.md)（中文）或 [examples/README.md](examples/README.md)（英文）。
 
 ## Damiao 全覆盖状态
 

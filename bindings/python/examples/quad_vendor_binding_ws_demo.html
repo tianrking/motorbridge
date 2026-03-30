@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Binding WS 四电机控制</title>
+  <title>Binding WS 4-Motor Control</title>
   <style>
     :root {
       --bg: #090f1c;
@@ -81,26 +81,26 @@
 <body>
   <div class="shell">
   <div class="card">
-    <h3 class="title">Binding WS 四电机控制 <span class="badge">实时模式</span></h3>
+    <h3 class="title">Binding WS 4-Motor Control <span class="badge">Real-time Mode</span></h3>
     <div class="row">
       <label>WS</label><input id="wsUrl" value="ws://127.0.0.1:9010" size="30" />
-      <button id="btnConn">连接</button>
-      <button id="btnEnable">启用发送</button>
-      <button id="btnDisable">暂停发送</button>
-      <button id="btnState">读取状态</button>
-      <label><input id="rtOn" type="checkbox" checked /> 实时拖动下发</label>
-      <label>节流(ms)</label><input id="rtMs" value="40" size="5" />
-      <label><input id="unifyOn" type="checkbox" /> 统一滑杆模式</label>
+      <button id="btnConn">Connect</button>
+      <button id="btnEnable">Enable Sending</button>
+      <button id="btnDisable">Pause Sending</button>
+      <button id="btnState">Get State</button>
+      <label><input id="rtOn" type="checkbox" checked /> Real-time Send on Drag</label>
+      <label>Throttle (ms)</label><input id="rtMs" value="40" size="5" />
+      <label><input id="unifyOn" type="checkbox" /> Unified Slider Mode</label>
     </div>
     <div class="row" style="margin-top:8px;">
-      <label>统一pos</label>
+      <label>Unified Pos</label>
       <input id="allPos" value="0.000" size="8" />
-      <button id="btnSendAll">发送到全部</button>
+      <button id="btnSendAll">Send to All</button>
     </div>
     <div style="margin-top:8px;">
       <input id="allSlider" type="range" min="-3.14" max="3.14" step="0.01" value="0" />
     </div>
-    <div class="muted" style="margin-top:8px;">拖动滑杆时按节流周期实时下发目标角度，避免总线突发拥塞。</div>
+    <div class="muted" style="margin-top:8px;">When dragging sliders, targets are sent at the throttle interval to reduce bus burst congestion.</div>
   </div>
   <div class="card">
     <div class="grid" id="cards"></div>
@@ -152,7 +152,7 @@
           <div class="row">
             <label>pos</label>
             <input id="pos-${m}" value="${Number(model[m].pos).toFixed(3)}" size="8" ${unified ? "disabled" : ""} />
-            <button id="send-${m}" ${unified ? "disabled" : ""}>发送</button>
+            <button id="send-${m}" ${unified ? "disabled" : ""}>Send</button>
           </div>
           <div><input id="slider-${m}" type="range" min="-3.14" max="3.14" step="0.01" value="${model[m].pos}" ${unified ? "disabled" : ""} /></div>
         `;
@@ -206,7 +206,7 @@
     $("btnState").onclick = () => send({ op: "get_state" });
     $("unifyOn").onchange = () => {
       render();
-      log($("unifyOn").checked ? "统一滑杆模式: ON" : "统一滑杆模式: OFF");
+      log($("unifyOn").checked ? "Unified slider mode: ON" : "Unified slider mode: OFF");
     };
     $("btnSendAll").onclick = () => {
       const pos = Number($("allPos").value);

@@ -16,6 +16,25 @@ Python binding layer on top of `motor_abi`.
 
 > Chinese version: [README.zh-CN.md](README.zh-CN.md)
 
+## README Navigation (What Each One Is For)
+
+If this is your first time in this folder, read in this order:
+
+1. This file: [README.md](README.md)  
+   Purpose: Python binding overview (install, API scope, common commands).
+2. [examples/README.md](examples/README.md) (English) / [examples/READMEzh_cn.md](examples/READMEzh_cn.md) (Chinese)  
+   Purpose: practical demo index and run instructions (from simplest to advanced).
+3. [DAMIAO_PYTHON_REFERENCE.zh-CN.md](DAMIAO_PYTHON_REFERENCE.zh-CN.md)  
+   Purpose: Damiao Python interface reference (parameter lookup style).
+4. [DAMIAO_binding.md](DAMIAO_binding.md)  
+   Purpose: Damiao binding implementation notes (design/internal behavior).
+5. [README.zh-CN.md](README.zh-CN.md)  
+   Purpose: Chinese overview for Chinese-speaking teammates.
+
+Notes:
+- If your goal is "run something now", start with `Start Here (Simplest 2 Examples)` in `examples/README.md`.
+- If your goal is CLI parameter lookup, see `../../motor_cli/README.md`.
+
 ## Scope
 
 - High-level API: `Controller`, `Motor`, `Mode`
@@ -188,7 +207,7 @@ python -m pip install bindings/python/dist/motorbridge-*.whl
   - `examples/pos_ctrl_demo.py`
   - `examples/pos_repl_demo.py`
 
-See [examples/README.md](examples/README.md).
+See [examples/README.md](examples/README.md) (English) or [examples/READMEzh_cn.md](examples/READMEzh_cn.md) (Chinese).
 
 ## Damiao Full-Coverage Status
 

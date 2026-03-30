@@ -14,6 +14,7 @@
 
 Examples built on the Python SDK.
 
+> Chinese version (examples): [READMEzh_cn.md](READMEzh_cn.md)  
 > Chinese version (Python binding overview): [../README.zh-CN.md](../README.zh-CN.md)
 
 ## Start Here (Simplest 2 Examples)
@@ -70,6 +71,45 @@ python3 bindings/python/examples/simple_02_quad_motor_control.py \
    Use this for vendor scan commands and ID confirmation.
 3. [../../examples/README.zh-CN.md](../../examples/README.zh-CN.md) or [../../examples/README.md](../../examples/README.md)  
    Broader demo index (web/WS/other integration examples).
+
+### WS Demo Quick Guide (`quad_vendor_binding_ws_demo.py`)
+
+This demo is a Python WS bridge for 4 motors (`dm1`, `dm2`, `my`, `rs`) with a matching web UI.
+
+Backend start:
+
+```bash
+cd /path/to/rust_dm
+python3 -m venv .venv-ws
+source .venv-ws/bin/activate
+pip install websockets
+export PYTHONPATH=$PWD/bindings/python/src
+export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
+python3 bindings/python/examples/quad_vendor_binding_ws_demo.py \
+  --bind 127.0.0.1 --port 9010 --channel can0 --dt-ms 20
+```
+
+Frontend start (new terminal):
+
+```bash
+cd /path/to/rust_dm/bindings/python/examples
+python3 -m http.server 8080
+```
+
+Open browser:
+- `http://127.0.0.1:8080/quad_vendor_binding_ws_demo.html`
+- WS URL: `ws://127.0.0.1:9010`
+
+If your IDs are different, pass them on startup:
+
+```bash
+python3 bindings/python/examples/quad_vendor_binding_ws_demo.py \
+  --channel can0 \
+  --dm1-id 0x01 --dm1-fid 0x11 --dm1-model 4340P \
+  --dm2-id 0x07 --dm2-fid 0x17 --dm2-model 4310 \
+  --my-id 1 --my-fid 0x241 --my-model X8 \
+  --rs-id 127 --rs-fid 0xFE --rs-model rs-00
+```
 
 ### Key Points Beginners Must Know
 

@@ -21,10 +21,14 @@ def _parse_int(v: str) -> int:
 class MotorCfg:
     pos: float = 0.0
     active: bool = True
-    vlim: float = 1.0
+    # For POS_VEL motors (Damiao / MyActuator), vlim is the main speed limiter.
+    # Slightly increased default to make motion faster out-of-box.
+    vlim: float = 1.8
     vel: float = 0.0
-    kp: float = 1.2
-    kd: float = 1.5
+    # For MIT motor (RobStride), kp/kd shape tracking speed/damping.
+    # Slightly increased defaults for quicker response.
+    kp: float = 3.0
+    kd: float = 2.8
     tau: float = 0.0
     dir_sign: float = -1.0
 
@@ -37,10 +41,11 @@ class SharedState:
     tick_hz: float = 50.0
     motors: Dict[str, MotorCfg] = field(
         default_factory=lambda: {
-            "dm1": MotorCfg(vlim=1.0),
-            "dm2": MotorCfg(vlim=1.0),
-            "my": MotorCfg(vlim=1.2),
-            "rs": MotorCfg(kp=1.2, kd=1.5, dir_sign=-1.0),
+            # Tuned defaults: a bit faster than previous profile, still conservative.
+            "dm1": MotorCfg(vlim=1.8),
+            "dm2": MotorCfg(vlim=1.8),
+            "my": MotorCfg(vlim=2.0),
+            "rs": MotorCfg(kp=3.0, kd=2.8, dir_sign=-1.0),
         }
     )
 
@@ -248,4 +253,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

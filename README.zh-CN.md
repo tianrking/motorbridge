@@ -377,13 +377,11 @@ pip install --no-binary motorbridge motorbridge
 | Python 包（wheel/sdist） | Python 应用/工具 | 使用 `Controller/Motor/Mode` API 和 `motorbridge-cli` |
 | `motor_cli` 二进制包 | 运维/工厂/联调 | 不依赖 Python 直接做 CAN 扫描和控制 |
 
-### D) 额外自动化分发渠道
+### D) 额外自动化分发渠道（当前启用）
 
 | 渠道 | CI Workflow | 输出 |
 |---|---|---|
 | APT 仓库（GitHub Pages） | `.github/workflows/apt-repo-publish.yml` | `https://<owner>.github.io/<repo>/apt` |
-| Homebrew Formula 更新 | `.github/workflows/release-macos-cli.yml` + `.github/workflows/homebrew-formula-update.yml` | 自动更新 `Formula/motor-cli.rb`（含 SHA） |
-| Windows 元数据（winget/scoop/choco） | `.github/workflows/windows-package-metadata.yml` | 自动生成到 `packaging/windows/*` |
 
 说明：
 - `.deb` 当前面向 Linux x86_64；其他 Linux 目标建议使用 ABI `.tar.gz`。

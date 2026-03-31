@@ -1,6 +1,6 @@
 # 分发渠道（CI 自动化）
 
-本文说明在 GitHub Releases / PyPI 之外新增的分发渠道。
+本文说明当前启用的 GitHub Releases / PyPI 之外分发渠道。
 
 ## 1) APT 仓库（GitHub Pages）
 
@@ -23,41 +23,13 @@
 
 如果未配置签名密钥，workflow 会走 `-skip-signing`（无签名元数据）。
 
-## 2) Homebrew（本仓库内 Formula）
+## 包类型与开发人群对应
 
-相关文件：
+| 包 / 资产 | 面向开发者 | 典型用途 |
+|---|---|---|
+| `motorbridge-abi-<tag>-linux-x86_64.deb` | Ubuntu/Debian 上的 C/C++ 机器人开发者 | 安装 ABI（`libmotor_abi`）+ 头文件 + CMake 配置做原生集成 |
+| `motorbridge-abi-<tag>-linux-*.tar.gz` / `windows-*.zip` | 非 deb 环境或自定义工具链的 C/C++ 开发者 | 手动解包并链接，适合嵌入式/交叉编译场景 |
+| `motorbridge-*.whl` / `motorbridge-*.tar.gz` | Python 应用与工具开发者 | 用 Python SDK 开发上位机、标定脚本、工厂工具 |
+| `motor-cli-<tag>-<platform>.tar.gz/.zip` | 测试/运维/工厂工程师 | 不写 SDK 代码，直接做电机扫描和控制 |
 
-- `Formula/motor-cli.rb`
-- `.github/workflows/release-macos-cli.yml`
-- `.github/workflows/homebrew-formula-update.yml`
-
-流程：
-
-1. `release-macos-cli.yml` 构建并上传 `motor-cli-<tag>-macos-arm64.tar.gz` 到 Release。
-2. `homebrew-formula-update.yml` 下载该包，计算 SHA256，并更新 `Formula/motor-cli.rb`。
-
-使用示例：
-
-```bash
-brew tap tianrking/motorbridge
-brew install motor-cli
-```
-
-## 3) Windows 包管理元数据
-
-对应 workflow：`.github/workflows/windows-package-metadata.yml`
-
-生成脚本：
-
-- `tools/release/gen_windows_manifests.py`
-
-生成结果：
-
-- Scoop: `packaging/windows/scoop/motor-cli.json`
-- Winget: `packaging/windows/winget/manifests/...`
-- Chocolatey 模板：`packaging/windows/choco/*`
-
-说明：
-
-- Winget/Chocolatey 最终发布仍需走各自上游社区提交流程。
-- 当前 workflow 负责在每次 Release 后自动同步仓库内元数据。
+当前阶段，为保证发布链路“可完全自动化且可预测”，Homebrew 与 Windows 包管理元数据自动化已暂时移除。

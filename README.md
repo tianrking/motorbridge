@@ -373,13 +373,11 @@ pip install --no-binary motorbridge motorbridge
 | Python package (wheel/sdist) | Python app/tooling | Use `Controller/Motor/Mode` APIs and `motorbridge-cli` |
 | `motor_cli` binary package | Ops / factory / debugging | Direct CAN operations without Python runtime |
 
-### D) Additional Automated Distribution Channels
+### D) Additional Automated Distribution Channel
 
 | Channel | CI Workflow | Output |
 |---|---|---|
 | APT repository (GitHub Pages) | `.github/workflows/apt-repo-publish.yml` | `https://<owner>.github.io/<repo>/apt` |
-| Homebrew formula update | `.github/workflows/release-macos-cli.yml` + `.github/workflows/homebrew-formula-update.yml` | `Formula/motor-cli.rb` auto-updated with release SHA |
-| Windows metadata (winget/scoop/choco) | `.github/workflows/windows-package-metadata.yml` | Generated files under `packaging/windows/*` |
 
 Notes:
 - `.deb` is currently Linux x86_64 oriented; other Linux targets should use ABI `.tar.gz`.

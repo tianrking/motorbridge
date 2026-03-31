@@ -24,11 +24,13 @@ If this is your first time in this folder, read in this order:
    Purpose: Python binding overview (install, API scope, common commands).
 2. [examples/README.md](examples/README.md) (English) / [examples/READMEzh_cn.md](examples/READMEzh_cn.md) (Chinese)  
    Purpose: practical demo index and run instructions (from simplest to advanced).
-3. [DAMIAO_PYTHON_REFERENCE.zh-CN.md](DAMIAO_PYTHON_REFERENCE.zh-CN.md)  
+3. [get_started/README.md](get_started/README.md) / [get_started/README.zh-CN.md](get_started/README.zh-CN.md)  
+   Purpose: pip-first onboarding path (install -> scan -> run).
+4. [DAMIAO_PYTHON_REFERENCE.zh-CN.md](DAMIAO_PYTHON_REFERENCE.zh-CN.md)  
    Purpose: Damiao Python interface reference (parameter lookup style).
-4. [DAMIAO_binding.md](DAMIAO_binding.md)  
+5. [DAMIAO_binding.md](DAMIAO_binding.md)  
    Purpose: Damiao binding implementation notes (design/internal behavior).
-5. [README.zh-CN.md](README.zh-CN.md)  
+6. [README.zh-CN.md](README.zh-CN.md)  
    Purpose: Chinese overview for Chinese-speaking teammates.
 
 Notes:
@@ -49,6 +51,9 @@ Notes:
   - MyActuator: `add_myactuator_motor(...)`
   - RobStride: `add_robstride_motor(...)`
   - HighTorque: `add_hightorque_motor(...)`
+- Unified state-query pattern:
+  - Recommended flow: `request_feedback() -> poll_feedback_once() -> get_state()`.
+  - RobStride now supports this unified pattern via ABI-level compatibility (while `robstride_ping()` is still available).
 
 ## Quick Start
 
@@ -256,15 +261,14 @@ python3 bindings/python/examples/robstride_wrapper_demo.py \
 
 This repository includes `.github/workflows/pypi-publish.yml`.
 
-- Tag publish routing:
-  - push `vX.Y.ZrcN` -> publish to TestPyPI
-  - push `vX.Y.Z` -> publish to PyPI
+- Tag publish policy:
+  - push `vX.Y.Z` -> publish the same artifacts to both TestPyPI and PyPI
 - Manual publish is still available via workflow `Python Publish`:
-  - `testpypi` (recommended dry-run first)
-  - `pypi` (official release)
+  - `testpypi` (only TestPyPI)
+  - `pypi` (only PyPI)
 
 ### One-time setup (token mode)
 
 1. Create API token on PyPI and add repository secret `PYPI_API_TOKEN`.
 2. Create API token on TestPyPI and add repository secret `TEST_PYPI_API_TOKEN`.
-3. Keep package version unique for every upload (`rc` for pre-release is recommended).
+3. Keep package version unique for every upload (for example `0.1.6`, `0.1.7`).

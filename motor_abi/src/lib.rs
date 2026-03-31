@@ -994,7 +994,12 @@ pub extern "C" fn motor_handle_request_feedback(motor: *mut MotorHandle) -> i32 
             .map(|_| ())
             .map_err(|e| e.to_string()),
         MotorHandleInner::MyActuator(m) => m.request_status().map_err(|e| e.to_string()),
-        MotorHandleInner::Robstride(_) => Err("request_feedback is not supported for RobStride; status arrives from operation replies".to_string()),
+        // For unified wrappers, treat RobStride feedback request as a lightweight ping.
+        // The ping reply updates latest_state() so get_state() can read fresh data.
+        MotorHandleInner::Robstride(m) => m
+            .ping(Duration::from_millis(300))
+            .map(|_| ())
+            .map_err(|e| e.to_string()),
         MotorHandleInner::Hightorque(m) => m
             .request_motor_feedback(Duration::from_millis(500))
             .map_err(|e| e.to_string()),

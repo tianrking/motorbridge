@@ -24,11 +24,13 @@
    作用：Python binding 总览（安装、API 范围、常用命令）。
 2. [examples/READMEzh_cn.md](examples/READMEzh_cn.md)（中文） / [examples/README.md](examples/README.md)（英文）  
    作用：所有 Python 示例的入口说明（从最简单到高级示例）。
-3. [DAMIAO_PYTHON_REFERENCE.zh-CN.md](DAMIAO_PYTHON_REFERENCE.zh-CN.md)  
+3. [get_started/README.zh-CN.md](get_started/README.zh-CN.md) / [get_started/README.md](get_started/README.md)  
+   作用：pip 安装用户的快速上手路径（安装 -> 扫描 -> 运行）。
+4. [DAMIAO_PYTHON_REFERENCE.zh-CN.md](DAMIAO_PYTHON_REFERENCE.zh-CN.md)  
    作用：Damiao Python 接口参考，偏“按接口查参数”。
-4. [DAMIAO_binding.md](DAMIAO_binding.md)  
+5. [DAMIAO_binding.md](DAMIAO_binding.md)  
    作用：Damiao 绑定实现说明，偏“原理/实现细节”。
-5. [README.md](README.md)  
+6. [README.md](README.md)  
    作用：英文版总览（给英文协作成员）。
 
 补充：
@@ -49,6 +51,9 @@
   - MyActuator: `add_myactuator_motor(...)`
   - RobStride: `add_robstride_motor(...)`
   - HighTorque: `add_hightorque_motor(...)`
+- 状态查询统一范式：
+  - 推荐统一使用 `request_feedback() -> poll_feedback_once() -> get_state()`。
+  - RobStride 路径在 ABI 内部已做兼容处理，可按同一范式调用（`robstride_ping()` 仍保留可用）。
 
 ## 快速开始
 
@@ -60,7 +65,43 @@ with Controller("can0") as ctrl:
     ctrl.enable_all()
     motor.ensure_mode(Mode.MIT, 1000)
     motor.send_mit(0.0, 0.0, 20.0, 1.0, 0.0)
+    motor.request_feedback()
+    ctrl.poll_feedback_once()
     print(motor.get_state())
+    motor.close()
+```
+
+最简单控制示例（统一接口，转到目标角度）：
+
+```python
+from motorbridge import Controller, Mode
+
+TARGET_POS = 1.0  # 目标角度(rad)
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")  # 可替换为你的 id / model
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(TARGET_POS, 0.0, 20.0, 1.0, 0.0)
+    motor.request_feedback()
+    ctrl.poll_feedback_once()
+    print("state=", motor.get_state())
+    motor.close()
+```
+
+```python
+from motorbridge import Controller, Mode
+
+TARGET_POS = 1.0  # 目标角度(rad)
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_robstride_motor(127, 0xFF, "rs-00")  # 可替换为你的 id / model
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(TARGET_POS, 0.0, 8.0, 0.2, 0.0)
+    motor.request_feedback()
+    ctrl.poll_feedback_once()
+    print("state=", motor.get_state())
     motor.close()
 ```
 
@@ -69,23 +110,34 @@ Damiao 串口桥示例：
 ```python
 from motorbridge import Controller, Mode
 
+TARGET_POS = 0.5  # 目标角度(rad)
+
 with Controller.from_dm_serial("/dev/ttyACM1", 921600) as ctrl:
     motor = ctrl.add_damiao_motor(0x04, 0x14, "4310")
     ctrl.enable_all()
     motor.ensure_mode(Mode.MIT, 1000)
-    motor.send_mit(0.5, 0.0, 20.0, 1.0, 0.0)
+    motor.send_mit(TARGET_POS, 0.0, 20.0, 1.0, 0.0)  # 控制到目标角度
+    motor.request_feedback()
+    ctrl.poll_feedback_once()
+    print(motor.get_state())
     motor.close()
 ```
 
 RobStride 快速示例:
 
 ```python
-from motorbridge import Controller
+from motorbridge import Controller, Mode
+
+TARGET_POS = 1.0  # 目标角度(rad)
 
 with Controller("can0") as ctrl:
     motor = ctrl.add_robstride_motor(127, 0xFF, "rs-00")
-    print(motor.robstride_ping())
-    print(motor.robstride_get_param_f32(0x7019))
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(TARGET_POS, 0.0, 8.0, 0.2, 0.0)  # 控制到目标角度
+    motor.request_feedback()
+    ctrl.poll_feedback_once()
+    print(motor.get_state())
     motor.close()
 ```
 
@@ -256,15 +308,14 @@ python3 bindings/python/examples/robstride_wrapper_demo.py \
 
 仓库已新增 `.github/workflows/pypi-publish.yml`。
 
-- Tag 自动路由发布：
-  - 推送 `vX.Y.ZrcN` -> 自动发布到 TestPyPI
-  - 推送 `vX.Y.Z` -> 自动发布到 PyPI
+- Tag 自动发布策略：
+  - 推送 `vX.Y.Z` -> 同一套产物同时发布到 TestPyPI 和 PyPI
 - 手动发布：在 GitHub Actions 运行 `Python Publish`，可选：
-  - `testpypi`（建议先做预发布验证）
-  - `pypi`（正式发布）
+  - `testpypi`（仅发布 TestPyPI）
+  - `pypi`（仅发布 PyPI）
 
 ### 一次性配置（token 模式）
 
 1. 在 PyPI 创建 API token，并配置仓库 secret：`PYPI_API_TOKEN`。
 2. 在 TestPyPI 创建 API token，并配置仓库 secret：`TEST_PYPI_API_TOKEN`。
-3. 每次上传必须使用全新版本号（建议预发布使用 `rc` 后缀）。
+3. 每次上传必须使用全新版本号（例如 `0.1.6`、`0.1.7`）。

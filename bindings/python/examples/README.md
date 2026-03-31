@@ -19,6 +19,11 @@ Examples built on the Python SDK.
 
 ## Start Here (Simplest 2 Examples)
 
+If you installed from pip and want a cleaner onboarding path, start with:
+
+- `../get_started/README.md` (English)
+- `../get_started/README.zh-CN.md` (Chinese)
+
 If you are new to this repository, start with these two files first:
 
 - `simple_01_motor_control.py`: single-motor minimal template (default Damiao, other vendors as commented snippets).

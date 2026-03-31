@@ -17,6 +17,11 @@
 
 ## 新手优先（最简单的 2 个示例）
 
+如果你是通过 pip 安装后想快速上手，建议先看：
+
+- `../get_started/README.zh-CN.md`（中文）
+- `../get_started/README.md`（英文）
+
 如果你是第一次上手，建议先看并先跑这两个文件：
 
 - `simple_01_motor_control.py`：单电机最小模板（默认 Damiao，其他厂商以注释模板给出）。

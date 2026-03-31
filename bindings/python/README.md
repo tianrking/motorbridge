@@ -251,3 +251,26 @@ python3 bindings/python/examples/robstride_wrapper_demo.py \
 - Full Damiao tuning reference stays in:
   - [DAMIAO_API.md](DAMIAO_API.md)
   - [DAMIAO_API.zh-CN.md](DAMIAO_API.zh-CN.md)
+
+## PyPI Auto Publish (GitHub Actions)
+
+This repository includes `.github/workflows/pypi-publish.yml`.
+
+- Tag publish: push `vX.Y.Z` to publish directly to PyPI.
+- Manual publish: run workflow `Python Publish` from GitHub Actions and choose:
+  - `testpypi` (recommended dry-run first)
+  - `pypi` (official release)
+
+### One-time setup (PyPI side)
+
+1. Create `motorbridge` project on PyPI/TestPyPI (or claim existing ownership).
+2. In PyPI project settings, configure Trusted Publisher:
+   - Owner: your GitHub org/user
+   - Repository: `tianrking/motorbridge`
+   - Workflow: `pypi-publish.yml`
+   - Environment: `pypi` (and `testpypi` for TestPyPI)
+3. In GitHub repo settings, create matching environments:
+   - `pypi`
+   - `testpypi`
+
+After this, no API token is required in GitHub secrets for publishing.

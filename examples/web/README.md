@@ -1,5 +1,7 @@
 # Web HMI Examples
 
+CAN bring-up and troubleshooting guide: [../../docs/en/can_debugging.md](../../docs/en/can_debugging.md)
+
 ## ws_quad_sync_hmi.html
 
 Single-slider Web HMI for synchronized 4-motor angle control via `ws_gateway`.

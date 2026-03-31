@@ -1,5 +1,7 @@
 # Web 上位机示例
 
+CAN 联调与排障文档： [../../docs/zh/can_debugging.md](../../docs/zh/can_debugging.md)
+
 > 状态说明：本页涉及的 WS 上位机方案仍在持续开发与调优中（尤其是 Damiao 多会话并发场景）。
 
 ## 已知问题（Damiao + WS 场景）

@@ -1,5 +1,7 @@
 # WS 四路独立滑杆 Demo（在本目录完整实现）
 
+CAN 联调与排障文档： [../../docs/zh/can_debugging.md](../../docs/zh/can_debugging.md)
+
 这个目录现在是 **WebSocket 方案**，不是 HTTP 控制后端。
 
 > 状态说明：该 WS demo 当前为开发中版本，适合联调与验证，不建议直接视为最终生产方案。

@@ -251,3 +251,26 @@ python3 bindings/python/examples/robstride_wrapper_demo.py \
 - Damiao 的完整调参参考仍保留在:
   - [DAMIAO_API.md](DAMIAO_API.md)
   - [DAMIAO_API.zh-CN.md](DAMIAO_API.zh-CN.md)
+
+## PyPI 自动发布（GitHub Actions）
+
+仓库已新增 `.github/workflows/pypi-publish.yml`。
+
+- Tag 自动发布：推送 `vX.Y.Z` 标签会直接发布到 PyPI。
+- 手动发布：在 GitHub Actions 运行 `Python Publish`，可选：
+  - `testpypi`（建议先做预发布验证）
+  - `pypi`（正式发布）
+
+### 一次性配置（PyPI 侧）
+
+1. 在 PyPI / TestPyPI 创建 `motorbridge` 项目（或确保你有维护权限）。
+2. 在项目设置中配置 Trusted Publisher：
+   - Owner：你的 GitHub 账号或组织
+   - Repository：`tianrking/motorbridge`
+   - Workflow：`pypi-publish.yml`
+   - Environment：`pypi`（TestPyPI 对应 `testpypi`）
+3. 在 GitHub 仓库 Settings -> Environments 中创建同名环境：
+   - `pypi`
+   - `testpypi`
+
+配置完成后，不需要在 GitHub Secrets 里存放 PyPI API Token。

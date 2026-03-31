@@ -1,0 +1,171 @@
+name: Python Publish
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: "Target repository"
+        required: true
+        type: choice
+        options:
+          - testpypi
+          - pypi
+        default: testpypi
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-linux-wheels:
+    name: build-linux-${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup QEMU
+        if: matrix.arch == 'aarch64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Install cibuildwheel
+        run: python -m pip install --upgrade pip cibuildwheel==2.21.3
+
+      - name: Build Linux wheels
+        env:
+          CIBW_BUILD: "cp310-* cp311-* cp312-*"
+          CIBW_SKIP: "*musllinux* *i686* *pp*"
+          CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+          CIBW_BUILD_FRONTEND: pip
+          CIBW_ENVIRONMENT_LINUX: MOTORBRIDGE_LIB=/project/target/release/libmotor_abi.so
+          CIBW_BEFORE_ALL_LINUX: >
+            curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal &&
+            . $HOME/.cargo/env &&
+            cd /project &&
+            cargo build -p motor_abi --release
+        run: python -m cibuildwheel --platform linux bindings/python --output-dir dist
+
+      - name: Upload Linux wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-${{ matrix.arch }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  build-windows-wheels:
+    name: build-windows-py${{ matrix.python-version }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Python build tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Build ABI
+        run: cargo build -p motor_abi --release
+
+      - name: Build wheel
+        shell: pwsh
+        env:
+          MOTORBRIDGE_LIB: ${{ github.workspace }}\\target\\release\\motor_abi.dll
+        run: |
+          if (Test-Path dist) { Remove-Item dist -Recurse -Force }
+          if (Test-Path bindings/python/build) { Remove-Item bindings/python/build -Recurse -Force }
+          if (Test-Path bindings/python/src/motorbridge.egg-info) { Remove-Item bindings/python/src/motorbridge.egg-info -Recurse -Force }
+          python -m pip wheel --no-build-isolation bindings/python -w dist
+
+      - name: Upload Windows wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows-py${{ matrix.python-version }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  build-sdist:
+    name: build-sdist
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: python -m pip install --upgrade pip build setuptools wheel
+
+      - name: Build source distribution
+        run: python -m build --sdist bindings/python -o dist
+
+      - name: Upload sdist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: publish-${{ github.event_name == 'workflow_dispatch' && inputs.repository || 'pypi' }}
+    needs:
+      - build-linux-wheels
+      - build-windows-wheels
+      - build-sdist
+    runs-on: ubuntu-latest
+    environment:
+      name: >-
+        ${{ github.event_name == 'workflow_dispatch'
+            && (inputs.repository == 'testpypi' && 'testpypi' || 'pypi')
+            || 'pypi' }}
+    steps:
+      - name: Download all distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Flatten dist tree
+        run: |
+          mkdir -p upload_dist
+          find dist -type f \( -name "*.whl" -o -name "*.tar.gz" \) -exec cp {} upload_dist/ \;
+          ls -lah upload_dist
+
+      - name: Publish to TestPyPI
+        if: github.event_name == 'workflow_dispatch' && inputs.repository == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: upload_dist
+
+      - name: Publish to PyPI
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.repository == 'pypi')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload_dist

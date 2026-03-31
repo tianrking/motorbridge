@@ -256,21 +256,15 @@ python3 bindings/python/examples/robstride_wrapper_demo.py \
 
 This repository includes `.github/workflows/pypi-publish.yml`.
 
-- Tag publish: push `vX.Y.Z` to publish directly to PyPI.
-- Manual publish: run workflow `Python Publish` from GitHub Actions and choose:
+- Tag publish routing:
+  - push `vX.Y.ZrcN` -> publish to TestPyPI
+  - push `vX.Y.Z` -> publish to PyPI
+- Manual publish is still available via workflow `Python Publish`:
   - `testpypi` (recommended dry-run first)
   - `pypi` (official release)
 
-### One-time setup (PyPI side)
+### One-time setup (token mode)
 
-1. Create `motorbridge` project on PyPI/TestPyPI (or claim existing ownership).
-2. In PyPI project settings, configure Trusted Publisher:
-   - Owner: your GitHub org/user
-   - Repository: `tianrking/motorbridge`
-   - Workflow: `pypi-publish.yml`
-   - Environment: `pypi` (and `testpypi` for TestPyPI)
-3. In GitHub repo settings, create matching environments:
-   - `pypi`
-   - `testpypi`
-
-After this, no API token is required in GitHub secrets for publishing.
+1. Create API token on PyPI and add repository secret `PYPI_API_TOKEN`.
+2. Create API token on TestPyPI and add repository secret `TEST_PYPI_API_TOKEN`.
+3. Keep package version unique for every upload (`rc` for pre-release is recommended).

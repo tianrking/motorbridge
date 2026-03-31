@@ -256,21 +256,15 @@ python3 bindings/python/examples/robstride_wrapper_demo.py \
 
 仓库已新增 `.github/workflows/pypi-publish.yml`。
 
-- Tag 自动发布：推送 `vX.Y.Z` 标签会直接发布到 PyPI。
+- Tag 自动路由发布：
+  - 推送 `vX.Y.ZrcN` -> 自动发布到 TestPyPI
+  - 推送 `vX.Y.Z` -> 自动发布到 PyPI
 - 手动发布：在 GitHub Actions 运行 `Python Publish`，可选：
   - `testpypi`（建议先做预发布验证）
   - `pypi`（正式发布）
 
-### 一次性配置（PyPI 侧）
+### 一次性配置（token 模式）
 
-1. 在 PyPI / TestPyPI 创建 `motorbridge` 项目（或确保你有维护权限）。
-2. 在项目设置中配置 Trusted Publisher：
-   - Owner：你的 GitHub 账号或组织
-   - Repository：`tianrking/motorbridge`
-   - Workflow：`pypi-publish.yml`
-   - Environment：`pypi`（TestPyPI 对应 `testpypi`）
-3. 在 GitHub 仓库 Settings -> Environments 中创建同名环境：
-   - `pypi`
-   - `testpypi`
-
-配置完成后，不需要在 GitHub Secrets 里存放 PyPI API Token。
+1. 在 PyPI 创建 API token，并配置仓库 secret：`PYPI_API_TOKEN`。
+2. 在 TestPyPI 创建 API token，并配置仓库 secret：`TEST_PYPI_API_TOKEN`。
+3. 每次上传必须使用全新版本号（建议预发布使用 `rc` 后缀）。

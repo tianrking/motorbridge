@@ -3,7 +3,7 @@ name: Python Publish
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*"
   workflow_dispatch:
     inputs:
       repository:
@@ -175,7 +175,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    name: publish-${{ github.event_name == 'workflow_dispatch' && inputs.repository || 'pypi' }}
+    name: publish-${{ github.event_name == 'workflow_dispatch' && inputs.repository || (contains(github.ref_name, 'rc') && 'testpypi' || 'pypi') }}
     needs:
       - build-linux-wheels
       - build-macos-wheels
@@ -186,7 +186,7 @@ jobs:
       name: >-
         ${{ github.event_name == 'workflow_dispatch'
             && (inputs.repository == 'testpypi' && 'testpypi' || 'pypi')
-            || 'pypi' }}
+            || (contains(github.ref_name, 'rc') && 'testpypi' || 'pypi') }}
     steps:
       - name: Download all distribution artifacts
         uses: actions/download-artifact@v4
@@ -200,7 +200,7 @@ jobs:
           ls -lah upload_dist
 
       - name: Publish to TestPyPI
-        if: github.event_name == 'workflow_dispatch' && inputs.repository == 'testpypi'
+        if: (github.event_name == 'workflow_dispatch' && inputs.repository == 'testpypi') || (github.event_name == 'push' && contains(github.ref_name, 'rc'))
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
@@ -209,7 +209,7 @@ jobs:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
 
       - name: Publish to PyPI
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.repository == 'pypi')
+        if: (github.event_name == 'workflow_dispatch' && inputs.repository == 'pypi') || (github.event_name == 'push' && !contains(github.ref_name, 'rc'))
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: upload_dist

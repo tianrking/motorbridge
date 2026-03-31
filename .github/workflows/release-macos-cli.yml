@@ -1,0 +1,50 @@
+name: Release macOS motor_cli
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to upload (for example v0.1.4)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos-cli:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build motor_cli
+        run: cargo build -p motor_cli --release
+
+      - name: Package motor_cli (macOS arm64)
+        shell: bash
+        run: |
+          TAG="${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}"
+          STAGE="dist/motor-cli-${TAG}-macos-arm64"
+          mkdir -p "${STAGE}/bin"
+          cp -v target/release/motor_cli "${STAGE}/bin/"
+          {
+            echo "version=${TAG}"
+            echo "commit=${GITHUB_SHA}"
+            echo "built_at=$(date -Iseconds)"
+            echo "platform=macos-arm64"
+            echo "target=aarch64-apple-darwin"
+          } > "${STAGE}/BUILD_INFO.txt"
+          tar -czf "dist/motor-cli-${TAG}-macos-arm64.tar.gz" -C dist "$(basename "${STAGE}")"
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          files: dist/motor-cli-*-macos-arm64.tar.gz

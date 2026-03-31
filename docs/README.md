@@ -20,6 +20,7 @@ flowchart LR
   EN --> EN_WIN["en/windows_distribution.md"]
   EN --> EN_TST["en/testing.md"]
   EN --> EN_CANDBG["en/can_debugging.md"]
+  EN --> EN_DIST["en/distribution_channels.md"]
   ZH --> ZH_ARCH["zh/architecture.md"]
   ZH --> ZH_CLI["zh/cli.md"]
   ZH --> ZH_ABI["zh/abi.md"]
@@ -29,6 +30,7 @@ flowchart LR
   ZH --> ZH_WIN["zh/windows_distribution.md"]
   ZH --> ZH_TST["zh/testing.md"]
   ZH --> ZH_CANDBG["zh/can_debugging.md"]
+  ZH --> ZH_DIST["zh/distribution_channels.md"]
 ```
 
 ## Quick Entry
@@ -39,5 +41,7 @@ flowchart LR
 - 中文 Windows 分发: [`docs/zh/windows_distribution.md`](zh/windows_distribution.md)
 - EN CAN debugging (slcan + pcan): [`docs/en/can_debugging.md`](en/can_debugging.md)
 - 中文 CAN 调试（slcan + pcan）: [`docs/zh/can_debugging.md`](zh/can_debugging.md)
+- EN distribution channels: [`docs/en/distribution_channels.md`](en/distribution_channels.md)
+- 中文分发渠道: [`docs/zh/distribution_channels.md`](zh/distribution_channels.md)
 - EN testing guide: [`docs/en/testing.md`](en/testing.md)
 - 中文测试指南: [`docs/zh/testing.md`](zh/testing.md)

@@ -1,0 +1,117 @@
+name: Publish APT Repository
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (for example v0.1.4)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish-apt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve tag
+        id: meta
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install aptly + gpg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y aptly gnupg
+
+      - name: Download .deb assets from GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p debs
+          gh release download "${{ steps.meta.outputs.tag }}" --pattern "*.deb" --dir debs
+          ls -lah debs
+
+      - name: Import optional APT signing key
+        id: gpg
+        shell: bash
+        env:
+          APT_GPG_PRIVATE_KEY: ${{ secrets.APT_GPG_PRIVATE_KEY }}
+          APT_GPG_PASSPHRASE: ${{ secrets.APT_GPG_PASSPHRASE }}
+        run: |
+          if [ -n "${APT_GPG_PRIVATE_KEY}" ]; then
+            echo "${APT_GPG_PRIVATE_KEY}" | gpg --batch --import
+            KEYID=$(gpg --list-secret-keys --keyid-format=long | awk '/^sec/{print $2}' | awk -F'/' '{print $2}' | head -n1)
+            echo "keyid=${KEYID}" >> "$GITHUB_OUTPUT"
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build apt repo with aptly
+        shell: bash
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          rm -rf aptly-root
+          mkdir -p aptly-root
+
+          cat > aptly.conf <<EOF
+          {
+            "rootDir": "$(pwd)/aptly-root",
+            "downloadConcurrency": 4,
+            "architectures": ["amd64", "arm64"],
+            "dependencyFollowSuggests": false,
+            "dependencyFollowRecommends": false,
+            "dependencyFollowAllVariants": false,
+            "dependencyFollowSource": false,
+            "dependencyVerboseResolve": false,
+            "gpgDisableSign": false,
+            "gpgDisableVerify": false,
+            "skipLegacyPool": true
+          }
+          EOF
+
+          aptly -config=aptly.conf repo create -distribution=stable -component=main motorbridge-stable || true
+          aptly -config=aptly.conf repo add motorbridge-stable debs/*.deb
+          aptly -config=aptly.conf snapshot create "motorbridge-${TAG}" from repo motorbridge-stable
+
+          if [ "${{ steps.gpg.outputs.has_key }}" = "true" ]; then
+            export GPG_TTY=$(tty || true)
+            aptly -config=aptly.conf publish snapshot \
+              -batch \
+              -distribution=stable \
+              -component=main \
+              -gpg-key="${{ steps.gpg.outputs.keyid }}" \
+              "motorbridge-${TAG}"
+          else
+            aptly -config=aptly.conf publish snapshot \
+              -batch -skip-signing \
+              -distribution=stable -component=main \
+              "motorbridge-${TAG}"
+          fi
+
+          mkdir -p public-site/apt
+          cp -r aptly-root/public/* public-site/apt/
+
+      - name: Publish apt repo to gh-pages (/apt)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: public-site
+          keep_files: true
+
+      - name: Print repository URL hint
+        run: |
+          echo "APT repo published to: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/apt"

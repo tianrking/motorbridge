@@ -338,21 +338,55 @@ RobStride 专属 ABI / binding 能力包括:
 - Python SDK 文档: `bindings/python/README.md`
 - C++ binding 文档: `bindings/cpp/README.md`
 
-## Release 资产使用指南
+## 发布与安装总览（完整矩阵）
 
-- Ubuntu x86_64 上做 C/C++ 开发：
-  - 下载 `motorbridge-abi-<tag>-linux-x86_64.deb`
-  - 安装：`sudo apt install ./motorbridge-abi-<tag>-linux-x86_64.deb`
-- Windows x86_64 上做 C/C++ 开发：
-  - 下载 `motorbridge-abi-<tag>-windows-x86_64.zip`
-  - 解压后链接 `motor_abi.dll/.lib`，并使用包内头文件/CMake 配置
-- 其他平台的 C/C++ 开发：
-  - 使用 ABI 压缩包（`motorbridge-abi-<tag>-linux-*.tar.gz` 或 `windows-*.zip`）
-  - 从包内 include/lib 链接 `libmotor_abi`。
-- Python 开发：
-  - 下载匹配解释器与平台的 wheel（`cp310/cp311/cp312` + 对应 arch）
-  - 安装：`pip install ./motorbridge-*.whl`
-  - 或安装源码包：`pip install ./motorbridge-*.tar.gz`
-- 说明：
-  - `.deb` 仅用于 Linux；Windows 请使用 `.zip` 和 `.whl`。
-- 设备矩阵: `docs/zh/devices.md`
+### A) GitHub Releases（二进制资产）
+
+| 资产 | 安装 / 使用方式 | 平台 | 适用人群 | 包含能力 |
+|---|---|---|---|---|
+| `motorbridge-abi-<tag>-linux-x86_64.deb` | `sudo apt install ./motorbridge-abi-<tag>-linux-x86_64.deb` | Linux x86_64 | C/C++ 用户（Ubuntu/Debian） | `libmotor_abi` + 头文件 + CMake 配置 |
+| `motorbridge-abi-<tag>-linux-*.tar.gz` | 解压后手动链接 | Linux x86_64/aarch64 | C/C++ 用户（非 deb 环境） | 与 `.deb` 同等 ABI 内容 |
+| `motorbridge-abi-<tag>-windows-x86_64.zip` | 解压后链接/加载 | Windows x86_64 | C/C++ 用户 | `motor_abi.dll/.lib` + 头文件 + CMake 配置 |
+| `motor-cli-<tag>-<platform>.tar.gz/.zip` | 直接运行 `bin/motor_cli` | Linux/Windows | 现场调试/工厂工具 | 统一 CLI 能力（扫描、控制、改 ID 等） |
+| `motorbridge-*.whl`, `motorbridge-*.tar.gz` | `pip install ./...` | 取决于 wheel tag | 离线 Python 安装 | Python SDK + `motorbridge-cli` |
+
+### B) PyPI / TestPyPI（Python 包分发）
+
+| 通道 | 发布触发方式 | Python 版本 | 平台矩阵 | 包类型 |
+|---|---|---|---|---|
+| TestPyPI | `Actions -> Python Publish -> repository=testpypi` | 3.10 / 3.11 / 3.12 / 3.13 / 3.14 | Linux（x86_64、aarch64）、Windows（x86_64）、macOS（arm64） | wheel + sdist |
+| PyPI | 推 `vX.Y.Z` 标签或手动 `repository=pypi` | 3.10 / 3.11 / 3.12 / 3.13 / 3.14 | Linux（x86_64、aarch64）、Windows（x86_64）、macOS（arm64） | wheel + sdist |
+
+从 PyPI 安装：
+
+```bash
+pip install motorbridge
+```
+
+源码兜底安装：
+
+```bash
+pip install --no-binary motorbridge motorbridge
+```
+
+### C) 按分发类型看功能边界
+
+| 分发类型 | 典型场景 | 你能做什么 |
+|---|---|---|
+| ABI 包（`.deb/.tar.gz/.zip`） | C/C++ 集成 | 调用稳定 C ABI、使用 C++ RAII wrapper、嵌入原生机器人系统 |
+| Python 包（wheel/sdist） | Python 应用/工具 | 使用 `Controller/Motor/Mode` API 和 `motorbridge-cli` |
+| `motor_cli` 二进制包 | 运维/工厂/联调 | 不依赖 Python 直接做 CAN 扫描和控制 |
+
+### D) 额外自动化分发渠道
+
+| 渠道 | CI Workflow | 输出 |
+|---|---|---|
+| APT 仓库（GitHub Pages） | `.github/workflows/apt-repo-publish.yml` | `https://<owner>.github.io/<repo>/apt` |
+| Homebrew Formula 更新 | `.github/workflows/release-macos-cli.yml` + `.github/workflows/homebrew-formula-update.yml` | 自动更新 `Formula/motor-cli.rb`（含 SHA） |
+| Windows 元数据（winget/scoop/choco） | `.github/workflows/windows-package-metadata.yml` | 自动生成到 `packaging/windows/*` |
+
+说明：
+- `.deb` 当前面向 Linux x86_64；其他 Linux 目标建议使用 ABI `.tar.gz`。
+- 当前发布矩阵故意不产出 macOS x86_64 wheel。
+- 设备矩阵参考：`docs/zh/devices.md`。
+- 分发自动化文档：`docs/zh/distribution_channels.md`。

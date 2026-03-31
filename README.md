@@ -334,21 +334,55 @@ RobStride-specific ABI/binding helpers include:
 - Python SDK docs: `bindings/python/README.md`
 - C++ binding docs: `bindings/cpp/README.md`
 
-## Release Assets Guide
+## Release and Package Matrix
 
-- For C/C++ on Ubuntu x86_64:
-  - Download `motorbridge-abi-<tag>-linux-x86_64.deb`
-  - Install: `sudo apt install ./motorbridge-abi-<tag>-linux-x86_64.deb`
-- For C/C++ on Windows x86_64:
-  - Download `motorbridge-abi-<tag>-windows-x86_64.zip`
-  - Extract and link `motor_abi.dll/.lib` with bundled headers/CMake config
-- For C/C++ on other targets:
-  - Use ABI archives (`motorbridge-abi-<tag>-linux-*.tar.gz` or `windows-*.zip`)
-  - Link against `libmotor_abi` and use headers/CMake config from the package.
-- For Python:
-  - Download the matching wheel (`cp310/cp311/cp312` + correct platform/arch)
-  - Install: `pip install ./motorbridge-*.whl`
-  - Or use source package: `pip install ./motorbridge-*.tar.gz`
-- Note:
-  - `.deb` is Linux-only; Windows users should use `.zip` and `.whl`.
-- Device matrix: `docs/en/devices.md`
+### A) GitHub Releases (binary assets)
+
+| Asset | Install / Usage | Platform | Primary Audience | Included Capability |
+|---|---|---|---|---|
+| `motorbridge-abi-<tag>-linux-x86_64.deb` | `sudo apt install ./motorbridge-abi-<tag>-linux-x86_64.deb` | Linux x86_64 | C/C++ users (Ubuntu/Debian) | `libmotor_abi` + headers + CMake config |
+| `motorbridge-abi-<tag>-linux-*.tar.gz` | extract and link manually | Linux x86_64/aarch64 | C/C++ users (non-deb or cross env) | Same ABI payload as `.deb` |
+| `motorbridge-abi-<tag>-windows-x86_64.zip` | extract and link/import | Windows x86_64 | C/C++ users | `motor_abi.dll/.lib` + headers + CMake config |
+| `motor-cli-<tag>-<platform>.tar.gz/.zip` | run `bin/motor_cli` | Linux/Windows | Field debug / production tooling | Full unified CLI (`scan`, mode control, id ops, etc.) |
+| `motorbridge-*.whl`, `motorbridge-*.tar.gz` | `pip install ./...` | depends on wheel tag | Offline Python install from Release assets | Python SDK + `motorbridge-cli` |
+
+### B) PyPI / TestPyPI (Python package channel)
+
+| Channel | Publish Trigger | Python Versions | Platform Matrix | Package Type |
+|---|---|---|---|---|
+| TestPyPI | `Actions -> Python Publish -> repository=testpypi` | 3.10 / 3.11 / 3.12 / 3.13 / 3.14 | Linux (x86_64, aarch64), Windows (x86_64), macOS (arm64) | wheel + sdist |
+| PyPI | tag `vX.Y.Z` or manual `repository=pypi` | 3.10 / 3.11 / 3.12 / 3.13 / 3.14 | Linux (x86_64, aarch64), Windows (x86_64), macOS (arm64) | wheel + sdist |
+
+Install from PyPI:
+
+```bash
+pip install motorbridge
+```
+
+Fallback source install:
+
+```bash
+pip install --no-binary motorbridge motorbridge
+```
+
+### C) Functional Scope by Distribution Type
+
+| Distribution Type | Typical Use | What You Can Do |
+|---|---|---|
+| ABI package (`.deb/.tar.gz/.zip`) | C/C++ integration | Call stable C ABI, use C++ RAII wrapper, embed into native robotics stack |
+| Python package (wheel/sdist) | Python app/tooling | Use `Controller/Motor/Mode` APIs and `motorbridge-cli` |
+| `motor_cli` binary package | Ops / factory / debugging | Direct CAN operations without Python runtime |
+
+### D) Additional Automated Distribution Channels
+
+| Channel | CI Workflow | Output |
+|---|---|---|
+| APT repository (GitHub Pages) | `.github/workflows/apt-repo-publish.yml` | `https://<owner>.github.io/<repo>/apt` |
+| Homebrew formula update | `.github/workflows/release-macos-cli.yml` + `.github/workflows/homebrew-formula-update.yml` | `Formula/motor-cli.rb` auto-updated with release SHA |
+| Windows metadata (winget/scoop/choco) | `.github/workflows/windows-package-metadata.yml` | Generated files under `packaging/windows/*` |
+
+Notes:
+- `.deb` is currently Linux x86_64 oriented; other Linux targets should use ABI `.tar.gz`.
+- macOS x86_64 wheels are intentionally not produced in current matrix.
+- Device matrix reference: `docs/en/devices.md`.
+- Distribution channel automation guide: `docs/en/distribution_channels.md`.

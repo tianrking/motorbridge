@@ -15,6 +15,7 @@ flowchart TD
   IDX --> WIN["windows_distribution.md"]
   IDX --> TST["testing.md"]
   IDX --> CANDBG["can_debugging.md"]
+  IDX --> DIST["distribution_channels.md"]
   IDX --> OPMAN["operation_manual.md"]
   IDX --> CAL["tools/motor_calib/README.zh-CN.md"]
   IDX --> INT["integrations/README.md"]
@@ -31,6 +32,7 @@ flowchart TD
 - Windows 分发：[windows_distribution.md](windows_distribution.md)
 - 测试指南：[testing.md](testing.md)
 - CAN 调试（Linux `slcan` + Windows `pcan`）：[can_debugging.md](can_debugging.md)
+- 分发渠道（APT/Homebrew/Winget/Scoop/Choco）：[distribution_channels.md](distribution_channels.md)
 - 最终用户操作手册（PCAN 主链路 + Damiao 串口桥备用链路）：[operation_manual.md](operation_manual.md)
 - 标定工具：[`tools/motor_calib/README.zh-CN.md`](../../tools/motor_calib/README.zh-CN.md)
 - 集成目录：[`integrations/README.md`](../../integrations/README.md)
@@ -55,5 +57,6 @@ flowchart TD
 6. [extending.md](extending.md)
 7. [windows_distribution.md](windows_distribution.md)
 8. [can_debugging.md](can_debugging.md)
-9. [operation_manual.md](operation_manual.md)
-10. [testing.md](testing.md)
+9. [distribution_channels.md](distribution_channels.md)
+10. [operation_manual.md](operation_manual.md)
+11. [testing.md](testing.md)

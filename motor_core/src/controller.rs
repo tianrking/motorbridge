@@ -7,18 +7,32 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PollingMode {
+    Background,
+    Manual,
+}
+
 pub struct CoreController {
     bus: Arc<dyn CanBus>,
     devices: Arc<Mutex<HashMap<u16, Arc<dyn MotorDevice>>>>,
+    polling_mode: PollingMode,
+    recv_lock: Arc<Mutex<()>>,
     polling_active: Arc<AtomicBool>,
     polling_thread: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl CoreController {
     pub fn new(bus: Arc<dyn CanBus>) -> Self {
+        Self::new_internal(bus, PollingMode::Background)
+    }
+
+    fn new_internal(bus: Arc<dyn CanBus>, polling_mode: PollingMode) -> Self {
         Self {
             bus,
             devices: Arc::new(Mutex::new(HashMap::new())),
+            polling_mode,
+            recv_lock: Arc::new(Mutex::new(())),
             polling_active: Arc::new(AtomicBool::new(false)),
             polling_thread: Mutex::new(None),
         }
@@ -48,6 +62,14 @@ impl CoreController {
     }
 
     pub fn poll_feedback_once(&self) -> Result<()> {
+        self.poll_feedback_once_internal()
+    }
+
+    fn poll_feedback_once_internal(&self) -> Result<()> {
+        let _recv_guard = self
+            .recv_lock
+            .lock()
+            .map_err(|_| MotorError::Io("recv lock poisoned".to_string()))?;
         while let Some(frame) = self.bus.recv(Duration::from_millis(0))? {
             if !frame.is_rx {
                 continue;
@@ -99,6 +121,9 @@ impl CoreController {
     }
 
     fn start_polling_if_needed(&self) -> Result<()> {
+        if self.polling_mode == PollingMode::Manual {
+            return Ok(());
+        }
         if self.polling_active.load(Ordering::Acquire) {
             return Ok(());
         }
@@ -107,11 +132,21 @@ impl CoreController {
         let active = Arc::clone(&self.polling_active);
         let bus = Arc::clone(&self.bus);
         let devices = Arc::clone(&self.devices);
+        let recv_lock = Arc::clone(&self.recv_lock);
 
         let handle = thread::spawn(move || {
             let idle_sleep = Duration::from_micros(200);
             while active.load(Ordering::Acquire) {
-                match bus.recv(Duration::from_millis(0)) {
+                let recv_result = {
+                    match recv_lock.lock() {
+                        Ok(_guard) => bus.recv(Duration::from_millis(0)),
+                        Err(_) => {
+                            active.store(false, Ordering::Release);
+                            return;
+                        }
+                    }
+                };
+                match recv_result {
                     Ok(Some(frame)) => {
                         if frame.is_rx {
                             let snapshot = devices
@@ -134,7 +169,10 @@ impl CoreController {
                         // Idle path: queue is empty, briefly yield CPU.
                         std::thread::sleep(idle_sleep);
                     }
-                    Err(_) => active.store(false, Ordering::Release),
+                    Err(_) => {
+                        // Keep worker alive on transient bus errors so upper layers remain stable.
+                        std::thread::sleep(idle_sleep);
+                    }
                 }
             }
         });
@@ -309,7 +347,7 @@ mod tests {
         bus.push_rx(rx_frame(0x12));
         bus.push_rx(rx_frame(0x11));
 
-        let ctrl = CoreController::new(bus);
+        let ctrl = CoreController::new_internal(bus, PollingMode::Manual);
         let d1 = Arc::new(FakeDevice::new(1, 0x11));
         let d2 = Arc::new(FakeDevice::new(2, 0x12));
         ctrl.add_device(d1.clone()).expect("add d1");
@@ -357,13 +395,27 @@ mod tests {
     #[test]
     fn poll_feedback_once_returns_bus_recv_error() {
         let bus = Arc::new(FakeBus::new());
-        let ctrl = CoreController::new(bus.clone());
+        let ctrl = CoreController::new_internal(bus.clone(), PollingMode::Manual);
         let d1: Arc<dyn MotorDevice> = Arc::new(FakeDevice::new(1, 0x11));
         ctrl.add_device(d1).expect("add d1");
 
         bus.set_fail_recv(true);
         let err = ctrl.poll_feedback_once().expect_err("recv should fail");
         assert!(err.to_string().contains("injected recv error"));
+        ctrl.close_bus().expect("close");
+    }
+
+    #[test]
+    fn poll_feedback_once_works_in_background_mode_without_errors() {
+        let bus = Arc::new(FakeBus::new());
+        bus.push_rx(rx_frame(0x11));
+
+        let ctrl = CoreController::new(bus.clone());
+        let d1 = Arc::new(FakeDevice::new(1, 0x11));
+        ctrl.add_device(d1.clone()).expect("add d1");
+
+        ctrl.poll_feedback_once().expect("manual poll should still work");
+        assert!(d1.processed_count.load(Ordering::SeqCst) >= 1);
         ctrl.close_bus().expect("close");
     }
 }

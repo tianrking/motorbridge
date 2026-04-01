@@ -58,7 +58,7 @@ class BinaryDistribution(Distribution):
 
 setup(
     name="motorbridge",
-    version="0.1.3",
+    version="0.1.7",
     description="Python SDK for motorbridge Rust ABI",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",

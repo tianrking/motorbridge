@@ -64,7 +64,7 @@ setup(
     long_description_content_type="text/markdown",
     author="motorbridge contributors",
     license="MIT",
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     package_data={"motorbridge": ["lib/*"]},

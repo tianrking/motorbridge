@@ -1,0 +1,298 @@
+# Reference: Vendor Capability Matrix
+
+<mintly-toc>
+
+This reference chart shows which features are supported by each motor vendor in the motorbridge SDK.
+
+</mintly-toc>
+
+## Vendor Overview
+
+| Vendor | Add Method | Typical Transport | Protocol |
+|--------|------------|-------------------|----------|
+| Damiao | `add_damiao_motor()` | SocketCAN, DM Serial | DM-J4310/4340 |
+| RobStride | `add_robstride_motor()` | SocketCAN | RobStride MIT |
+| MyActuator | `add_myactuator_motor()` | SocketCAN | MyActuator RMD |
+| HighTorque | `add_hightorque_motor()` | SocketCAN | HighTorque native |
+| Hexfellow | `add_hexfellow_motor()` | CAN-FD | Hexfellow MIT |
+
+## Control Mode Support
+
+| Vendor | MIT | POS_VEL | VEL | FORCE_POS |
+|--------|-----|---------|-----|-----------|
+| Damiao | ✅ | ✅ | ✅ | ✅ |
+| RobStride | ✅ | ❌ | ✅ | ❌ |
+| MyActuator | ❌ | ✅ | ✅ | ❌ |
+| HighTorque | ✅ | ✅ | ✅ | ✅ |
+| Hexfellow | ✅ | ✅ | ❌ | ✅ |
+
+### Mode Details
+
+- **MIT**: Full impedance control (pos, vel, kp, kd, tau)
+- **POS_VEL**: Position control with velocity limit
+- **VEL**: Pure velocity control
+- **FORCE_POS**: Compliant position with force ratio
+
+## Transport Support
+
+| Vendor | SocketCAN | CAN-FD | DM Serial |
+|--------|-----------|--------|-----------|
+| Damiao | ✅ | ✅ | ✅ |
+| RobStride | ✅ | ✅ | ❌ |
+| MyActuator | ✅ | ✅ | ❌ |
+| HighTorque | ✅ | ✅ | ❌ |
+| Hexfellow | ❌ | ✅ Required | ❌ |
+
+## Register Access
+
+| Vendor | Read Registers | Write Registers | Store to Flash |
+|--------|----------------|-----------------|----------------|
+| Damiao | ✅ Full | ✅ Full | ✅ |
+| RobStride | ✅ Params | ✅ Params | ✅ |
+| MyActuator | ⚠️ Limited | ⚠️ Limited | ✅ |
+| HighTorque | ⚠️ Limited | ⚠️ Limited | ✅ |
+| Hexfellow | ⚠️ Limited | ⚠️ Limited | ✅ |
+
+### Damiao Register Summary
+
+| RID | Name | Type | Description |
+|-----|------|------|-------------|
+| 7 | MST_ID | u32 | Feedback ID |
+| 8 | ESC_ID | u32 | Motor ID |
+| 9 | TIMEOUT | u32 | Communication timeout |
+| 10 | CTRL_MODE | u32 | Control mode |
+| 21 | PMAX | f32 | Position range |
+| 22 | VMAX | f32 | Velocity range |
+| 23 | TMAX | f32 | Torque range |
+| 25 | KP_ASR | f32 | Speed loop Kp |
+| 26 | KI_ASR | f32 | Speed loop Ki |
+| 27 | KP_APR | f32 | Position loop Kp |
+| 28 | KI_APR | f32 | Position loop Ki |
+
+### RobStride Parameter Access
+
+```python
+# RobStride uses parameter API, not generic registers
+motor.robstride_get_param_f32(param_id, timeout_ms)
+motor.robstride_write_param_f32(param_id, value)
+```
+
+## Feedback State
+
+| Vendor | Position | Velocity | Torque | MOS Temp | Rotor Temp |
+|--------|----------|----------|--------|----------|------------|
+| Damiao | ✅ | ✅ | ✅ | ✅ | ✅ |
+| RobStride | ✅ | ✅ | ✅ | ✅ | ❌ |
+| MyActuator | ✅ | ✅ | ✅ | ✅ | ❌ |
+| HighTorque | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Hexfellow | ✅ | ✅ | ✅ | ✅ | ❌ |
+
+## Special Features
+
+### Damiao
+
+- **Most complete protocol support**
+- **Full register access** - All 35+ registers
+- **Serial bridge option** - DM Serial adapter
+- **Motor ID configuration** - Change IDs via register
+
+### RobStride
+
+- **Ping command** - Discover device/responder IDs
+- **Parameter API** - Typed parameter access (i8, u8, u16, u32, f32)
+- **Device ID configuration** - Change device ID
+
+### MyActuator
+
+- **Standard feedback format**
+- **Simple control interface**
+- **No MIT mode** - Use POS_VEL or VEL
+
+### HighTorque
+
+- **Native vendor protocol**
+- **Full mode support**
+- **Standard feedback**
+
+### Hexfellow
+
+- **Requires CAN-FD** - Must use `from_socketcanfd()`
+- **No velocity mode** - Use MIT or POS_VEL
+- **High bandwidth communication**
+
+## Model Strings
+
+### Damiao
+
+| Model | Description | Typical Use |
+|-------|-------------|-------------|
+| `4310` | Small form factor | Grippers, small joints |
+| `4340` | Medium torque | Arms, medium joints |
+| `4340P` | 4340 with position mode | General purpose |
+| `6001` | Large torque | Legs, heavy loads |
+
+### RobStride
+
+| Model | Description |
+|-------|-------------|
+| `rs-00` | Standard RobStride motor |
+
+### MyActuator
+
+| Model | Description |
+|-------|-------------|
+| `X8` | Standard MyActuator motor |
+
+### HighTorque
+
+| Model | Description |
+|-------|-------------|
+| `hightorque` | Generic HighTorque motor |
+
+### Hexfellow
+
+| Model | Description |
+|-------|-------------|
+| `hexfellow` | Generic Hexfellow motor |
+
+## CAN ID Conventions
+
+### Damiao
+
+```
+motor_id:    0x01 - 0x20 (command ID)
+feedback_id: 0x11 - 0x30 (motor_id + 0x10)
+```
+
+### RobStride
+
+```
+motor_id:    127 (device ID)
+feedback_id: 0xFE, 0xFF (responder ID)
+```
+
+### MyActuator
+
+```
+motor_id:    1 - 32
+feedback_id: 0x240 + motor_id
+```
+
+### HighTorque
+
+```
+motor_id:    1 - 127
+feedback_id: 0x01
+```
+
+### Hexfellow
+
+```
+motor_id:    0x01 - 0xFF
+feedback_id: 0x00
+```
+
+## Code Examples by Vendor
+
+### Damiao
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+```
+
+### RobStride
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+    ctrl.enable_all()
+
+    # Ping first
+    device_id, responder_id = motor.robstride_ping()
+    print(f"Device: {device_id}, Responder: {responder_id}")
+
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 2.0, 0.1, 0.0)
+```
+
+### MyActuator
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_myactuator_motor(1, 0x241, "X8")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)  # No MIT mode
+    motor.send_pos_vel(0.5, vlim=1.5)
+```
+
+### HighTorque
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_hightorque_motor(1, 0x01, "hightorque")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+```
+
+### Hexfellow
+
+```python
+from motorbridge import Controller, Mode
+
+# MUST use CAN-FD
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(0x01, 0x00, "hexfellow")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)  # No VEL mode
+    motor.send_pos_vel(0.5, vlim=1.5)
+```
+
+## Best Practices
+
+### Vendor Selection
+
+1. **Damiao**: Best for development - most complete protocol
+2. **RobStride**: Good for production robots - reliable protocol
+3. **MyActuator**: Good for simple applications - limited modes
+4. **HighTorque**: Good for high-torque applications
+5. **Hexfellow**: Requires CAN-FD hardware
+
+### Mixed Vendor Systems
+
+```python
+# Use separate controllers for different vendors
+with Controller("can0") as dm_ctrl:
+    dm = dm_ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    dm_ctrl.enable_all()
+
+    with Controller("can0") as rs_ctrl:
+        rs = rs_ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+        rs_ctrl.enable_all()
+
+        # Control both
+        dm.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+        rs.send_mit(0.3, 0.0, 2.0, 0.1, 0.0)
+```
+
+<Warning>
+Do not mix vendors in the same `Controller` instance. Each vendor has a different protocol implementation.
+</Warning>
+
+## See Also
+
+- [CAN ID and Model Cheatsheet](reference/can-id-and-model-cheatsheet) - ID conventions
+- [Tutorial 04: Multi-Motor Control](tutorials/04-multi-motor) - Multi-vendor setup
+- [Transports](transports) - Transport configuration

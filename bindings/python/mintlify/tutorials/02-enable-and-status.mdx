@@ -1,0 +1,384 @@
+# Tutorial 02: Enable and Read Status
+
+<mintly-toc>
+
+After discovering motors, the next step is enabling them and reading feedback. This tutorial covers motor enablement, state reading, and handling feedback.
+
+</mintly-toc>
+
+## Prerequisites
+
+- Completed [Tutorial 01: Scan and Identify](tutorials/01-scan-and-identify)
+- Know your motor_id and feedback_id
+- Motor powered on and connected
+
+## Motor States Overview
+
+Motor control follows a state machine:
+
+```
+┌─────────────┐     enable()     ┌─────────────┐
+│   DISABLED  │ ───────────────► │   ENABLED   │
+│  (no power) │                  │  (active)   │
+└─────────────┘ ◄─────────────── └─────────────┘
+                  disable()
+```
+
+- **DISABLED**: Motor windings are not powered, shaft can rotate freely
+- **ENABLED**: Motor is powered and can respond to control commands
+
+## Basic Enable/Disable
+
+### Using Python
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # Enable motor (apply power)
+    motor.enable()
+    print("Motor enabled")
+
+    # Motor is now holding position or ready for commands
+
+    # Disable motor (release power)
+    motor.disable()
+    print("Motor disabled")
+```
+
+### Using CLI
+
+```bash
+# Enable motor
+motorbridge-cli run --vendor damiao --motor-id 0x01 --feedback-id 0x11 --mode enable --loop 1
+
+# Disable motor
+motorbridge-cli run --vendor damiao --motor-id 0x01 --feedback-id 0x11 --mode disable --loop 1
+```
+
+## Enable All Motors
+
+When controlling multiple motors, enable them together:
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    # Add multiple motors
+    motor1 = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    motor2 = ctrl.add_damiao_motor(0x02, 0x12, "4340P")
+    motor3 = ctrl.add_damiao_motor(0x03, 0x13, "4340P")
+
+    # Enable all at once
+    ctrl.enable_all()
+    print("All motors enabled")
+
+    # ... control motors ...
+
+    # Disable all at once
+    ctrl.disable_all()
+    print("All motors disabled")
+```
+
+## Reading Motor State
+
+### State Fields
+
+The `MotorState` dataclass contains:
+
+| Field | Type | Unit | Description |
+|-------|------|------|-------------|
+| `can_id` | int | — | Motor CAN ID |
+| `arbitration_id` | int | — | CAN arbitration ID |
+| `status_code` | int | — | Motor status/error code |
+| `pos` | float | rad | Position |
+| `vel` | float | rad/s | Velocity |
+| `torq` | float | Nm | Estimated torque |
+| `t_mos` | float | °C | MOSFET temperature |
+| `t_rotor` | float | °C | Rotor temperature |
+
+### Basic State Reading
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+
+    # Request feedback
+    motor.request_feedback()
+
+    # Get cached state
+    state = motor.get_state()
+
+    if state:
+        print(f"Position: {state.pos:.3f} rad")
+        print(f"Velocity: {state.vel:.3f} rad/s")
+        print(f"Torque: {state.torq:.3f} Nm")
+        print(f"MOS Temp: {state.t_mos:.1f} °C")
+        print(f"Rotor Temp: {state.t_rotor:.1f} °C")
+    else:
+        print("No feedback received yet")
+```
+
+### State Reading with Retry
+
+Since feedback is asynchronous, implement retry logic:
+
+```python
+import time
+from motorbridge import Controller
+
+def get_state_retry(motor, max_attempts=10, delay=0.05):
+    """Get state with retry on None."""
+    for _ in range(max_attempts):
+        motor.request_feedback()
+        state = motor.get_state()
+        if state is not None:
+            return state
+        time.sleep(delay)
+    return None
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+
+    state = get_state_retry(motor)
+    if state:
+        print(f"Got state: pos={state.pos:.3f}")
+    else:
+        print("Failed to get state after retries")
+```
+
+## Continuous State Monitoring
+
+### Monitor Loop Pattern
+
+```python
+import time
+from motorbridge import Controller
+
+def format_state(state, prefix=""):
+    """Format state for display."""
+    return (
+        f"{prefix}pos={state.pos:+7.3f} rad | "
+        f"vel={state.vel:+6.3f} rad/s | "
+        f"torq={state.torq:+5.2f} Nm | "
+        f"t_mos={state.t_mos:5.1f}°C"
+    )
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+
+    try:
+        for i in range(100):
+            # Request fresh feedback
+            motor.request_feedback()
+
+            # Read cached state
+            state = motor.get_state()
+
+            if state:
+                print(format_state(state, prefix=f"#{i:03d} "))
+
+                # Safety checks
+                if state.t_mos > 80:
+                    print("WARNING: High MOSFET temperature!")
+                if state.status_code != 0:
+                    print(f"ERROR: status=0x{state.status_code:02X}")
+            else:
+                print(f"#{i:03d} No feedback")
+
+            time.sleep(0.1)  # 10 Hz monitor rate
+
+    except KeyboardInterrupt:
+        print("\nInterrupted")
+    finally:
+        motor.disable()
+```
+
+### Multi-Motor Monitoring
+
+```python
+import time
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motors = {
+        "hip": ctrl.add_damiao_motor(0x01, 0x11, "4340P"),
+        "knee": ctrl.add_damiao_motor(0x02, 0x12, "4340P"),
+        "ankle": ctrl.add_damiao_motor(0x03, 0x13, "4340P"),
+    }
+
+    ctrl.enable_all()
+
+    for i in range(100):
+        print(f"\n--- Iteration {i} ---")
+        for name, motor in motors.items():
+            motor.request_feedback()
+            state = motor.get_state()
+            if state:
+                print(f"{name:8s}: pos={state.pos:+.3f} vel={state.vel:+.3f}")
+            else:
+                print(f"{name:8s}: no feedback")
+        time.sleep(0.1)
+
+    ctrl.disable_all()
+```
+
+## Understanding poll_feedback_once()
+
+### Background Polling (v0.1.7+)
+
+Since version 0.1.7, the SDK uses background polling by default. You typically don't need to call `poll_feedback_once()`.
+
+```python
+# Recommended pattern (v0.1.7+)
+motor.request_feedback()
+state = motor.get_state()
+```
+
+### Manual Polling (Legacy/Optional)
+
+For backward compatibility or deterministic timing:
+
+```python
+# Legacy pattern (still supported)
+motor.request_feedback()
+ctrl.poll_feedback_once()  # Process incoming CAN frames
+state = motor.get_state()
+```
+
+## Status Code Interpretation
+
+### Damiao Status Codes
+
+| Code | Meaning | Action |
+|------|---------|--------|
+| 0 | Normal | None |
+| 1 | Over-voltage | Check power supply |
+| 2 | Under-voltage | Check power supply |
+| 3 | Over-current | Reduce load |
+| 4 | MOSFET over-temp | Cool down, reduce load |
+| 5 | Rotor over-temp | Cool down, reduce load |
+| 6 | Communication timeout | Check wiring |
+
+### Handling Errors
+
+```python
+from motorbridge import Controller
+from motorbridge.errors import CallError
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+
+    while True:
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state and state.status_code != 0:
+            print(f"Motor error: 0x{state.status_code:02X}")
+
+            # Clear error and re-enable
+            try:
+                motor.clear_error()
+                motor.enable()
+                print("Error cleared, motor re-enabled")
+            except CallError as e:
+                print(f"Failed to clear error: {e}")
+                break
+
+        time.sleep(0.1)
+```
+
+## Temperature Monitoring
+
+Implement continuous temperature monitoring:
+
+```python
+import time
+from motorbridge import Controller
+
+TEMP_WARNING = 70.0   # °C
+TEMP_CRITICAL = 85.0  # °C
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+
+    for i in range(1000):
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state:
+            # Check temperatures
+            if state.t_mos > TEMP_CRITICAL or state.t_rotor > TEMP_CRITICAL:
+                print(f"CRITICAL: Emergency disable!")
+                motor.disable()
+                break
+            elif state.t_mos > TEMP_WARNING or state.t_rotor > TEMP_WARNING:
+                print(f"WARNING: High temperature - MOS={state.t_mos:.1f}°C Rotor={state.t_rotor:.1f}°C")
+
+        time.sleep(0.1)
+```
+
+## Complete Example
+
+```python
+import time
+from motorbridge import Controller
+from motorbridge.errors import CallError
+
+def main():
+    with Controller("can0") as ctrl:
+        motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+        print("Enabling motor...")
+        ctrl.enable_all()
+
+        print("Monitoring state (Ctrl+C to stop)...")
+        try:
+            while True:
+                motor.request_feedback()
+                state = motor.get_state()
+
+                if state:
+                    # Format state
+                    print(
+                        f"pos={state.pos:+7.3f} | "
+                        f"vel={state.vel:+6.3f} | "
+                        f"torq={state.torq:+5.2f} | "
+                        f"t={state.t_mos:5.1f}°C | "
+                        f"status=0x{state.status_code:02X}"
+                    )
+
+                    # Check for errors
+                    if state.status_code != 0:
+                        print(f"Error detected, clearing...")
+                        motor.clear_error()
+                else:
+                    print("Waiting for feedback...")
+
+                time.sleep(0.1)
+
+        except KeyboardInterrupt:
+            print("\nStopping...")
+        finally:
+            print("Disabling motor...")
+            motor.disable()
+            print("Done")
+
+if __name__ == "__main__":
+    main()
+```
+
+## Next Steps
+
+- [Tutorial 03: Mode Switch and Control](tutorials/03-mode-switch-and-control) - Send control commands
+- [MotorState API](api/mode-and-state) - State dataclass reference
+- [Motor API](api/motor) - Full motor API

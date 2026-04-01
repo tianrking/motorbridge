@@ -1,0 +1,386 @@
+# API: Controller
+
+<mintly-toc>
+
+The `Controller` class manages the transport layer and creates motor handles. It is the main entry point for all motor control operations.
+
+</mintly-toc>
+
+## Import
+
+```python
+from motorbridge import Controller
+```
+
+## Class Overview
+
+```python
+class Controller:
+    def __init__(self, channel: str = "can0") -> None: ...
+    def __enter__(self) -> Controller: ...
+    def __exit__(self, exc_type, exc, tb) -> None: ...
+```
+
+## Constructors
+
+### `Controller(channel="can0")`
+
+Create a controller using standard SocketCAN transport.
+
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `channel` | `str` | `"can0"` | CAN interface name |
+
+**Returns:** `Controller` instance
+
+**Raises:** `CallError` if interface cannot be opened
+
+**Example:**
+
+```python
+from motorbridge import Controller
+
+# Basic usage
+ctrl = Controller("can0")
+
+# With context manager (recommended)
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+```
+
+---
+
+### `Controller.from_socketcanfd(channel="can0")` (classmethod)
+
+Create a controller using CAN-FD transport. Required for Hexfellow motors.
+
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `channel` | `str` | `"can0"` | CAN-FD interface name |
+
+**Returns:** `Controller` instance
+
+**Raises:** `CallError` if interface cannot be opened
+
+**Example:**
+
+```python
+from motorbridge import Controller
+
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(0x01, 0x00, "hexfellow")
+```
+
+---
+
+### `Controller.from_dm_serial(serial_port="/dev/ttyACM0", baud=921600)` (classmethod)
+
+Create a controller using Damiao serial bridge transport.
+
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `serial_port` | `str` | `"/dev/ttyACM0"` | Serial device path |
+| `baud` | `int` | `921600` | Baud rate (use 921600 for Damiao) |
+
+**Returns:** `Controller` instance
+
+**Raises:** `CallError` if serial port cannot be opened
+
+**Example:**
+
+```python
+from motorbridge import Controller
+
+with Controller.from_dm_serial("/dev/ttyACM0", 921600) as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+```
+
+---
+
+## Lifecycle Methods
+
+### `close()`
+
+Release controller resources. Called automatically by context manager.
+
+**Parameters:** None
+
+**Returns:** `None`
+
+**Example:**
+
+```python
+ctrl = Controller("can0")
+try:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    # ... use motor
+finally:
+    ctrl.close()
+```
+
+---
+
+### `shutdown()`
+
+Gracefully shutdown the controller and all associated motors.
+
+**Parameters:** None
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Note:** Called automatically by context manager `__exit__`.
+
+---
+
+### `close_bus()`
+
+Close the CAN bus connection while keeping controller instance alive.
+
+**Parameters:** None
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+---
+
+## Global Motor Operations
+
+### `enable_all()`
+
+Enable all registered motors simultaneously.
+
+**Parameters:** None
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+with Controller("can0") as ctrl:
+    m1 = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    m2 = ctrl.add_damiao_motor(0x02, 0x12, "4340P")
+    ctrl.enable_all()  # Enables both motors
+```
+
+---
+
+### `disable_all()`
+
+Disable all registered motors simultaneously.
+
+**Parameters:** None
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+ctrl.disable_all()  # Emergency stop all motors
+```
+
+---
+
+### `poll_feedback_once()`
+
+Manually poll for feedback frames from all motors. In v0.1.7+, this is optional as background polling is enabled by default.
+
+**Parameters:** None
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+# Request feedback and poll
+motor.request_feedback()
+ctrl.poll_feedback_once()
+state = motor.get_state()
+```
+
+---
+
+## Motor Registration Methods
+
+### `add_damiao_motor(motor_id, feedback_id, model)`
+
+Register a Damiao motor and return its handle.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `motor_id` | `int` | Command CAN ID (typically 0x01-0x20) |
+| `feedback_id` | `int` | Feedback CAN ID (typically motor_id + 0x10) |
+| `model` | `str` | Motor model: "4310", "4340", "4340P", "6001", etc. |
+
+**Returns:** [`Motor`](api/motor) instance
+
+**Raises:** `CallError` if registration fails
+
+**Example:**
+
+```python
+motor = ctrl.add_damiao_motor(
+    motor_id=0x01,
+    feedback_id=0x11,
+    model="4340P"
+)
+```
+
+---
+
+### `add_robstride_motor(motor_id, feedback_id, model)`
+
+Register a RobStride motor and return its handle.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `motor_id` | `int` | Device ID (typically 127) |
+| `feedback_id` | `int` | Feedback ID (typically 0xFE or 0xFF) |
+| `model` | `str` | Motor model: "rs-00", etc. |
+
+**Returns:** [`Motor`](api/motor) instance
+
+**Example:**
+
+```python
+motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+```
+
+---
+
+### `add_myactuator_motor(motor_id, feedback_id, model)`
+
+Register a MyActuator motor and return its handle.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `motor_id` | `int` | Motor ID (1-32) |
+| `feedback_id` | `int` | Feedback ID (typically 0x240 + motor_id) |
+| `model` | `str` | Motor model: "X8", etc. |
+
+**Returns:** [`Motor`](api/motor) instance
+
+**Example:**
+
+```python
+motor = ctrl.add_myactuator_motor(1, 0x241, "X8")
+```
+
+---
+
+### `add_hightorque_motor(motor_id, feedback_id, model)`
+
+Register a HighTorque motor and return its handle.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `motor_id` | `int` | Motor ID (1-127) |
+| `feedback_id` | `int` | Feedback ID (typically 0x01) |
+| `model` | `str` | Motor model: "hightorque" |
+
+**Returns:** [`Motor`](api/motor) instance
+
+**Example:**
+
+```python
+motor = ctrl.add_hightorque_motor(1, 0x01, "hightorque")
+```
+
+---
+
+### `add_hexfellow_motor(motor_id, feedback_id, model)`
+
+Register a Hexfellow motor and return its handle. Requires CAN-FD transport.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `motor_id` | `int` | Motor ID |
+| `feedback_id` | `int` | Feedback ID (typically 0x00) |
+| `model` | `str` | Motor model: "hexfellow" |
+
+**Returns:** [`Motor`](api/motor) instance
+
+**Raises:** `CallError` if not using CAN-FD transport
+
+**Example:**
+
+```python
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(0x01, 0x00, "hexfellow")
+```
+
+---
+
+## Context Manager Support
+
+The `Controller` class supports Python's context manager protocol for automatic resource cleanup:
+
+```python
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    # ... use motor
+# Resources automatically cleaned up here
+```
+
+This is equivalent to:
+
+```python
+ctrl = Controller("can0")
+try:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    # ... use motor
+finally:
+    ctrl.shutdown()
+    ctrl.close()
+```
+
+## Error Handling
+
+All methods may raise exceptions from `motorbridge.errors`:
+
+```python
+from motorbridge import Controller
+from motorbridge.errors import CallError, AbiLoadError, MotorBridgeError
+
+try:
+    with Controller("can0") as ctrl:
+        motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+except AbiLoadError:
+    print("Failed to load ABI library")
+except CallError as e:
+    print(f"API call failed: {e}")
+except MotorBridgeError as e:
+    print(f"Motor bridge error: {e}")
+```
+
+## See Also
+
+- [Motor API](api/motor) - Motor handle methods
+- [Mode and State](api/mode-and-state) - Enums and data classes
+- [Transports](transports) - Transport configuration guide

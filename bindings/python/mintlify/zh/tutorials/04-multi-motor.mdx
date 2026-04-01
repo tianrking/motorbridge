@@ -1,0 +1,324 @@
+---
+title: 04 多电机控制
+---
+
+# 教程 04：多电机控制
+
+<mintly-toc>
+
+大多数机器人需要同时控制多个电机。本教程教你如何配置和控制多电机系统。
+
+</mintly-toc>
+
+## 核心原则
+
+**同一厂商 → 同一个 Controller**
+
+```python
+# 好：达妙电机用同一个控制器
+with Controller("can0") as ctrl:
+    m1 = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    m2 = ctrl.add_damiao_motor(0x02, 0x12, "4340P")
+    m3 = ctrl.add_damiao_motor(0x03, 0x13, "4340P")
+```
+
+**不同厂商 → 分开 Controller**
+
+```python
+# 好：不同厂商用不同的控制器
+with Controller("can0") as dm_ctrl:
+    dm = dm_ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+with Controller("can0") as rs_ctrl:
+    rs = rs_ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+```
+
+<Warning>
+不要把不同厂商的电机加到同一个 Controller！每个厂商协议不同。
+</Warning>
+
+## 用字典管理电机
+
+推荐用字典存储电机配置和句柄：
+
+```python
+from motorbridge import Controller, Mode
+
+# 配置字典
+MOTOR_CONFIG = {
+    "左髋": {"motor_id": 0x01, "feedback_id": 0x11, "model": "4340P"},
+    "左膝": {"motor_id": 0x02, "feedback_id": 0x12, "model": "4340P"},
+    "右髋": {"motor_id": 0x03, "feedback_id": 0x13, "model": "4340P"},
+    "右膝": {"motor_id": 0x04, "feedback_id": 0x14, "model": "4340P"},
+}
+
+with Controller("can0") as ctrl:
+    # 创建电机句柄字典
+    motors = {}
+    for name, cfg in MOTOR_CONFIG.items():
+        motors[name] = ctrl.add_damiao_motor(
+            cfg["motor_id"],
+            cfg["feedback_id"],
+            cfg["model"]
+        )
+
+    # 一起使能
+    ctrl.enable_all()
+
+    # 设置模式
+    for motor in motors.values():
+        motor.ensure_mode(Mode.MIT, 1000)
+
+    # 按名字控制
+    motors["左髋"].send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+    motors["左膝"].send_mit(-0.3, 0.0, 30.0, 1.0, 0.0)
+```
+
+## 批量读取状态
+
+高效地读取所有电机状态：
+
+```python
+import time
+
+def read_all_states(motors):
+    """批量读取所有电机状态"""
+    # 1. 先请求所有反馈
+    for motor in motors.values():
+        motor.request_feedback()
+
+    # 2. 一起 poll（高效）
+    ctrl.poll_feedback_once()
+
+    # 3. 读取所有状态
+    states = {}
+    for name, motor in motors.items():
+        states[name] = motor.get_state()
+
+    return states
+
+# 使用
+states = read_all_states(motors)
+for name, state in states.items():
+    if state:
+        print(f"{name}: pos={state.pos:.3f}")
+```
+
+## 同步运动
+
+让多个电机同时动起来：
+
+```python
+import time
+import math
+
+# 正弦波同步运动
+for i in range(200):
+    t = i * 0.02
+
+    # 计算目标
+    hip_target = 0.3 * math.sin(t)
+    knee_target = 0.5 * math.sin(t)
+
+    # 发送给所有电机
+    motors["左髋"].send_mit(hip_target, 0.0, 30.0, 1.0, 0.0)
+    motors["右髋"].send_mit(hip_target, 0.0, 30.0, 1.0, 0.0)
+    motors["左膝"].send_mit(knee_target, 0.0, 30.0, 1.0, 0.0)
+    motors["右膝"].send_mit(knee_target, 0.0, 30.0, 1.0, 0.0)
+
+    time.sleep(0.02)
+```
+
+## 交替运动
+
+电机之间有相位差：
+
+```python
+import time
+import math
+
+# 交替运动（180°相位差）
+for i in range(200):
+    t = i * 0.02
+
+    left_target = 0.5 * math.sin(t)
+    right_target = 0.5 * math.sin(t + math.pi)  # 相位差 180°
+
+    motors["左髋"].send_mit(left_target, 0.0, 30.0, 1.0, 0.0)
+    motors["右髋"].send_mit(right_target, 0.0, 30.0, 1.0, 0.0)
+
+    time.sleep(0.02)
+```
+
+## 步态模式（简单行走）
+
+```python
+import time
+import math
+
+# 四条腿的配置
+LEGS = {
+    "fl_hip": {"id": 0x01, "fb": 0x11},
+    "fl_knee": {"id": 0x02, "fb": 0x12},
+    "fr_hip": {"id": 0x03, "fb": 0x13},
+    "fr_knee": {"id": 0x04, "fb": 0x14},
+}
+
+def walk_gait(phase):
+    """根据相位(0-1)生成步态目标"""
+    fl_phase = phase
+    fr_phase = (phase + 0.5) % 1.0  # 右腿相位差半周期
+
+    return {
+        "fl_hip": 0.3 * math.sin(fl_phase * 2 * math.pi),
+        "fl_knee": 0.5 * abs(math.sin(fl_phase * 2 * math.pi)),
+        "fr_hip": 0.3 * math.sin(fr_phase * 2 * math.pi),
+        "fr_knee": 0.5 * abs(math.sin(fr_phase * 2 * math.pi)),
+    }
+
+with Controller("can0") as ctrl:
+    motors = {
+        name: ctrl.add_damiao_motor(cfg["id"], cfg["fb"], "4340P")
+        for name, cfg in LEGS.items()
+    }
+
+    ctrl.enable_all()
+    for motor in motors.values():
+        motor.ensure_mode(Mode.MIT, 1000)
+
+    # 行走 5 秒
+    dt = 0.02
+    gait_period = 1.0  # 1 秒一个步态周期
+
+    for i in range(int(5.0 / dt)):
+        phase = (i * dt) / gait_period
+        targets = walk_gait(phase)
+
+        for name, target in targets.items():
+            motors[name].send_mit(target, 0.0, 30.0, 1.0, 0.0)
+
+        time.sleep(dt)
+```
+
+## 安全监控
+
+监控所有电机的温度和状态：
+
+```python
+TEMP_WARNING = 70.0
+TEMP_CRITICAL = 85.0
+
+def check_all_motors(motors, ctrl):
+    """检查所有电机，返回 False 表示需要停止"""
+    for name, motor in motors.items():
+        motor.request_feedback()
+
+    ctrl.poll_feedback_once()
+
+    for name, motor in motors.items():
+        state = motor.get_state()
+        if state is None:
+            continue
+
+        if state.t_mos > TEMP_CRITICAL:
+            print(f"危险！{name} MOSFET温度: {state.t_mos:.1f}°C")
+            return False
+
+        if state.t_rotor > TEMP_CRITICAL:
+            print(f"危险！{name} 转子温度: {state.t_rotor:.1f}°C")
+            return False
+
+        if state.status_code != 0:
+            print(f"{name} 错误码: 0x{state.status_code:02X}")
+
+    return True
+
+# 在控制循环中使用
+for i in range(1000):
+    # 发送命令...
+
+    if not check_all_motors(motors, ctrl):
+        print("紧急停止！")
+        ctrl.disable_all()
+        break
+
+    time.sleep(0.02)
+```
+
+## 完整示例
+
+```python
+#!/usr/bin/env python3
+"""多电机控制完整示例"""
+
+import time
+import math
+from motorbridge import Controller, Mode
+
+# 电机配置
+MOTORS = {
+    "左髋": {"id": 0x01, "fb": 0x11},
+    "左膝": {"id": 0x02, "fb": 0x12},
+    "右髋": {"id": 0x03, "fb": 0x13},
+    "右膝": {"id": 0x04, "fb": 0x14},
+}
+
+def main():
+    with Controller("can0") as ctrl:
+        # 创建电机
+        motors = {
+            name: ctrl.add_damiao_motor(cfg["id"], cfg["fb"], "4340P")
+            for name, cfg in MOTORS.items()
+        }
+
+        print("使能电机...")
+        ctrl.enable_all()
+
+        print("设置模式...")
+        for motor in motors.values():
+            motor.ensure_mode(Mode.MIT, 1000)
+
+        print("开始控制（Ctrl+C 停止）")
+        try:
+            for i in range(500):
+                t = i * 0.02
+
+                # 生成目标
+                targets = {
+                    "左髋": 0.3 * math.sin(t),
+                    "左膝": 0.5 * math.sin(t),
+                    "右髋": 0.3 * math.sin(t + 0.1),
+                    "右膝": 0.5 * math.sin(t + 0.1),
+                }
+
+                # 发送命令
+                for name, target in targets.items():
+                    motors[name].send_mit(target, 0.0, 30.0, 1.0, 0.0)
+
+                # 每 10 次打印一次
+                if i % 10 == 0:
+                    for name, motor in motors.items():
+                        motor.request_feedback()
+                    ctrl.poll_feedback_once()
+
+                    lh = motors["左髋"].get_state()
+                    rh = motors["右髋"].get_state()
+                    if lh and rh:
+                        print(f"#{i:03d} 左髋={lh.pos:+.2f} 右髋={rh.pos:+.2f}")
+
+                time.sleep(0.02)
+
+        except KeyboardInterrupt:
+            print("\n用户中断")
+        finally:
+            print("禁用电机...")
+            ctrl.disable_all()
+
+if __name__ == "__main__":
+    main()
+```
+
+## 下一步
+
+- [教程 05：寄存器参数](tutorials/05-register-and-params) - 修改电机内部参数
+- [最佳实践：控制循环模式](best-practices/control-loop-patterns) - 生产级模式

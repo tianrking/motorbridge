@@ -1,0 +1,492 @@
+# Tutorial 03: Mode Switch and Command Sending
+
+<mintly-toc>
+
+This tutorial covers control modes, mode switching, and sending control commands to motors.
+
+</mintly-toc>
+
+## Prerequisites
+
+- Completed [Tutorial 02: Enable and Status](tutorials/02-enable-and-status)
+- Motor enabled and providing feedback
+
+## Control Modes Overview
+
+The SDK supports four unified control modes:
+
+| Mode | Description | Key Parameters |
+|------|-------------|----------------|
+| `MIT` | Full impedance control | pos, vel, kp, kd, tau |
+| `POS_VEL` | Position with velocity limit | pos, vlim |
+| `VEL` | Pure velocity control | vel |
+| `FORCE_POS` | Compliant position control | pos, vlim, ratio |
+
+### Mode Selection Guide
+
+```
+What do you want to control?
+│
+├── Position with compliance → MIT mode
+│   (adjustable stiffness/damping)
+│
+├── Simple position control → POS_VEL mode
+│   (with speed limit)
+│
+├── Continuous rotation → VEL mode
+│   (speed control only)
+│
+└── Force-limited position → FORCE_POS mode
+    (gripper, contact tasks)
+```
+
+## Mode Switching
+
+### Basic Mode Switch
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+
+    # Switch to MIT mode with 1-second timeout
+    motor.ensure_mode(Mode.MIT, timeout_ms=1000)
+    print("Switched to MIT mode")
+```
+
+### Mode Switch with Error Handling
+
+```python
+from motorbridge import Controller, Mode
+from motorbridge.errors import CallError
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+
+    try:
+        motor.ensure_mode(Mode.MIT, timeout_ms=1000)
+    except CallError as e:
+        print(f"Mode switch failed: {e}")
+        # Try alternative mode
+        motor.ensure_mode(Mode.POS_VEL, timeout_ms=1000)
+```
+
+## MIT Mode
+
+MIT mode provides full impedance control with five parameters:
+
+### Parameters
+
+| Parameter | Unit | Description | Typical Range |
+|-----------|------|-------------|---------------|
+| `pos` | rad | Target position | -PMAX to +PMAX |
+| `vel` | rad/s | Target velocity | -VMAX to +VMAX |
+| `kp` | Nm/rad | Position stiffness | 0.1 - 100 |
+| `kd` | Nm·s/rad | Velocity damping | 0.01 - 10 |
+| `tau` | Nm | Feedforward torque | -TMAX to +TMAX |
+
+### Basic MIT Control
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    # Stiff position control
+    motor.send_mit(
+        pos=1.0,    # 1 radian target
+        vel=0.0,    # Zero target velocity
+        kp=50.0,    # High stiffness
+        kd=2.0,     # Moderate damping
+        tau=0.0     # No feedforward
+    )
+
+    # Soft compliant control
+    motor.send_mit(
+        pos=1.0,
+        vel=0.0,
+        kp=5.0,     # Low stiffness
+        kd=0.5,     # Low damping
+        tau=0.0
+    )
+```
+
+### Position Sweep with MIT
+
+```python
+import time
+import math
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    # Sinusoidal position sweep
+    for i in range(200):
+        t = i * 0.02  # Time in seconds
+        target_pos = math.sin(t)  # -1 to +1 rad
+
+        motor.send_mit(
+            pos=target_pos,
+            vel=math.cos(t),  # Velocity feedforward
+            kp=30.0,
+            kd=1.0,
+            tau=0.0
+        )
+
+        time.sleep(0.02)
+```
+
+### Torque Control with MIT
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    # Pure torque control (zero stiffness)
+    for i in range(100):
+        motor.send_mit(
+            pos=0.0,
+            vel=0.0,
+            kp=0.0,     # Zero stiffness
+            kd=0.0,     # Zero damping
+            tau=0.5     # 0.5 Nm torque
+        )
+        time.sleep(0.02)
+```
+
+## Position-Velocity Mode
+
+Simple position control with velocity limit.
+
+### Parameters
+
+| Parameter | Unit | Description |
+|-----------|------|-------------|
+| `pos` | rad | Target position |
+| `vlim` | rad/s | Maximum velocity |
+
+### Basic Usage
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)
+
+    # Move to position with speed limit
+    motor.send_pos_vel(pos=2.0, vlim=1.5)  # 2 rad at max 1.5 rad/s
+
+    # Wait for arrival
+    for _ in range(50):
+        motor.request_feedback()
+        state = motor.get_state()
+        if state:
+            error = abs(state.pos - 2.0)
+            print(f"Position error: {error:.4f} rad")
+            if error < 0.01:
+                print("Position reached!")
+                break
+        time.sleep(0.02)
+```
+
+### Point-to-Point Motion
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+waypoints = [0.0, 1.0, -1.0, 0.5, 0.0]
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)
+
+    for wp in waypoints:
+        print(f"Moving to {wp:.2f} rad")
+        motor.send_pos_vel(pos=wp, vlim=1.0)
+
+        # Wait for arrival
+        while True:
+            motor.request_feedback()
+            state = motor.get_state()
+            if state and abs(state.pos - wp) < 0.02:
+                break
+            time.sleep(0.02)
+
+        print(f"Reached {wp:.2f} rad")
+        time.sleep(0.5)
+```
+
+## Velocity Mode
+
+Pure velocity control for continuous rotation.
+
+### Parameters
+
+| Parameter | Unit | Description |
+|-----------|------|-------------|
+| `vel` | rad/s | Target velocity |
+
+### Basic Usage
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.VEL, 1000)
+
+    # Run at 2 rad/s
+    motor.send_vel(vel=2.0)
+    time.sleep(3.0)
+
+    # Stop
+    motor.send_vel(vel=0.0)
+```
+
+### Velocity Ramp
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.VEL, 1000)
+
+    # Accelerate
+    for v in range(0, 30):
+        motor.send_vel(vel=v * 0.1)  # 0 to 3 rad/s
+        time.sleep(0.05)
+
+    # Decelerate
+    for v in range(30, 0, -1):
+        motor.send_vel(vel=v * 0.1)
+        time.sleep(0.05)
+
+    motor.send_vel(vel=0.0)
+```
+
+## Force Position Mode
+
+Compliant position control with force ratio.
+
+### Parameters
+
+| Parameter | Unit | Description |
+|-----------|------|-------------|
+| `pos` | rad | Target position |
+| `vlim` | rad/s | Velocity limit |
+| `ratio` | - | Force ratio (0.0-1.0) |
+
+### Gripper Example
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+def gripper_control(motor, pos, force_ratio):
+    """Control gripper with force limit."""
+    motor.send_force_pos(pos=pos, vlim=1.0, ratio=force_ratio)
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.FORCE_POS, 1000)
+
+    # Close gripper with low force (gentle grasp)
+    gripper_control(motor, pos=0.5, force_ratio=0.2)
+    time.sleep(1.0)
+
+    # Close with more force (firm grasp)
+    gripper_control(motor, pos=0.3, force_ratio=0.5)
+    time.sleep(1.0)
+
+    # Open gripper
+    gripper_control(motor, pos=1.5, force_ratio=0.3)
+```
+
+## Control Loop Patterns
+
+### Fixed-Rate Control Loop
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+DT_S = 0.02  # 20ms = 50Hz
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    target = 0.0
+
+    for i in range(500):
+        t0 = time.time()
+
+        # Update target (example: sinusoidal)
+        target = math.sin(i * DT_S)
+
+        # Send command
+        motor.send_mit(target, 0.0, 30.0, 1.0, 0.0)
+
+        # Read state
+        motor.request_feedback()
+        state = motor.get_state()
+        if state:
+            error = state.pos - target
+            print(f"#{i:03d} target={target:+.3f} actual={state.pos:+.3f} err={error:+.4f}")
+
+        # Maintain fixed rate
+        elapsed = time.time() - t0
+        if elapsed < DT_S:
+            time.sleep(DT_S - elapsed)
+```
+
+### State-Based Control
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+DT_S = 0.01  # 10ms = 100Hz
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)
+
+    target = 1.0
+    arrived = False
+
+    while not arrived:
+        t0 = time.time()
+
+        # Send command
+        motor.send_pos_vel(target, vlim=2.0)
+
+        # Check state
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state:
+            error = abs(state.pos - target)
+            if error < 0.01:
+                print(f"Arrived at {target:.3f}")
+                arrived = True
+
+        # Maintain rate
+        elapsed = time.time() - t0
+        if elapsed < DT_S:
+            time.sleep(DT_S - elapsed)
+```
+
+## Vendor Mode Support
+
+Check vendor support before using modes:
+
+```python
+from motorbridge import Controller, Mode
+
+# Vendor mode support matrix
+VENDOR_MODES = {
+    "damiao": [Mode.MIT, Mode.POS_VEL, Mode.VEL, Mode.FORCE_POS],
+    "robstride": [Mode.MIT, Mode.VEL],  # No POS_VEL, FORCE_POS
+    "myactuator": [Mode.POS_VEL, Mode.VEL],  # No MIT
+    "hightorque": [Mode.MIT, Mode.POS_VEL, Mode.VEL, Mode.FORCE_POS],
+    "hexfellow": [Mode.MIT, Mode.POS_VEL, Mode.FORCE_POS],  # No VEL
+}
+
+def safe_ensure_mode(motor, mode, vendor):
+    """Ensure mode with vendor check."""
+    if mode not in VENDOR_MODES.get(vendor, []):
+        raise ValueError(f"{vendor} does not support {mode.name}")
+    motor.ensure_mode(mode, 1000)
+```
+
+## Complete Example
+
+```python
+import time
+import math
+from motorbridge import Controller, Mode
+
+def run_demo():
+    with Controller("can0") as ctrl:
+        motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+        print("Enabling motor...")
+        ctrl.enable_all()
+
+        # MIT mode demo
+        print("\n=== MIT Mode Demo ===")
+        motor.ensure_mode(Mode.MIT, 1000)
+
+        print("Stiff position control...")
+        for i in range(50):
+            motor.send_mit(0.5, 0.0, 50.0, 2.0, 0.0)
+            time.sleep(0.02)
+
+        print("Soft compliant control...")
+        for i in range(50):
+            motor.send_mit(0.0, 0.0, 5.0, 0.5, 0.0)
+            time.sleep(0.02)
+
+        # POS_VEL mode demo
+        print("\n=== POS_VEL Mode Demo ===")
+        motor.ensure_mode(Mode.POS_VEL, 1000)
+
+        for pos in [1.0, -1.0, 0.0]:
+            print(f"Moving to {pos:.1f} rad...")
+            motor.send_pos_vel(pos, vlim=1.5)
+            time.sleep(1.0)
+
+        # VEL mode demo
+        print("\n=== VEL Mode Demo ===")
+        motor.ensure_mode(Mode.VEL, 1000)
+
+        print("Running at 1 rad/s...")
+        for _ in range(50):
+            motor.send_vel(1.0)
+            time.sleep(0.02)
+
+        print("Stopping...")
+        motor.send_vel(0.0)
+
+        motor.disable()
+        print("\nDemo complete!")
+
+if __name__ == "__main__":
+    run_demo()
+```
+
+## Next Steps
+
+- [Tutorial 04: Multi-Motor Control](tutorials/04-multi-motor) - Control multiple motors
+- [Mode API](api/mode-and-state) - Mode enum reference
+- [Motor API](api/motor) - Command methods
+- [Vendor Capability Matrix](reference/vendor-capability-matrix) - Vendor feature support

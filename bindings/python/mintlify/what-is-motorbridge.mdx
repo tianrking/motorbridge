@@ -1,0 +1,399 @@
+---
+title: What is MotorBridge?
+---
+
+# What is MotorBridge?
+
+<Badge variant="primary">v0.1.3</Badge> <Badge variant="secondary">Rust Core</Badge> <Badge variant="outline">Python Binding</Badge>
+
+MotorBridge is a **unified motor control stack** with pluggable vendor drivers and a C ABI for cross-language integration.
+
+## The Problem We Solve
+
+Every motor vendor has a different protocol:
+
+| Vendor | Protocol | CAN Format | Control Modes |
+|--------|----------|------------|---------------|
+| Damiao (达妙) | DM-J4310/4340 | CAN 2.0 | MIT, POS_VEL, VEL, FORCE_POS |
+| RobStride | RobStride MIT | CAN 2.0 | MIT, Position, Velocity |
+| MyActuator | RMD | CAN 2.0 | Current, Position, Velocity |
+| HighTorque | HT Native | CAN 2.0 | MIT, POS_VEL, VEL, FORCE_POS |
+| Hexfellow | Hexfellow MIT | CAN-FD | MIT, POS_VEL, FORCE_POS |
+
+<Callout type="warn">
+Without MotorBridge, you need to:
+- Learn 5+ different protocols
+- Maintain separate codebases per vendor
+- Rewrite control logic when switching motors
+- Build your own debugging tools
+</Callout>
+
+## MotorBridge Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          Your Application                            │
+│                     (Python / Future: C++, ROS2)                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│    ┌─────────────────────────────────────────────────────────────┐  │
+│    │                    Language Bindings                         │  │
+│    │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │  │
+│    │  │   Python     │  │   C++ (WIP)  │  │  ROS2 (WIP)  │      │  │
+│    │  │   Binding    │  │   Binding    │  │   Node       │      │  │
+│    │  └──────────────┘  └──────────────┘  └──────────────┘      │  │
+│    └─────────────────────────────────────────────────────────────┘  │
+│                                │                                     │
+│                                ▼                                     │
+│    ┌─────────────────────────────────────────────────────────────┐  │
+│    │                       C ABI (FFI)                            │  │
+│    │              libmotor_abi.so / .dylib / .dll                 │  │
+│    │                                                              │  │
+│    │  • motor_controller_new_socketcan()                         │  │
+│    │  • motor_controller_add_damiao_motor()                      │  │
+│    │  • motor_handle_send_mit()                                  │  │
+│    │  • motor_handle_get_state()                                 │  │
+│    └─────────────────────────────────────────────────────────────┘  │
+│                                │                                     │
+│                                ▼                                     │
+│    ┌─────────────────────────────────────────────────────────────┐  │
+│    │                     Rust Core                                │  │
+│    │                                                              │  │
+│    │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │  │
+│    │  │ motor_core  │ │ motor_abi   │ │ motor_cli   │           │  │
+│    │  │ (abstractions)│ (FFI layer) │ │ (CLI tools) │           │  │
+│    │  └─────────────┘ └─────────────┘ └─────────────┘           │  │
+│    │                                                              │  │
+│    │  ┌───────────────────────────────────────────────────────┐ │  │
+│    │  │                   Vendor Drivers                       │ │  │
+│    │  │  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐│ │  │
+│    │  │  │ Damiao │ │RobStride│ │MyActuat.│ │HighTorq.│ │Hexfellow││  │
+│    │  │  │        │ │        │ │        │ │        │ │        ││ │  │
+│    │  │  └────────┘ └────────┘ └────────┘ └────────┘ └────────┘│ │  │
+│    │  └───────────────────────────────────────────────────────┘ │  │
+│    └─────────────────────────────────────────────────────────────┘  │
+│                                │                                     │
+│                                ▼                                     │
+│    ┌─────────────────────────────────────────────────────────────┐  │
+│    │                     Transport Layer                          │  │
+│    │                                                              │  │
+│    │  ┌────────────┐  ┌────────────┐  ┌────────────┐            │  │
+│    │  │ SocketCAN  │  │ SocketCAN-FD│  │  DM Serial │            │  │
+│    │  │ (CAN 2.0)  │  │  (CAN-FD)  │  │   Bridge   │            │  │
+│    │  └────────────┘  └────────────┘  └────────────┘            │  │
+│    └─────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## Project Structure
+
+```
+rust_dm/
+├── motor_core/           # Core abstractions (CanBus, MotorDevice)
+├── motor_abi/            # C ABI / FFI layer (cdylib + staticlib)
+├── motor_vendors/        # Vendor-specific protocol implementations
+│   ├── damiao/          # 达妙 motor protocol
+│   ├── robstride/       # RobStride motor protocol
+│   ├── myactuator/      # MyActuator RMD protocol
+│   ├── hightorque/      # HighTorque native protocol
+│   └── hexfellow/       # Hexfellow MIT protocol (CAN-FD)
+├── bindings/
+│   └── python/          # Python binding (ctypes-based)
+├── motor_cli/           # Command-line utilities
+├── integrations/
+│   └── ws_gateway/      # WebSocket gateway for remote control
+└── tools/
+    └── motor_calib/     # Motor calibration tool
+```
+
+## Why "Python Binding" Not "SDK"?
+
+<AccordionGroup>
+  <Accordion title="What is a Binding?">
+    A **binding** is a thin wrapper that exposes a native library to another language via FFI (Foreign Function Interface).
+    
+    ```
+    ┌─────────────────────────────────────────────────┐
+    │  Python Code                                    │
+    │  motor.send_mit(pos, vel, kp, kd, tau)          │
+    └───────────────────────┬─────────────────────────┘
+                            │ ctypes call
+                            ▼
+    ┌─────────────────────────────────────────────────┐
+    │  C ABI (libmotor_abi.so)                        │
+    │  motor_handle_send_mit(ptr, pos, vel, kp, kd, tau)│
+    └───────────────────────┬─────────────────────────┘
+                            │ native call
+                            ▼
+    ┌─────────────────────────────────────────────────┐
+    │  Rust Core                                      │
+    │  DamiaoMotor::send_mit_target(...)             │
+    └─────────────────────────────────────────────────┘
+    ```
+    
+    **Key characteristics:**
+    - Logic lives in Rust, not Python
+    - Python is a 1:1 mapping to C ABI functions
+    - No duplicate implementation
+    - Minimal overhead (direct FFI calls)
+  </Accordion>
+  
+  <Accordion title="How the ABI Works">
+    The `motor_abi` crate compiles to a shared library:
+    
+    ```toml
+    # motor_abi/Cargo.toml
+    [lib]
+    crate-type = ["cdylib", "staticlib"]  # Dynamic + Static library
+    ```
+    
+    Python loads it via `ctypes`:
+    
+    ```python
+    # abi.py
+    lib = ctypes.CDLL("libmotor_abi.so")
+    
+    # Bind function signature
+    lib.motor_handle_send_mit.argtypes = [c_void_p, c_float, c_float, 
+                                           c_float, c_float, c_float]
+    lib.motor_handle_send_mit.restype = c_int32
+    
+    # Call it
+    lib.motor_handle_send_mit(motor_ptr, 0.5, 0.0, 30.0, 1.0, 0.0)
+    ```
+    
+    This is **zero-copy** for primitive types - floats and ints pass directly between Python and Rust.
+  </Accordion>
+  
+  <Accordion title="SDK vs Binding Comparison">
+    | Aspect | SDK | Binding (MotorBridge) |
+    |--------|-----|----------------------|
+    | Logic location | In the SDK itself | In Rust core |
+    | Language | Pure Python | Rust + Python wrapper |
+    | Performance | Python overhead | Near-native speed |
+    | Memory safety | Python GC | Rust ownership |
+    | Other languages | N/A | Same ABI for C++, etc. |
+    | Deployment | Pure Python | Need native library |
+    
+    **MotorBridge is a Binding because:**
+    - The "SDK" is the Rust core (`motor_core` + vendor drivers)
+    - Python is just one interface to that core
+    - Future: C++, ROS2 nodes will use the same ABI
+  </Accordion>
+</AccordionGroup>
+
+## Why Rust for the Core?
+
+| Requirement | Rust Advantage |
+|-------------|----------------|
+| **Real-time control** | No garbage collection pauses |
+| **Memory safety** | No buffer overflows, use-after-free |
+| **Deterministic timing** | Predictable execution for control loops |
+| **Zero-cost abstractions** | High-level code, low-level performance |
+| **Cross-platform** | Linux, macOS, Windows support |
+| **CAN integration** | Native SocketCAN bindings |
+
+## Core Components
+
+### Controller
+
+Manages CAN interface and motor lifecycle:
+
+```python
+from motorbridge import Controller
+
+# SocketCAN (most common)
+with Controller("can0") as ctrl:
+    # ctrl manages the CAN socket
+    # ctrl tracks all registered motors
+    # ctrl handles cleanup on exit
+    pass
+
+# CAN-FD (for Hexfellow)
+ctrl = Controller.from_socketcanfd("can0")
+
+# DM Serial Bridge (达妙专用)
+ctrl = Controller.from_dm_serial("/dev/ttyACM0", 921600)
+```
+
+<Warning>
+Each Controller is bound to **one vendor**. You cannot mix Damiao and RobStride motors in the same Controller instance.
+</Warning>
+
+### Motor
+
+Handle to a single physical motor:
+
+```python
+# Add a Damiao motor
+motor = ctrl.add_damiao_motor(
+    motor_id=0x01,      # Command CAN ID
+    feedback_id=0x11,   # Feedback CAN ID  
+    model="4340P"       # Motor model string
+)
+
+# Control commands
+motor.send_mit(pos=0.5, vel=0.0, kp=30.0, kd=1.0, tau=0.0)
+
+# Read state
+state = motor.get_state()
+```
+
+### Mode
+
+Control mode determines how the motor responds:
+
+```python
+from motorbridge import Mode
+
+motor.ensure_mode(Mode.MIT, timeout_ms=1000)
+```
+
+| Mode | Parameters | Use Case |
+|------|------------|----------|
+| `MIT` | pos, vel, kp, kd, tau | Full impedance control |
+| `POS_VEL` | pos, vlim | Position with speed limit |
+| `VEL` | vel | Pure velocity control |
+| `FORCE_POS` | pos, vlim, ratio | Force-limited position |
+
+### MotorState
+
+Real-time feedback structure:
+
+```python
+@dataclass
+class MotorState:
+    can_id: int          # Motor CAN ID
+    arbitration_id: int  # CAN arbitration ID
+    status_code: int     # Error/status code (0 = OK)
+    pos: float           # Position (radians)
+    vel: float           # Velocity (rad/s)
+    torq: float          # Torque (Nm)
+    t_mos: float         # MOSFET temperature (°C)
+    t_rotor: float       # Rotor temperature (°C)
+```
+
+## Transport Options
+
+| Transport | Vendors | Constructor |
+|-----------|---------|-------------|
+| SocketCAN | All except Hexfellow | `Controller("can0")` |
+| CAN-FD | Hexfellow (required) | `Controller.from_socketcanfd("can0")` |
+| DM Serial | Damiao only | `Controller.from_dm_serial("/dev/ttyACM0", 921600)` |
+
+## CLI Tools
+
+The project includes command-line utilities:
+
+```bash
+# Scan for motors
+motorbridge-cli scan --vendor all --channel can0
+
+# Enable and test
+motorbridge-cli run --vendor damiao --motor-id 0x01 --mode enable
+
+# Dump registers
+motorbridge-cli id-dump --motor-id 0x01 --rids 7,8,9,10
+```
+
+## Integrations
+
+### WebSocket Gateway
+
+Control motors over WebSocket (useful for browser/remote apps):
+
+```bash
+# Start gateway
+cargo run -p ws_gateway
+```
+
+### Motor Calibration
+
+Tool for motor calibration routines:
+
+```bash
+cargo run -p motor_calib
+```
+
+## Comparison with Alternatives
+
+| Feature | Vendor Libraries | MotorBridge |
+|---------|-----------------|-------------|
+| Multi-vendor | ❌ One per vendor | ✅ Unified API |
+| Protocol details | ❌ Exposed | ✅ Abstracted |
+| Type safety | ⚠️ Varies | ✅ Full type hints |
+| CLI tools | ❌ Usually none | ✅ Built-in |
+| Real-time safe | ⚠️ Python GC | ✅ Rust core |
+| Other languages | ❌ Python only | ✅ C ABI for any language |
+| Documentation | ⚠️ Varies | ✅ Comprehensive |
+
+## Quick Start
+
+<Steps>
+  <Step title="Install Python Package">
+    ```bash
+    pip install motorbridge
+    ```
+  </Step>
+  
+  <Step title="Configure CAN Interface">
+    ```bash
+    sudo ip link set can0 type can bitrate 1000000
+    sudo ip link set can0 up
+    ```
+  </Step>
+  
+  <Step title="Run Your First Program">
+    ```python
+    from motorbridge import Controller, Mode
+    
+    with Controller("can0") as ctrl:
+        motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+        ctrl.enable_all()
+        motor.ensure_mode(Mode.MIT, 1000)
+        motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+        print("Motor running!")
+    ```
+  </Step>
+</Steps>
+
+## What Can You Build?
+
+<Cards>
+  <Card title="Robotic Arms" icon="hand">
+    Multi-joint arms with mixed motor vendors
+  </Card>
+  <Card title="Quadruped Robots" icon="paw">
+    12+ motor coordination for walking gaits
+  </Card>
+  <Card title="Grippers" icon="grip-vertical">
+    Force-controlled grasping with FORCE_POS mode
+  </Card>
+  <Card title="Test Equipment" icon="flask">
+    Automated motor testing and characterization
+  </Card>
+  <Card title="Wheeled Robots" icon="circle">
+    Differential drive with velocity mode
+  </Card>
+  <Card title="Research Platforms" icon="graduation-cap">
+    Rapid prototyping for motor control research
+  </Card>
+</Cards>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start Guide" href="quickstart" icon="rocket">
+    Get your first motor running in 5 minutes
+  </Card>
+  <Card title="API Reference" href="api/controller" icon="book">
+    Complete API documentation
+  </Card>
+  <Card title="Tutorials" href="tutorials/01-scan-and-identify" icon="graduation-cap">
+    Step-by-step practical guides
+  </Card>
+  <Card title="Best Practices" href="best-practices/control-loop-patterns" icon="shield-check">
+    Production-ready patterns
+  </Card>
+</CardGroup>

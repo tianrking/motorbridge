@@ -1,0 +1,609 @@
+# API: Motor
+
+<mintly-toc>
+
+The `Motor` class represents a single motor handle. It provides methods for control commands, state feedback, and register access.
+
+</mintly-toc>
+
+## Import
+
+```python
+from motorbridge import Motor  # Usually obtained via Controller.add_*_motor()
+```
+
+## Class Overview
+
+```python
+class Motor:
+    def __init__(self, ptr: int) -> None: ...
+    def close(self) -> None: ...
+```
+
+<Note>
+`Motor` instances are created by `Controller.add_*_motor()` methods. Do not instantiate directly.
+</Note>
+
+## Lifecycle Methods
+
+### `close()`
+
+Release motor handle resources. Called automatically when controller closes.
+
+**Parameters:** None
+
+**Returns:** `None`
+
+**Example:**
+
+```python
+motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+try:
+    # ... use motor
+finally:
+    motor.close()
+```
+
+---
+
+### `enable()`
+
+Enable motor output (apply power to windings).
+
+**Parameters:** None
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+motor.enable()
+print("Motor enabled")
+```
+
+---
+
+### `disable()`
+
+Disable motor output (release power, motor becomes free-spinning).
+
+**Parameters:** None
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+motor.disable()
+print("Motor disabled")
+```
+
+---
+
+### `clear_error()`
+
+Clear any error state on the motor.
+
+**Parameters:** None
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+try:
+    motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+except CallError:
+    motor.clear_error()
+    motor.enable()
+```
+
+---
+
+### `set_zero_position()`
+
+Set current position as zero reference point.
+
+**Parameters:** None
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+<Warning>
+This modifies motor's internal position reference. Use with caution in multi-motor systems.
+</Warning>
+
+**Example:**
+
+```python
+# Calibrate zero position
+motor.set_zero_position()
+print("Zero position set")
+```
+
+---
+
+## Mode Control
+
+### `ensure_mode(mode, timeout_ms=1000)`
+
+Switch motor to specified control mode with timeout.
+
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `mode` | `Mode` | required | Target control mode |
+| `timeout_ms` | `int` | `1000` | Timeout in milliseconds |
+
+**Returns:** `None`
+
+**Raises:** `CallError` if mode switch fails or times out
+
+**Example:**
+
+```python
+from motorbridge import Mode
+
+motor.ensure_mode(Mode.MIT, timeout_ms=1000)
+print("Switched to MIT mode")
+```
+
+---
+
+## Control Commands
+
+### `send_mit(pos, vel, kp, kd, tau)`
+
+Send MIT mode control command. Provides full control over position, velocity, stiffness, damping, and torque.
+
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `pos` | `float` | required | Target position (radians) |
+| `vel` | `float` | required | Target velocity (rad/s) |
+| `kp` | `float` | required | Position stiffness (Nm/rad) |
+| `kd` | `float` | required | Velocity damping (Nm·s/rad) |
+| `tau` | `float` | required | Feedforward torque (Nm) |
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+# Position control with stiffness and damping
+motor.send_mit(
+    pos=1.0,      # Target: 1.0 radian
+    vel=0.0,      # Zero target velocity
+    kp=30.0,      # Position stiffness
+    kd=1.0,       # Velocity damping
+    tau=0.0       # No feedforward torque
+)
+```
+
+<Note>
+MyActuator does not support MIT mode. RobStride has limited MIT support.
+</Note>
+
+---
+
+### `send_pos_vel(pos, vlim)`
+
+Send position-velocity mode command. Motor moves to position with velocity limit.
+
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `pos` | `float` | required | Target position (radians) |
+| `vlim` | `float` | required | Velocity limit (rad/s) |
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+# Move to position with speed limit
+motor.send_pos_vel(pos=2.0, vlim=1.5)
+```
+
+<Note>
+RobStride does not support POS_VEL mode.
+</Note>
+
+---
+
+### `send_vel(vel)`
+
+Send velocity mode command. Motor runs at constant velocity.
+
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `vel` | `float` | required | Target velocity (rad/s) |
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+# Spin at 2 rad/s
+motor.send_vel(vel=2.0)
+```
+
+<Note>
+Hexfellow does not support VEL mode.
+</Note>
+
+---
+
+### `send_force_pos(pos, vlim, ratio)`
+
+Send force position mode command. Compliant position control with force ratio.
+
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `pos` | `float` | required | Target position (radians) |
+| `vlim` | `float` | required | Velocity limit (rad/s) |
+| `ratio` | `float` | required | Force ratio (0.0-1.0) |
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+# Compliant position control
+motor.send_force_pos(pos=1.0, vlim=1.0, ratio=0.3)
+```
+
+<Note>
+RobStride, MyActuator, and Hexfellow do not support FORCE_POS mode.
+</Note>
+
+---
+
+## Feedback Methods
+
+### `request_feedback()`
+
+Request fresh feedback frame from motor.
+
+**Parameters:** None
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+motor.request_feedback()
+# Feedback will be available via get_state() after poll
+```
+
+---
+
+### `get_state()`
+
+Get cached motor state from last received feedback.
+
+**Parameters:** None
+
+**Returns:** `MotorState | None` — Motor state or `None` if no feedback received
+
+**Example:**
+
+```python
+state = motor.get_state()
+if state:
+    print(f"Position: {state.pos:.3f} rad")
+    print(f"Velocity: {state.vel:.3f} rad/s")
+    print(f"Torque: {state.torq:.3f} Nm")
+    print(f"MOS Temp: {state.t_mos:.1f} °C")
+    print(f"Rotor Temp: {state.t_rotor:.1f} °C")
+else:
+    print("No feedback available")
+```
+
+---
+
+## CAN Configuration
+
+### `set_can_timeout_ms(timeout_ms)`
+
+Set CAN communication timeout for this motor.
+
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `timeout_ms` | `int` | required | Timeout in milliseconds |
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+motor.set_can_timeout_ms(100)  # 100ms timeout
+```
+
+---
+
+## Register Access (Damiao)
+
+These methods are primarily for Damiao motors. See [Damiao Registers](api/damiao-registers) for register definitions.
+
+### `write_register_f32(rid, value)`
+
+Write 32-bit float value to register.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `rid` | `int` | Register ID |
+| `value` | `float` | Value to write |
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+from motorbridge import RID_PMAX
+
+# Set position mapping range
+motor.write_register_f32(RID_PMAX, 12.0)
+```
+
+---
+
+### `write_register_u32(rid, value)`
+
+Write 32-bit unsigned integer value to register.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `rid` | `int` | Register ID |
+| `value` | `int` | Value to write |
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+from motorbridge import RID_MST_ID
+
+# Set feedback ID
+motor.write_register_u32(RID_MST_ID, 0x12)
+```
+
+---
+
+### `get_register_f32(rid, timeout_ms=1000)`
+
+Read 32-bit float value from register.
+
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `rid` | `int` | required | Register ID |
+| `timeout_ms` | `int` | `1000` | Timeout in milliseconds |
+
+**Returns:** `float` — Register value
+
+**Raises:** `CallError` on failure or timeout
+
+**Example:**
+
+```python
+from motorbridge import RID_KP_ASR
+
+kp = motor.get_register_f32(RID_KP_ASR, timeout_ms=500)
+print(f"Speed loop Kp: {kp}")
+```
+
+---
+
+### `get_register_u32(rid, timeout_ms=1000)`
+
+Read 32-bit unsigned integer value from register.
+
+**Parameters:**
+
+| Name | Type | Default | Description |
+|------|------|---------|-------------|
+| `rid` | `int` | required | Register ID |
+| `timeout_ms` | `int` | `1000` | Timeout in milliseconds |
+
+**Returns:** `int` — Register value
+
+**Raises:** `CallError` on failure or timeout
+
+**Example:**
+
+```python
+from motorbridge import RID_CTRL_MODE
+
+mode = motor.get_register_u32(RID_CTRL_MODE)
+print(f"Current mode: {mode}")
+```
+
+---
+
+### `store_parameters()`
+
+Save current parameters to motor's non-volatile memory.
+
+**Parameters:** None
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+# Modify parameters
+motor.write_register_f32(RID_PMAX, 12.0)
+motor.write_register_f32(RID_VMAX, 30.0)
+
+# Save to flash
+motor.store_parameters()
+print("Parameters saved")
+```
+
+---
+
+## RobStride-Specific Methods
+
+These methods are only available for RobStride motors.
+
+### `robstride_ping()`
+
+Ping RobStride motor to get device and responder IDs.
+
+**Parameters:** None
+
+**Returns:** `tuple[int, int]` — (device_id, responder_id)
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+device_id, responder_id = motor.robstride_ping()
+print(f"Device: {device_id}, Responder: {responder_id}")
+```
+
+---
+
+### `robstride_set_device_id(new_device_id)`
+
+Set new device ID for RobStride motor.
+
+**Parameters:**
+
+| Name | Type | Description |
+|------|------|-------------|
+| `new_device_id` | `int` | New device ID |
+
+**Returns:** `None`
+
+**Raises:** `CallError` on failure
+
+**Example:**
+
+```python
+motor.robstride_set_device_id(42)
+```
+
+---
+
+### `robstride_write_param_*`
+
+Write typed parameter values to RobStride motor.
+
+| Method | Type |
+|--------|------|
+| `robstride_write_param_i8(param_id, value)` | `int` (signed 8-bit) |
+| `robstride_write_param_u8(param_id, value)` | `int` (unsigned 8-bit) |
+| `robstride_write_param_u16(param_id, value)` | `int` (unsigned 16-bit) |
+| `robstride_write_param_u32(param_id, value)` | `int` (unsigned 32-bit) |
+| `robstride_write_param_f32(param_id, value)` | `float` |
+
+**Example:**
+
+```python
+# Write float parameter
+motor.robstride_write_param_f32(0x7019, 1.5)
+```
+
+---
+
+### `robstride_get_param_*`
+
+Read typed parameter values from RobStride motor.
+
+| Method | Return Type |
+|--------|-------------|
+| `robstride_get_param_i8(param_id, timeout_ms=1000)` | `int` |
+| `robstride_get_param_u8(param_id, timeout_ms=1000)` | `int` |
+| `robstride_get_param_u16(param_id, timeout_ms=1000)` | `int` |
+| `robstride_get_param_u32(param_id, timeout_ms=1000)` | `int` |
+| `robstride_get_param_f32(param_id, timeout_ms=1000)` | `float` |
+
+**Example:**
+
+```python
+# Read float parameter
+value = motor.robstride_get_param_f32(0x7019, timeout_ms=500)
+print(f"Parameter value: {value}")
+```
+
+---
+
+## Complete Example
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    # Register motor
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # Enable and set mode
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, timeout_ms=1000)
+
+    # Control loop
+    for i in range(100):
+        # Send command
+        motor.send_mit(pos=0.5, vel=0.0, kp=30.0, kd=1.0, tau=0.0)
+
+        # Request and read feedback
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state:
+            print(f"#{i:03d} pos={state.pos:+.3f} vel={state.vel:+.3f}")
+
+        time.sleep(0.02)
+
+    # Clean disable
+    motor.disable()
+```
+
+## See Also
+
+- [Controller API](api/controller) - Controller methods
+- [Mode and State](api/mode-and-state) - Mode enum and MotorState class
+- [Vendor Capability Matrix](reference/vendor-capability-matrix) - Vendor-specific feature support

@@ -1,0 +1,231 @@
+---
+title: 传输方式
+---
+
+# 传输方式
+
+<mintly-toc>
+
+motorbridge SDK 支持多种传输层与电机通信。本指南解释每种传输选项及其使用场景。
+
+</mintly-toc>
+
+## 概述
+
+SDK 提供三种传输构造函数：
+
+| 构造函数 | 协议 | 使用场景 |
+|----------|------|----------|
+| `Controller(channel)` | SocketCAN | 标准 CAN 2.0，最常用 |
+| `Controller.from_socketcanfd(channel)` | CAN-FD | 高带宽，Hexfellow 电机 |
+| `Controller.from_dm_serial(port, baud)` | 串口 | 达妙串口桥适配器 |
+
+## SocketCAN（标准 CAN）
+
+大多数电机厂商的默认传输方式。使用 Linux SocketCAN 子系统。
+
+### 使用方法
+
+```python
+from motorbridge import Controller
+
+# 打开标准 CAN 接口
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    # ... 控制电机
+```
+
+### 支持的厂商
+
+- 达妙（所有型号）
+- RobStride
+- MyActuator
+- HighTorque
+
+### 系统配置
+
+```bash
+# 以 1M 波特率配置 CAN 接口
+sudo ip link set can0 type can bitrate 1000000
+sudo ip link set can0 up
+
+# 增加 TX 队列以防止缓冲区溢出
+sudo ifconfig can0 txqueuelen 1000
+```
+
+### 多个 CAN 接口
+
+```python
+# 在不同的 CAN 总线上控制电机
+with Controller("can0") as ctrl0:
+    motor0 = ctrl0.add_damiao_motor(0x01, 0x11, "4340P")
+
+with Controller("can1") as ctrl1:
+    motor1 = ctrl1.add_robstride_motor(127, 0xFE, "rs-00")
+```
+
+## CAN-FD（SocketCAN-FD）
+
+扩展 CAN，具有更大的有效载荷和更高的带宽。某些厂商需要。
+
+### 使用方法
+
+```python
+from motorbridge import Controller
+
+# 打开 CAN-FD 接口
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(0x01, 0x00, "hexfellow")
+    # ... 控制电机
+```
+
+### 支持的厂商
+
+- Hexfellow（必需）
+- 达妙（可选，用于更高带宽）
+
+### 系统配置
+
+```bash
+# 配置 CAN-FD 接口
+sudo ip link set can0 type can bitrate 1000000 dbitrate 5000000 fd on
+sudo ip link set can0 up
+```
+
+<Note>
+Hexfellow 电机需要 CAN-FD 传输。使用标准 SocketCAN 会失败。
+</Note>
+
+## DM 串口桥
+
+用于达妙电机的串口转 CAN 桥，使用官方达妙串口适配器。
+
+### 使用方法
+
+```python
+from motorbridge import Controller
+
+# 打开串口桥
+with Controller.from_dm_serial("/dev/ttyACM0", baud=921600) as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    # ... 控制电机
+```
+
+### 参数
+
+| 参数 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `serial_port` | str | "/dev/ttyACM0" | 串口设备路径 |
+| `baud` | int | 921600 | 波特率（达妙使用 921600） |
+
+### 支持的厂商
+
+- 仅达妙
+
+### 串口配置
+
+```bash
+# 检查可用串口
+ls -la /dev/ttyACM* /dev/ttyUSB*
+
+# 添加用户到 dialout 组以获取权限
+sudo usermod -a -G dialout $USER
+# 注销并重新登录
+```
+
+### 常见串口设备
+
+| 设备 | 路径 | 备注 |
+|------|------|------|
+| 达妙 USB-CAN | /dev/ttyACM0 | 默认 |
+| USB-串口适配器 | /dev/ttyUSB0 | 使用 `dmesg` 检查 |
+
+## 传输选择指南
+
+### 决策树
+
+```
+您使用什么电机厂商？
+│
+├── Hexfellow ──→ from_socketcanfd（必需）
+│
+├── 带有 USB-CAN 适配器的达妙 ──→ from_dm_serial
+│
+├── 带 CAN 卡的达妙 ──→ Controller（SocketCAN）
+│
+├── RobStride ──→ Controller（SocketCAN）
+│
+├── MyActuator ──→ Controller（SocketCAN）
+│
+└── HighTorque ──→ Controller（SocketCAN）
+```
+
+### 混合厂商配置
+
+在同一 CAN 总线上使用多个厂商时，创建单独的 `Controller` 实例：
+
+```python
+from motorbridge import Controller
+
+# 每个厂商有自己的控制器
+with Controller("can0") as dm_ctrl:
+    dm_motor = dm_ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    dm_ctrl.enable_all()
+
+with Controller("can0") as rs_ctrl:
+    rs_motor = rs_ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+    rs_ctrl.enable_all()
+```
+
+<Warning>
+不要将不同厂商的电机添加到同一个 `Controller` 实例中。每个控制器针对特定厂商协议进行优化。
+</Warning>
+
+## 传输性能
+
+### 延迟比较
+
+| 传输方式 | 典型延迟 | 最大吞吐量 |
+|----------|----------|------------|
+| SocketCAN | ~1-2 ms | ~5000 msg/s |
+| CAN-FD | ~0.5-1 ms | ~10000 msg/s |
+| DM 串口 | ~2-5 ms | ~2000 msg/s |
+
+### 建议
+
+- **实时控制**：使用 SocketCAN 或 CAN-FD
+- **开发/调试**：DM 串口便于快速测试
+- **高速循环**：使用 CAN-FD，`dt_ms >= 10`
+
+## 故障排除
+
+### SocketCAN: "无缓冲空间"（错误 105）
+
+```bash
+# 停止其他 CAN 发送者
+# 增加 TX 队列
+sudo ifconfig can0 txqueuelen 1000
+
+# 增加控制循环周期
+# dt_ms = 20 或更高
+```
+
+### 串口：权限被拒绝
+
+```bash
+sudo usermod -a -G dialout $USER
+# 注销并重新登录
+```
+
+### CAN-FD: "无效参数"
+
+```bash
+# 确保接口上启用了 CAN-FD
+sudo ip link set can0 type can bitrate 1000000 dbitrate 5000000 fd on
+sudo ip link set can0 up
+```
+
+## 下一步
+
+- [快速开始](quickstart) - 第一个电机控制程序
+- [API: Controller](api/controller) - 完整控制器 API 参考

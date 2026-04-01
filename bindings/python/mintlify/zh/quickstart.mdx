@@ -1,0 +1,313 @@
+---
+title: 快速开始
+---
+
+# 快速开始
+
+<mintly-toc>
+
+5 分钟内让您的第一个电机运行起来。
+
+</mintly-toc>
+
+## 前提条件
+
+开始前，请确保：
+- [x] 已安装 motorbridge（`pip install motorbridge`）
+- [x] 已配置 CAN 接口（见 [安装](setup)）
+- [x] 电机已连接并上电
+- [x] 已知电机 ID 和反馈 ID
+
+## 30 秒最小示例
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    # 发送位置命令
+    motor.send_mit(pos=0.5, vel=0.0, kp=20.0, kd=1.0, tau=0.0)
+
+    # 读取状态
+    print(motor.get_state())
+```
+
+## 分步演示
+
+### 1. 导入 SDK
+
+```python
+from motorbridge import Controller, Mode, MotorState
+from motorbridge.errors import CallError, MotorBridgeError
+```
+
+### 2. 创建控制器
+
+控制器管理 CAN 接口和电机句柄：
+
+```python
+# SocketCAN（最常用）
+ctrl = Controller("can0")
+
+# CAN-FD（Hexfellow 需要）
+# ctrl = Controller.from_socketcanfd("can0")
+
+# DM 串口桥（达妙）
+# ctrl = Controller.from_dm_serial("/dev/ttyACM0", 921600)
+```
+
+### 3. 添加电机
+
+使用厂商特定参数创建电机句柄：
+
+```python
+# 达妙电机
+motor = ctrl.add_damiao_motor(
+    motor_id=0x01,      # 命令 CAN ID
+    feedback_id=0x11,   # 反馈 CAN ID
+    model="4340P"       # 电机型号字符串
+)
+```
+
+<Note>
+`motor_id` 和 `feedback_id` 是电机特定的。使用 `motorbridge-cli scan` 发现它们。
+</Note>
+
+### 4. 使能并设置模式
+
+```python
+# 使能电机输出（上电）
+ctrl.enable_all()
+
+# 切换到 MIT 控制模式，1 秒超时
+motor.ensure_mode(Mode.MIT, timeout_ms=1000)
+```
+
+### 5. 发送命令
+
+```python
+# MIT 模式：完全控制位置、速度、刚度、阻尼、力矩
+motor.send_mit(
+    pos=1.0,    # 目标位置（弧度）
+    vel=0.0,    # 目标速度（rad/s）
+    kp=30.0,    # 位置刚度
+    kd=1.0,     # 速度阻尼
+    tau=0.0     # 前馈力矩（Nm）
+)
+
+# 位置-速度模式：更简单的接口
+# motor.send_pos_vel(pos=1.0, vlim=2.0)
+
+# 速度模式：仅速度控制
+# motor.send_vel(vel=1.5)
+
+# 力位置模式：柔顺位置控制
+# motor.send_force_pos(pos=1.0, vlim=2.0, ratio=0.3)
+```
+
+### 6. 读取电机状态
+
+```python
+import time
+
+# 请求新鲜反馈
+motor.request_feedback()
+
+# 读取缓存状态（如果尚无反馈可能为 None）
+state = motor.get_state()
+
+if state:
+    print(f"位置: {state.pos:.3f} rad")
+    print(f"速度: {state.vel:.3f} rad/s")
+    print(f"力矩: {state.torq:.3f} Nm")
+    print(f"MOS 温度: {state.t_mos:.1f} °C")
+    print(f"转子温度: {state.t_rotor:.1f} °C")
+else:
+    print("尚未收到反馈")
+```
+
+### 7. 清理
+
+```python
+# 禁用电机
+motor.disable()
+
+# 释放资源（上下文管理器自动处理）
+motor.close()
+ctrl.close()
+```
+
+## 完整控制循环示例
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+# 上下文管理器确保正确清理
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # 使能并设置模式
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, timeout_ms=1000)
+
+    # 控制循环
+    dt_s = 0.02  # 20ms 周期 = 50Hz
+    target_pos = 1.0  # 弧度
+
+    for i in range(100):
+        t0 = time.time()
+
+        # 发送命令
+        motor.send_pos_vel(pos=target_pos, vlim=1.0)
+
+        # 读取状态
+        state = motor.get_state()
+        if state:
+            print(f"#{i:03d} pos={state.pos:+.3f} vel={state.vel:+.3f}")
+
+        # 保持循环计时
+        elapsed = time.time() - t0
+        if elapsed < dt_s:
+            time.sleep(dt_s - elapsed)
+```
+
+## 多电机控制
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    # 添加多个电机
+    motor1 = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    motor2 = ctrl.add_damiao_motor(0x02, 0x12, "4340P")
+
+    # 同时使能所有
+    ctrl.enable_all()
+
+    # 单独设置模式
+    motor1.ensure_mode(Mode.MIT, 1000)
+    motor2.ensure_mode(Mode.MIT, 1000)
+
+    # 控制每个电机
+    motor1.send_mit(0.5, 0.0, 20.0, 1.0, 0.0)
+    motor2.send_mit(-0.5, 0.0, 20.0, 1.0, 0.0)
+```
+
+## 错误处理
+
+```python
+from motorbridge import Controller, Mode
+from motorbridge.errors import CallError, MotorBridgeError
+
+try:
+    with Controller("can0") as ctrl:
+        motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+        ctrl.enable_all()
+        motor.ensure_mode(Mode.MIT, 1000)
+
+        for i in range(100):
+            try:
+                motor.send_mit(0.5, 0.0, 20.0, 1.0, 0.0)
+            except CallError as e:
+                print(f"命令失败: {e}")
+                # 可选继续或中断
+
+except MotorBridgeError as e:
+    print(f"电机桥错误: {e}")
+except Exception as e:
+    print(f"意外错误: {e}")
+```
+
+## CLI 快速参考
+
+`pip install` 后，使用 CLI 快速测试：
+
+```bash
+# 扫描电机
+motorbridge-cli scan --vendor all --channel can0 --start-id 1 --end-id 255
+
+# 以 MIT 模式运行电机
+motorbridge-cli run \
+    --vendor damiao \
+    --channel can0 \
+    --model 4340P \
+    --motor-id 0x01 \
+    --feedback-id 0x11 \
+    --mode mit \
+    --loop 100 \
+    --dt-ms 20 \
+    --pos 1.0 \
+    --kp 30.0 \
+    --kd 1.0
+
+# 读取达妙寄存器
+motorbridge-cli id-dump \
+    --vendor damiao \
+    --channel can0 \
+    --motor-id 0x01 \
+    --feedback-id 0x11 \
+    --rids 7,8,9,10,21,22,23
+```
+
+## 厂商特定示例
+
+### 达妙
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+```
+
+### RobStride
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    # RobStride 使用不同的 ID 和型号字符串
+    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 2.0, 0.1, 0.0)
+```
+
+### MyActuator
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    # MyActuator 使用 feedback_id = 0x240 + motor_id
+    motor = ctrl.add_myactuator_motor(1, 0x241, "X8")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)
+    motor.send_pos_vel(0.5, 1.0)
+```
+
+### Hexfellow
+
+```python
+from motorbridge import Controller, Mode
+
+# Hexfellow 需要 CAN-FD
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(0x01, 0x00, "hexfellow")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)
+    motor.send_pos_vel(0.5, 1.0)
+```
+
+## 下一步
+
+- [教程](tutorials/01-scan-and-identify) - 详细的分步指南
+- [接口手册](api/controller) - 完整 API 文档
+- [最佳实践](best-practices/control-loop-patterns) - 生产环境模式

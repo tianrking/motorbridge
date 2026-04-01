@@ -1,0 +1,215 @@
+---
+title: 安装环境
+---
+
+# 安装与环境
+
+<mintly-toc>
+
+本指南介绍如何在 Linux 系统上安装 `motorbridge` Python 包。
+
+</mintly-toc>
+
+## 系统要求
+
+### 硬件要求
+
+- **操作系统**：Linux（已在 Ubuntu 20.04+ 测试）
+- **Python**：3.10、3.11、3.12、3.13 或 3.14
+- **硬件**：CAN 接口（SocketCAN、PCAN）或串口适配器
+
+### Python 依赖
+
+包会自动安装所需依赖：
+- `ctypes`（标准库）
+- `dataclasses`（标准库，Python 3.9 需回退）
+
+## 从 PyPI 安装
+
+推荐安装方式：
+
+```bash
+python3 -m pip install motorbridge
+```
+
+### 安装特定版本
+
+```bash
+python3 -m pip install motorbridge==0.1.7
+```
+
+### 升级现有安装
+
+```bash
+python3 -m pip install --upgrade motorbridge
+```
+
+## 验证安装
+
+### 快速测试
+
+```bash
+python3 -c "import motorbridge; print('motorbridge 安装成功')"
+```
+
+### 检查版本
+
+```bash
+python3 -c "import motorbridge; print(motorbridge.__version__)"
+```
+
+### 测试 CLI
+
+```bash
+motorbridge-cli --help
+```
+
+预期输出：
+```
+usage: motorbridge-cli [-h] {run,scan,id-dump,id-set,robstride-read-param,robstride-write-param} ...
+
+motorbridge Python SDK CLI
+...
+```
+
+## 预发布版本（TestPyPI）
+
+测试正式发布前的最新功能：
+
+```bash
+# 从 TestPyPI 安装
+python3 -m pip install -i https://test.pypi.org/simple/ motorbridge==0.1.8a1
+```
+
+<Note>
+预发布版本可能不稳定。请勿在生产环境中使用。
+</Note>
+
+## 开发环境安装
+
+### 从源码安装（Git）
+
+```bash
+git clone https://github.com/your-org/dm_candrive.git
+cd dm_candrive/rust_dm/bindings/python
+
+# 以可编辑模式安装
+pip install -e ./src
+```
+
+### 设置库路径（仅源码构建）
+
+如果从源码构建而不使用打包的 wheel：
+
+```bash
+# 设置 Python 路径到源码目录
+export PYTHONPATH=/path/to/dm_candrive/rust_dm/bindings/python/src
+
+# 设置 ABI 共享对象的库路径
+export LD_LIBRARY_PATH=/path/to/dm_candrive/target/release:${LD_LIBRARY_PATH}
+```
+
+<Warning>
+源码构建需要 Rust 工具链并先编译 `libmotor_abi.so` 库。
+</Warning>
+
+## 虚拟环境（推荐）
+
+使用虚拟环境隔离安装：
+
+```bash
+# 创建虚拟环境
+python3 -m venv ~/venv/motorbridge
+
+# 激活
+source ~/venv/motorbridge/bin/activate
+
+# 安装
+pip install motorbridge
+
+# 完成后停用
+deactivate
+```
+
+## 系统 CAN 配置
+
+使用 SDK 前，确保 CAN 接口已配置：
+
+### SocketCAN 设置
+
+```bash
+# 加载 CAN 内核模块
+sudo modprobe can
+sudo modprobe can_raw
+sudo modprobe can_dev
+
+# 配置 CAN 接口（示例：1M 波特率）
+sudo ip link set can0 type can bitrate 1000000
+sudo ip link set can0 up
+
+# 验证接口存在
+ip link show can0
+```
+
+### 增加 TX 队列长度
+
+防止"无缓冲空间"错误：
+
+```bash
+# 增加 TX 队列长度
+sudo ifconfig can0 txqueuelen 1000
+
+# 或永久设置在 /etc/network/interfaces：
+# auto can0
+# iface can0 inet manual
+#     pre-up ip link set can0 type can bitrate 1000000
+#     up ip link set can0 up
+#     post-up ifconfig can0 txqueuelen 1000
+```
+
+### 串口权限
+
+对于 DM 串口桥传输：
+
+```bash
+# 将用户添加到 dialout 组以获取串口访问权限
+sudo usermod -a -G dialout $USER
+
+# 注销并重新登录以使更改生效
+```
+
+## 安装故障排除
+
+### ImportError: cannot import name 'Controller'
+
+ABI 库无法找到。确保：
+1. 从 wheel 安装（不仅仅是复制源码）
+2. `libmotor_abi.so` 在包目录或 `LD_LIBRARY_PATH` 中
+
+### /dev/ttyACM0 权限被拒绝
+
+```bash
+# 检查串口权限
+ls -la /dev/ttyACM0
+
+# 将用户添加到 dialout 组
+sudo usermod -a -G dialout $USER
+# 注销并重新登录
+```
+
+### CAN 接口未找到
+
+```bash
+# 检查 CAN 接口是否存在
+ip link show can0
+
+# 如果不存在，加载模块并配置
+sudo modprobe can_raw
+sudo ip link set can0 type can bitrate 1000000
+sudo ip link set can0 up
+```
+
+## 下一步
+
+- [传输方式](transports) - 配置通信层
+- [快速开始](quickstart) - 运行第一个电机控制程序

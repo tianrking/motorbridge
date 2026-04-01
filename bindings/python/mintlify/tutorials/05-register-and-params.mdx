@@ -1,0 +1,384 @@
+# Tutorial 05: Registers and Parameters
+
+<mintly-toc>
+
+Motors have internal registers for configuration and tuning. This tutorial covers reading and writing motor parameters via the register API.
+
+</mintly-toc>
+
+## Prerequisites
+
+- Completed [Tutorial 02: Enable and Status](tutorials/02-enable-and-status)
+- Motor connected and responding
+
+## Register Overview
+
+Motor registers store configuration and runtime parameters:
+
+| Register Type | Access | Example Uses |
+|---------------|--------|--------------|
+| ID registers | RW | Motor ID, Feedback ID |
+| Mode registers | RW | Control mode, timeout |
+| Tuning registers | RW | Kp, Ki, limits |
+| Status registers | RO | Temperature, error codes |
+
+## Generic Register API
+
+### Read/Write Unsigned Integers
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # Write u32 value
+    motor.write_register_u32(10, 2)  # Set control mode
+
+    # Read u32 value
+    value = motor.get_register_u32(10, timeout_ms=1000)
+    print(f"Control mode: {value}")
+```
+
+### Read/Write Floats
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # Write f32 value
+    motor.write_register_f32(21, 12.566)  # Set PMAX
+
+    # Read f32 value
+    value = motor.get_register_f32(21, timeout_ms=1000)
+    print(f"PMAX: {value:.3f}")
+```
+
+## Damiao Register Reference
+
+### Key Registers
+
+| RID | Name | Type | Description | Range |
+|-----|------|------|-------------|-------|
+| 0 | UV_Value | f32 | Under-voltage protection | (10.0, 3.4E38] |
+| 2 | OT_Value | f32 | Over-temperature protection | [80.0, 200) |
+| 3 | OC_Value | f32 | Over-current protection | (0.0, 1.0) |
+| 7 | MST_ID | u32 | Feedback ID | [0, 0x7FF] |
+| 8 | ESC_ID | u32 | Motor ID | [0, 0x7FF] |
+| 9 | TIMEOUT | u32 | Communication timeout (ms) | [0, 2^32-1] |
+| 10 | CTRL_MODE | u32 | Control mode | [1, 4] |
+| 21 | PMAX | f32 | Position mapping range | (0.0, 3.4E38] |
+| 22 | VMAX | f32 | Velocity mapping range | (0.0, 3.4E38] |
+| 23 | TMAX | f32 | Torque mapping range | (0.0, 3.4E38] |
+| 25 | KP_ASR | f32 | Speed loop Kp | [0.0, 3.4E38] |
+| 26 | KI_ASR | f32 | Speed loop Ki | [0.0, 3.4E38] |
+| 27 | KP_APR | f32 | Position loop Kp | [0.0, 3.4E38] |
+| 28 | KI_APR | f32 | Position loop Ki | [0.0, 3.4E38] |
+
+### Using Register Constants
+
+```python
+from motorbridge import (
+    Controller,
+    RID_CTRL_MODE, RID_MST_ID, RID_ESC_ID, RID_TIMEOUT,
+    RID_PMAX, RID_VMAX, RID_TMAX,
+    RID_KP_ASR, RID_KI_ASR, RID_KP_APR, RID_KI_APR,
+    DAMIAO_RW_REGISTERS, get_damiao_register_spec
+)
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # Read using constants
+    pmax = motor.get_register_f32(RID_PMAX, 1000)
+    vmax = motor.get_register_f32(RID_VMAX, 1000)
+
+    print(f"PMAX: {pmax:.3f} rad")
+    print(f"VMAX: {vmax:.3f} rad/s")
+
+    # Get register specification
+    spec = get_damiao_register_spec(RID_PMAX)
+    if spec:
+        print(f"Register {spec.rid}: {spec.description}")
+        print(f"  Type: {spec.data_type}")
+        print(f"  Range: {spec.range_str}")
+```
+
+### Dump All Registers
+
+```python
+from motorbridge import Controller, DAMIAO_RW_REGISTERS
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    print("Register Dump:")
+    for rid, spec in DAMIAO_RW_REGISTERS.items():
+        try:
+            if spec.data_type == "f32":
+                value = motor.get_register_f32(rid, timeout_ms=500)
+                print(f"  RID={rid:2d} ({spec.variable:8s}): {value:.6f}")
+            else:
+                value = motor.get_register_u32(rid, timeout_ms=500)
+                print(f"  RID={rid:2d} ({spec.variable:8s}): {value} (0x{value:X})")
+        except Exception as e:
+            print(f"  RID={rid:2d} ({spec.variable:8s}): ERROR - {e}")
+```
+
+## Save Parameters to Flash
+
+Changes to registers are volatile until saved:
+
+```python
+from motorbridge import Controller, RID_PMAX, RID_VMAX
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # Modify parameters
+    motor.write_register_f32(RID_PMAX, 12.566)  # 4π
+    motor.write_register_f32(RID_VMAX, 30.0)    # 30 rad/s
+
+    # Save to flash
+    motor.store_parameters()
+    print("Parameters saved to flash")
+```
+
+<Warning>
+Saving parameters to flash too frequently can wear out the motor's flash memory. Only save when making permanent configuration changes.
+</Warning>
+
+## RobStride Parameter API
+
+RobStride motors use a different parameter protocol:
+
+### Ping and ID
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+
+    # Ping motor
+    device_id, responder_id = motor.robstride_ping()
+    print(f"Device ID: {device_id}, Responder ID: {responder_id}")
+
+    # Set new device ID
+    motor.robstride_set_device_id(126)
+```
+
+### Typed Parameter Access
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+
+    # Write parameters of different types
+    motor.robstride_write_param_i8(0x7001, -1)
+    motor.robstride_write_param_u8(0x7002, 1)
+    motor.robstride_write_param_u16(0x7003, 10)
+    motor.robstride_write_param_u32(0x7004, 100)
+    motor.robstride_write_param_f32(0x7019, 3.14)
+
+    # Read parameters
+    v_i8 = motor.robstride_get_param_i8(0x7001, 1000)
+    v_u8 = motor.robstride_get_param_u8(0x7002, 1000)
+    v_u16 = motor.robstride_get_param_u16(0x7003, 1000)
+    v_u32 = motor.robstride_get_param_u32(0x7004, 1000)
+    v_f32 = motor.robstride_get_param_f32(0x7019, 1000)
+
+    print(f"f32 param 0x7019: {v_f32}")
+```
+
+## Common Configuration Tasks
+
+### Change Motor ID
+
+```python
+from motorbridge import Controller, RID_MST_ID, RID_ESC_ID
+
+with Controller("can0") as ctrl:
+    # Connect with current ID
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # Read current IDs
+    old_esc = motor.get_register_u32(RID_ESC_ID, 1000)
+    old_mst = motor.get_register_u32(RID_MST_ID, 1000)
+    print(f"Current: ESC_ID=0x{old_esc:X}, MST_ID=0x{old_mst:X}")
+
+    # Set new IDs
+    new_motor_id = 0x05
+    new_feedback_id = 0x15
+
+    motor.write_register_u32(RID_MST_ID, new_feedback_id)
+    motor.write_register_u32(RID_ESC_ID, new_motor_id)
+
+    # Save to flash
+    motor.store_parameters()
+    print("IDs changed and saved")
+
+# Verify with new IDs
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(new_motor_id, new_feedback_id, "4340P")
+    esc = motor.get_register_u32(RID_ESC_ID, 1000)
+    mst = motor.get_register_u32(RID_MST_ID, 1000)
+    print(f"Verified: ESC_ID=0x{esc:X}, MST_ID=0x{mst:X}")
+```
+
+### Tune PID Gains
+
+```python
+from motorbridge import Controller, RID_KP_ASR, RID_KI_ASR, RID_KP_APR, RID_KI_APR
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # Read current gains
+    kp_asr = motor.get_register_f32(RID_KP_ASR, 1000)
+    ki_asr = motor.get_register_f32(RID_KI_ASR, 1000)
+    kp_apr = motor.get_register_f32(RID_KP_APR, 1000)
+    ki_apr = motor.get_register_f32(RID_KI_APR, 1000)
+
+    print(f"Current gains:")
+    print(f"  Speed loop:  Kp={kp_asr:.3f}, Ki={ki_asr:.3f}")
+    print(f"  Position loop: Kp={kp_apr:.3f}, Ki={ki_apr:.3f}")
+
+    # Set new gains
+    motor.write_register_f32(RID_KP_ASR, 0.5)
+    motor.write_register_f32(RID_KI_ASR, 0.01)
+    motor.write_register_f32(RID_KP_APR, 30.0)
+    motor.write_register_f32(RID_KI_APR, 0.1)
+
+    # Note: Don't forget to store_parameters() if you want permanent changes
+```
+
+### Set Protection Limits
+
+```python
+from motorbridge import Controller, RID_PMAX, RID_VMAX, RID_TMAX
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # Set safety limits
+    motor.write_register_f32(RID_PMAX, 6.28)   # ±2π rad position limit
+    motor.write_register_f32(RID_VMAX, 20.0)   # 20 rad/s velocity limit
+    motor.write_register_f32(RID_TMAX, 10.0)   # 10 Nm torque limit
+
+    motor.store_parameters()
+    print("Protection limits set and saved")
+```
+
+## CLI Shortcuts
+
+### Dump Registers
+
+```bash
+motorbridge-cli id-dump --motor-id 0x01 --feedback-id 0x11 --rids 7,8,9,10,21,22,23
+```
+
+### Set IDs
+
+```bash
+motorbridge-cli id-set \
+    --motor-id 0x01 \
+    --feedback-id 0x11 \
+    --new-motor-id 0x05 \
+    --new-feedback-id 0x15 \
+    --store 1 \
+    --verify 1
+```
+
+## Complete Example
+
+```python
+import time
+from motorbridge import (
+    Controller, Mode,
+    RID_MST_ID, RID_ESC_ID, RID_TIMEOUT,
+    RID_PMAX, RID_VMAX, RID_TMAX,
+    RID_KP_ASR, RID_KI_ASR,
+    DAMIAO_RW_REGISTERS, get_damiao_register_spec
+)
+
+def configure_motor(motor, config):
+    """Apply configuration to motor."""
+    # Set limits
+    motor.write_register_f32(RID_PMAX, config["pmax"])
+    motor.write_register_f32(RID_VMAX, config["vmax"])
+    motor.write_register_f32(RID_TMAX, config["tmax"])
+
+    # Set gains
+    motor.write_register_f32(RID_KP_ASR, config["kp_asr"])
+    motor.write_register_f32(RID_KI_ASR, config["ki_asr"])
+
+    # Set timeout
+    motor.write_register_u32(RID_TIMEOUT, config["timeout_ms"])
+
+    # Save
+    motor.store_parameters()
+    print("Configuration applied and saved")
+
+def verify_config(motor, config):
+    """Verify configuration matches expected values."""
+    checks = [
+        (RID_PMAX, config["pmax"], "f32"),
+        (RID_VMAX, config["vmax"], "f32"),
+        (RID_TMAX, config["tmax"], "f32"),
+        (RID_KP_ASR, config["kp_asr"], "f32"),
+        (RID_KI_ASR, config["ki_asr"], "f32"),
+    ]
+
+    all_ok = True
+    for rid, expected, dtype in checks:
+        if dtype == "f32":
+            actual = motor.get_register_f32(rid, 1000)
+            ok = abs(actual - expected) < 0.001
+        else:
+            actual = motor.get_register_u32(rid, 1000)
+            ok = actual == expected
+
+        spec = get_damiao_register_spec(rid)
+        name = spec.variable if spec else f"RID{rid}"
+        status = "OK" if ok else "MISMATCH"
+        print(f"  {name}: {actual} ({status})")
+        all_ok = all_ok and ok
+
+    return all_ok
+
+# Configuration
+MOTOR_CONFIG = {
+    "pmax": 12.566,    # ±4π rad
+    "vmax": 30.0,      # 30 rad/s
+    "tmax": 10.0,      # 10 Nm
+    "kp_asr": 0.5,
+    "ki_asr": 0.01,
+    "timeout_ms": 5000,
+}
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    print("Current configuration:")
+    verify_config(motor, MOTOR_CONFIG)
+
+    print("\nApplying new configuration...")
+    configure_motor(motor, MOTOR_CONFIG)
+
+    print("\nVerifying new configuration:")
+    if verify_config(motor, MOTOR_CONFIG):
+        print("Configuration verified successfully!")
+    else:
+        print("Configuration verification FAILED!")
+```
+
+## Next Steps
+
+- [Tutorial 06: Practical Recipes](tutorials/06-practical-recipes) - Copy-paste recipes
+- [Motor API](api/motor) - Register access methods
+- [Best Practices](best-practices/troubleshooting) - Troubleshooting guide

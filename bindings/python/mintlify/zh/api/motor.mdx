@@ -1,0 +1,355 @@
+---
+title: Motor 电机
+---
+
+# API：Motor
+
+<mintly-toc>
+
+`Motor` 类代表单个电机句柄。它提供控制命令、状态反馈和寄存器访问的方法。
+
+</mintly-toc>
+
+## 导入
+
+```python
+from motorbridge import Motor  # 通常通过 Controller.add_*_motor() 获取
+```
+
+<Note>
+`Motor` 实例由 `Controller.add_*_motor()` 方法创建。请勿直接实例化。
+</Note>
+
+## 生命周期方法
+
+### `enable()`
+
+使能电机输出（给绕组通电）。
+
+**参数：** 无
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+---
+
+### `disable()`
+
+禁用电机输出（断电，电机变为自由旋转）。
+
+**参数：** 无
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+---
+
+### `clear_error()`
+
+清除电机上的任何错误状态。
+
+**参数：** 无
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+---
+
+### `set_zero_position()`
+
+将当前位置设置为零参考点。
+
+**参数：** 无
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+<Warning>
+这会修改电机的内部位置参考。在多电机系统中请谨慎使用。
+</Warning>
+
+---
+
+## 模式控制
+
+### `ensure_mode(mode, timeout_ms=1000)`
+
+将电机切换到指定的控制模式（带超时）。
+
+**参数：**
+
+| 名称 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `mode` | `Mode` | 必需 | 目标控制模式 |
+| `timeout_ms` | `int` | `1000` | 超时时间（毫秒） |
+
+**返回：** `None`
+
+**抛出：** `CallError` 如果模式切换失败或超时
+
+---
+
+## 控制命令
+
+### `send_mit(pos, vel, kp, kd, tau)`
+
+发送 MIT 模式控制命令。提供对位置、速度、刚度、阻尼和力矩的完全控制。
+
+**参数：**
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| `pos` | `float` | 目标位置（弧度） |
+| `vel` | `float` | 目标速度（rad/s） |
+| `kp` | `float` | 位置刚度（Nm/rad） |
+| `kd` | `float` | 速度阻尼（Nm·s/rad） |
+| `tau` | `float` | 前馈力矩（Nm） |
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+<Note>
+MyActuator 不支持 MIT 模式。RobStride 的 MIT 支持有限。
+</Note>
+
+---
+
+### `send_pos_vel(pos, vlim)`
+
+发送位置-速度模式命令。电机以受限速度移动到目标位置。
+
+**参数：**
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| `pos` | `float` | 目标位置（弧度） |
+| `vlim` | `float` | 速度限制（rad/s） |
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+<Note>
+RobStride 不支持 POS_VEL 模式。
+</Note>
+
+---
+
+### `send_vel(vel)`
+
+发送速度模式命令。电机以恒定速度运行。
+
+**参数：**
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| `vel` | `float` | 目标速度（rad/s） |
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+<Note>
+Hexfellow 不支持 VEL 模式。
+</Note>
+
+---
+
+### `send_force_pos(pos, vlim, ratio)`
+
+发送力位置模式命令。带力比例的柔顺位置控制。
+
+**参数：**
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| `pos` | `float` | 目标位置（弧度） |
+| `vlim` | `float` | 速度限制（rad/s） |
+| `ratio` | `float` | 力比例（0.0-1.0） |
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+<Note>
+RobStride、MyActuator 和 Hexfellow 不支持 FORCE_POS 模式。
+</Note>
+
+---
+
+## 反馈方法
+
+### `request_feedback()`
+
+请求电机发送新鲜反馈帧。
+
+**参数：** 无
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+---
+
+### `get_state()`
+
+获取上次收到反馈的缓存电机状态。
+
+**参数：** 无
+
+**返回：** `MotorState | None` — 电机状态，如果尚未收到反馈则为 `None`
+
+---
+
+## 寄存器访问（达妙）
+
+这些方法主要用于达妙电机。
+
+### `write_register_f32(rid, value)`
+
+向寄存器写入 32 位浮点值。
+
+**参数：**
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| `rid` | `int` | 寄存器 ID |
+| `value` | `float` | 要写入的值 |
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+---
+
+### `write_register_u32(rid, value)`
+
+向寄存器写入 32 位无符号整数值。
+
+**参数：**
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| `rid` | `int` | 寄存器 ID |
+| `value` | `int` | 要写入的值 |
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+---
+
+### `get_register_f32(rid, timeout_ms=1000)`
+
+从寄存器读取 32 位浮点值。
+
+**参数：**
+
+| 名称 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `rid` | `int` | 必需 | 寄存器 ID |
+| `timeout_ms` | `int` | `1000` | 超时时间（毫秒） |
+
+**返回：** `float` — 寄存器值
+
+**抛出：** `CallError` 失败或超时时
+
+---
+
+### `get_register_u32(rid, timeout_ms=1000)`
+
+从寄存器读取 32 位无符号整数值。
+
+**参数：**
+
+| 名称 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `rid` | `int` | 必需 | 寄存器 ID |
+| `timeout_ms` | `int` | `1000` | 超时时间（毫秒） |
+
+**返回：** `int` — 寄存器值
+
+**抛出：** `CallError` 失败或超时时
+
+---
+
+### `store_parameters()`
+
+将当前参数保存到电机的非易失性存储器。
+
+**参数：** 无
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+---
+
+## RobStride 专用方法
+
+### `robstride_ping()`
+
+Ping RobStride 电机以获取设备和响应者 ID。
+
+**参数：** 无
+
+**返回：** `tuple[int, int]` — (device_id, responder_id)
+
+**抛出：** `CallError` 失败时
+
+---
+
+### `robstride_set_device_id(new_device_id)`
+
+为 RobStride 电机设置新的设备 ID。
+
+**参数：**
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| `new_device_id` | `int` | 新设备 ID |
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+---
+
+### `robstride_write_param_*`
+
+向 RobStride 电机写入类型化参数值。
+
+| 方法 | 类型 |
+|------|------|
+| `robstride_write_param_i8(param_id, value)` | `int`（有符号 8 位） |
+| `robstride_write_param_u8(param_id, value)` | `int`（无符号 8 位） |
+| `robstride_write_param_u16(param_id, value)` | `int`（无符号 16 位） |
+| `robstride_write_param_u32(param_id, value)` | `int`（无符号 32 位） |
+| `robstride_write_param_f32(param_id, value)` | `float` |
+
+---
+
+### `robstride_get_param_*`
+
+从 RobStride 电机读取类型化参数值。
+
+| 方法 | 返回类型 |
+|------|----------|
+| `robstride_get_param_i8(param_id, timeout_ms=1000)` | `int` |
+| `robstride_get_param_u8(param_id, timeout_ms=1000)` | `int` |
+| `robstride_get_param_u16(param_id, timeout_ms=1000)` | `int` |
+| `robstride_get_param_u32(param_id, timeout_ms=1000)` | `int` |
+| `robstride_get_param_f32(param_id, timeout_ms=1000)` | `float` |
+
+---
+
+## 另见
+
+- [Controller API](api/controller) - 控制器方法
+- [Mode and State](api/mode-and-state) - Mode 枚举和 MotorState 类
+- [厂商能力矩阵](reference/vendor-capability-matrix) - 厂商特性支持

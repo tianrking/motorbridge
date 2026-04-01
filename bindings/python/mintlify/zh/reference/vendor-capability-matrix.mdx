@@ -1,0 +1,395 @@
+---
+title: 厂商能力矩阵
+---
+
+# 参考：厂商能力矩阵
+
+<mintly-toc>
+
+本参考表显示 motorbridge SDK 中各电机厂商支持的功能，帮助你选择合适的电机和了解限制。
+
+</mintly-toc>
+
+## 厂商概览
+
+| 厂商 | 添加方法 | 典型传输 | 协议 |
+|------|----------|----------|------|
+| 达妙 (Damiao) | `add_damiao_motor()` | SocketCAN, DM 串口 | DM-J4310/4340 |
+| RobStride | `add_robstride_motor()` | SocketCAN | RobStride MIT |
+| MyActuator | `add_myactuator_motor()` | SocketCAN | MyActuator RMD |
+| HighTorque | `add_hightorque_motor()` | SocketCAN | HighTorque 原生 |
+| Hexfellow | `add_hexfellow_motor()` | CAN-FD | Hexfellow MIT |
+
+---
+
+## 控制模式支持
+
+| 厂商 | MIT | POS_VEL | VEL | FORCE_POS |
+|------|-----|---------|-----|-----------|
+| 达妙 (Damiao) | ✅ | ✅ | ✅ | ✅ |
+| RobStride | ✅ | ❌ | ✅ | ❌ |
+| MyActuator | ❌ | ✅ | ✅ | ❌ |
+| HighTorque | ✅ | ✅ | ✅ | ✅ |
+| Hexfellow | ✅ | ✅ | ❌ | ✅ |
+
+### 模式说明
+
+| 模式 | 说明 | 参数 |
+|------|------|------|
+| **MIT** | 全阻抗控制 | pos, vel, kp, kd, tau |
+| **POS_VEL** | 带速度限制的位置控制 | pos, vlim |
+| **VEL** | 纯速度控制 | vel |
+| **FORCE_POS** | 带力限制的柔顺位置控制 | pos, vlim, ratio |
+
+### 模式选择指南
+
+```
+你需要什么？
+│
+├── 完全控制刚度/阻尼
+│   └── MIT 模式（如果厂商支持）
+│
+├── 简单位置控制
+│   └── POS_VEL 模式
+│
+├── 持续旋转（轮子、传送带）
+│   └── VEL 模式
+│
+└── 夹爪或力控应用
+    └── FORCE_POS 模式（如果厂商支持）
+```
+
+---
+
+## 传输支持
+
+| 厂商 | SocketCAN | CAN-FD | DM 串口 |
+|------|-----------|--------|---------|
+| 达妙 (Damiao) | ✅ | ✅ | ✅ |
+| RobStride | ✅ | ✅ | ❌ |
+| MyActuator | ✅ | ✅ | ❌ |
+| HighTorque | ✅ | ✅ | ❌ |
+| Hexfellow | ❌ | ✅ 必须 | ❌ |
+
+### 传输说明
+
+| 传输 | 说明 | 使用场景 |
+|------|------|----------|
+| **SocketCAN** | 标准 Linux CAN | 大多数应用 |
+| **CAN-FD** | CAN with Flexible Data-rate | Hexfellow 必须 |
+| **DM 串口** | 达妙 USB-CAN 适配器 | 开发调试 |
+
+### 传输选择
+
+```python
+# 标准 SocketCAN（大多数情况）
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+# CAN-FD（Hexfellow 必须）
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(0x01, 0x00, "hexfellow")
+
+# DM 串口桥（达妙专用）
+with Controller.from_dm_serial("/dev/ttyACM0", 921600) as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+```
+
+---
+
+## 寄存器访问
+
+| 厂商 | 读寄存器 | 写寄存器 | 保存到闪存 |
+|------|----------|----------|------------|
+| 达妙 (Damiao) | ✅ 完整 | ✅ 完整 | ✅ |
+| RobStride | ✅ 参数 API | ✅ 参数 API | ✅ |
+| MyActuator | ⚠️ 有限 | ⚠️ 有限 | ✅ |
+| HighTorque | ⚠️ 有限 | ⚠️ 有限 | ✅ |
+| Hexfellow | ⚠️ 有限 | ⚠️ 有限 | ✅ |
+
+### 达妙寄存器表
+
+| RID | 名称 | 类型 | 说明 |
+|-----|------|------|------|
+| 7 | MST_ID | u32 | 反馈 ID |
+| 8 | ESC_ID | u32 | 电机 ID |
+| 9 | TIMEOUT | u32 | 通信超时 |
+| 10 | CTRL_MODE | u32 | 控制模式 |
+| 21 | PMAX | f32 | 位置范围 |
+| 22 | VMAX | f32 | 速度范围 |
+| 23 | TMAX | f32 | 力矩范围 |
+| 25 | KP_ASR | f32 | 速度环 Kp |
+| 26 | KI_ASR | f32 | 速度环 Ki |
+| 27 | KP_APR | f32 | 位置环 Kp |
+| 28 | KI_APR | f32 | 位置环 Ki |
+
+### RobStride 参数 API
+
+```python
+# RobStride 使用参数 API，不是通用寄存器
+value = motor.robstride_get_param_f32(param_id, timeout_ms)
+motor.robstride_write_param_f32(param_id, value)
+
+# 支持的类型
+motor.robstride_get_param_i8(param_id, timeout_ms)
+motor.robstride_get_param_u8(param_id, timeout_ms)
+motor.robstride_get_param_u16(param_id, timeout_ms)
+motor.robstride_get_param_u32(param_id, timeout_ms)
+motor.robstride_get_param_f32(param_id, timeout_ms)
+```
+
+---
+
+## 反馈状态
+
+| 厂商 | 位置 | 速度 | 力矩 | MOS 温度 | 转子温度 |
+|------|------|------|------|----------|----------|
+| 达妙 (Damiao) | ✅ | ✅ | ✅ | ✅ | ✅ |
+| RobStride | ✅ | ✅ | ✅ | ✅ | ❌ |
+| MyActuator | ✅ | ✅ | ✅ | ✅ | ❌ |
+| HighTorque | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Hexfellow | ✅ | ✅ | ✅ | ✅ | ❌ |
+
+---
+
+## 特殊功能
+
+### 达妙 (Damiao)
+
+| 功能 | 说明 |
+|------|------|
+| ✅ 最完整的协议支持 | 35+ 寄存器可访问 |
+| ✅ 串口桥选项 | DM Serial 适配器 |
+| ✅ 电机 ID 配置 | 通过寄存器修改 ID |
+| ✅ 完整寄存器访问 | 读/写/存储 |
+
+### RobStride
+
+| 功能 | 说明 |
+|------|------|
+| ✅ Ping 命令 | 发现设备/响应者 ID |
+| ✅ 参数 API | 类型化参数访问 |
+| ✅ 设备 ID 配置 | 修改设备 ID |
+
+### MyActuator
+
+| 功能 | 说明 |
+|------|------|
+| ✅ 标准反馈格式 | 一致的状态结构 |
+| ⚠️ 无 MIT 模式 | 使用 POS_VEL 或 VEL |
+
+### HighTorque
+
+| 功能 | 说明 |
+|------|------|
+| ✅ 原生厂商协议 | 完整模式支持 |
+| ✅ 标准反馈 | 一致的状态结构 |
+
+### Hexfellow
+
+| 功能 | 说明 |
+|------|------|
+| ⚠️ 需要 CAN-FD | 必须使用 `from_socketcanfd()` |
+| ⚠️ 无速度模式 | 使用 MIT 或 POS_VEL |
+| ✅ 高带宽通信 | CAN-FD 数据速率 |
+
+---
+
+## 型号字符串
+
+### 达妙型号
+
+| 型号 | 说明 | 峰值力矩 | 典型应用 |
+|------|------|----------|----------|
+| `4310` | 小型 | ~1 Nm | 夹爪、小关节 |
+| `4340` | 中型 | ~4 Nm | 手臂、中等关节 |
+| `4340P` | 中型（位置） | ~4 Nm | 通用 |
+| `6001` | 大型 | ~10 Nm | 腿部、重载 |
+
+### RobStride 型号
+
+| 型号 | 说明 |
+|------|------|
+| `rs-00` | 标准 RobStride 电机 |
+
+### MyActuator 型号
+
+| 型号 | 说明 |
+|------|------|
+| `X8` | 标准 MyActuator 电机 |
+
+### HighTorque 型号
+
+| 型号 | 说明 |
+|------|------|
+| `hightorque` | 通用 HighTorque 电机 |
+
+### Hexfellow 型号
+
+| 型号 | 说明 |
+|------|------|
+| `hexfellow` | 通用 Hexfellow 电机 |
+
+---
+
+## CAN ID 规则
+
+### 达妙
+
+```
+motor_id:    0x01 - 0x20（命令 ID）
+feedback_id: 0x11 - 0x30（motor_id + 0x10）
+
+示例:
+  motor_id = 0x01 → feedback_id = 0x11
+  motor_id = 0x0A → feedback_id = 0x1A
+```
+
+### RobStride
+
+```
+motor_id:    127（设备 ID，可配置 1-127）
+feedback_id: 0xFE 或 0xFF（响应者 ID）
+
+默认:
+  motor_id = 127
+  feedback_id = 0xFE
+```
+
+### MyActuator
+
+```
+motor_id:    1 - 32
+feedback_id: 0x240 + motor_id
+
+示例:
+  motor_id = 1 → feedback_id = 0x241
+  motor_id = 8 → feedback_id = 0x248
+```
+
+### HighTorque
+
+```
+motor_id:    1 - 127
+feedback_id: 0x01（固定）
+```
+
+### Hexfellow
+
+```
+motor_id:    0x01 - 0xFF
+feedback_id: 0x00（固定）
+```
+
+---
+
+## 各厂商代码示例
+
+### 达妙
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+```
+
+### RobStride
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+    ctrl.enable_all()
+
+    # 先 Ping
+    device_id, responder_id = motor.robstride_ping()
+    print(f"设备: {device_id}, 响应者: {responder_id}")
+
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 2.0, 0.1, 0.0)
+```
+
+### MyActuator
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_myactuator_motor(1, 0x241, "X8")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)  # 无 MIT 模式
+    motor.send_pos_vel(0.5, vlim=1.5)
+```
+
+### HighTorque
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_hightorque_motor(1, 0x01, "hightorque")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+```
+
+### Hexfellow
+
+```python
+from motorbridge import Controller, Mode
+
+# 必须用 CAN-FD
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(0x01, 0x00, "hexfellow")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)  # 无 VEL 模式
+    motor.send_pos_vel(0.5, vlim=1.5)
+```
+
+---
+
+## 最佳实践
+
+### 厂商选择
+
+| 需求 | 推荐厂商 |
+|------|----------|
+| 开发调试 | 达妙 - 协议最完整 |
+| 生产机器人 | RobStride - 协议可靠 |
+| 简单应用 | MyActuator - 接口简单 |
+| 大力矩需求 | HighTorque |
+| 高带宽通信 | Hexfellow（需要 CAN-FD 硬件） |
+
+### 混合厂商系统
+
+```python
+# 不同厂商使用独立控制器
+with Controller("can0") as dm_ctrl:
+    dm = dm_ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    dm_ctrl.enable_all()
+
+    with Controller("can0") as rs_ctrl:
+        rs = rs_ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+        rs_ctrl.enable_all()
+
+        # 同时控制
+        dm.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+        rs.send_mit(0.3, 0.0, 2.0, 0.1, 0.0)
+```
+
+<Warning>
+不要把不同厂商的电机加到同一个 `Controller` 实例！每个厂商有不同的协议实现。
+</Warning>
+
+---
+
+## 参见
+
+- [CAN ID 和型号速查表](reference/can-id-and-model-cheatsheet) - ID 规则
+- [教程 04：多电机控制](tutorials/04-multi-motor) - 多厂商设置
+- [传输配置](transports) - 传输层配置

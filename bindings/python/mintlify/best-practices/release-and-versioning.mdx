@@ -1,0 +1,294 @@
+# Best Practices: Release and Versioning
+
+<mintly-toc>
+
+This guide covers version management, release channels, and upgrade strategies for the motorbridge Python SDK.
+
+</mintly-toc>
+
+## Supported Python Versions
+
+The motorbridge SDK supports the following Python versions:
+
+| Version | Status | Notes |
+|---------|--------|-------|
+| Python 3.10 | ✅ Supported | Minimum version |
+| Python 3.11 | ✅ Supported | Recommended |
+| Python 3.12 | ✅ Supported | Latest stable |
+| Python 3.13 | ✅ Supported | Newest |
+| Python 3.14 | ✅ Supported | Pre-release |
+| Python 3.9 and earlier | ❌ Not supported | Use 3.10+ |
+
+## Version Numbering
+
+The SDK follows [Semantic Versioning](https://semver.org/):
+
+```
+MAJOR.MINOR.PATCH[-PRERELEASE]
+
+Examples:
+0.1.0   - Initial release
+0.1.1   - Bug fix
+0.1.2   - Another bug fix
+0.2.0   - New features, backward compatible
+1.0.0   - Stable API, breaking changes from 0.x
+1.1.0a1 - Alpha pre-release
+1.1.0b1 - Beta pre-release
+1.1.0rc1 - Release candidate
+```
+
+### Version Categories
+
+| Category | Example | Stability |
+|----------|---------|-----------|
+| Stable | `0.1.7` | Production ready |
+| Pre-release | `0.2.0a1` | Testing only |
+| Development | `0.2.0.dev1` | Internal use |
+
+## Installation Channels
+
+### PyPI (Production)
+
+```bash
+# Latest stable version
+pip install motorbridge
+
+# Specific version
+pip install motorbridge==0.1.7
+
+# Upgrade
+pip install --upgrade motorbridge
+```
+
+### TestPyPI (Pre-release)
+
+```bash
+# Install from TestPyPI
+pip install -i https://test.pypi.org/simple/ motorbridge==0.2.0a1
+```
+
+<Warning>
+Pre-release versions may have breaking changes and are not recommended for production.
+</Warning>
+
+### Git Installation
+
+```bash
+# Install from Git
+pip install git+https://github.com/your-org/dm_candrive.git@v0.1.7
+
+# Install specific branch
+pip install git+https://github.com/your-org/dm_candrive.git@main
+```
+
+## Checking Installed Version
+
+### Command Line
+
+```bash
+# Using pip
+pip show motorbridge
+
+# Using Python
+python3 -c "import motorbridge; print(motorbridge.__version__)"
+```
+
+### Programmatically
+
+```python
+import motorbridge
+
+print(f"motorbridge version: {motorbridge.__version__}")
+```
+
+## Upgrade Strategies
+
+### Conservative Upgrade
+
+Stay on stable versions, upgrade for bug fixes:
+
+```bash
+# Current: 0.1.5
+# Upgrade to latest patch: 0.1.7
+pip install --upgrade motorbridge
+
+# Or specific patch
+pip install motorbridge==0.1.7
+```
+
+### Early Adopter
+
+Test pre-releases in development:
+
+```bash
+# Development environment
+pip install -i https://test.pypi.org/simple/ motorbridge==0.2.0b1
+
+# Test your code
+python3 -m pytest tests/
+
+# Production stays on stable
+pip install motorbridge==0.1.7
+```
+
+### Pinned Versions
+
+For reproducible deployments:
+
+```requirements.txt
+# requirements.txt
+motorbridge==0.1.7
+```
+
+Or with version constraints:
+
+```requirements.txt
+# Allow patches, block minor/major changes
+motorbridge>=0.1.7,<0.2.0
+```
+
+## API Stability
+
+### Version 0.x (Current)
+
+- API may change between minor versions
+- Breaking changes documented in release notes
+- Recommended to pin versions
+
+### Version 1.0+ (Future)
+
+- Semantic versioning guarantees
+- Breaking changes only in major versions
+- Deprecation warnings before removal
+
+## Changelog
+
+### v0.1.7
+
+- Background feedback polling enabled by default
+- `poll_feedback_once()` now optional
+- Bug fixes for multi-motor synchronization
+
+### v0.1.6
+
+- Added RobStride parameter read/write
+- Improved error handling
+- Fixed CAN-FD issues
+
+### v0.1.5
+
+- Initial public release
+- Support for Damiao, RobStride, MyActuator, HighTorque, Hexfellow
+
+## Deprecation Policy
+
+1. **Announcement:** Feature marked as deprecated in release notes
+2. **Warning:** Runtime deprecation warning added
+3. **Grace Period:** At least one minor version
+4. **Removal:** Feature removed in next major/minor version
+
+```python
+# Example deprecation warning
+import warnings
+
+def old_function():
+    warnings.warn(
+        "old_function is deprecated, use new_function instead",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return new_function()
+```
+
+## Release Checklist
+
+For maintainers releasing new versions:
+
+1. **Update version:**
+   ```bash
+   # Update version in __init__.py
+   __version__ = "0.2.0"
+   ```
+
+2. **Update changelog:**
+   - Document all changes
+   - Note breaking changes
+
+3. **Tag release:**
+   ```bash
+   git tag v0.2.0
+   git push origin v0.2.0
+   ```
+
+4. **Build package:**
+   ```bash
+   python -m build
+   ```
+
+5. **Upload to TestPyPI:**
+   ```bash
+   twine upload -r testpypi dist/*
+   ```
+
+6. **Verify installation:**
+   ```bash
+   pip install -i https://test.pypi.org/simple/ motorbridge==0.2.0
+   python3 -m pytest tests/
+   ```
+
+7. **Upload to PyPI:**
+   ```bash
+   twine upload dist/*
+   ```
+
+## Important Rules
+
+<Warning>
+**Never reuse the same package version for a second upload.**
+
+Once a version is uploaded to PyPI, it cannot be overwritten. Always increment the version number for new uploads.
+</Warning>
+
+### If Upload Fails
+
+```bash
+# Bad: Trying to re-upload same version
+twine upload dist/motorbridge-0.1.7.tar.gz
+# Error: File already exists
+
+# Solution: Increment version
+# Update __version__ = "0.1.8"
+# Rebuild and upload
+```
+
+## CI/CD Integration
+
+### GitHub Actions Example
+
+```yaml
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: python -m build
+
+      - name: Publish to PyPI
+        run: twine upload dist/*
+        env:
+          TWINE_TOKEN: ${{ secrets.PYPI_TOKEN }}
+```
+
+## Next Steps
+
+- [Installation Guide](install) - Install and verify
+- [Troubleshooting](best-practices/troubleshooting) - Common issues
+- [Changelog](https://github.com/your-org/dm_candrive/releases) - Release history

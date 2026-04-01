@@ -1,0 +1,227 @@
+# Transports
+
+<mintly-toc>
+
+The motorbridge SDK supports multiple transport layers for communicating with motors. This guide explains each transport option and when to use it.
+
+</mintly-toc>
+
+## Overview
+
+The SDK exposes three transport constructors:
+
+| Constructor | Protocol | Use Case |
+|-------------|----------|----------|
+| `Controller(channel)` | SocketCAN | Standard CAN 2.0, most common |
+| `Controller.from_socketcanfd(channel)` | CAN-FD | High-bandwidth, Hexfellow motors |
+| `Controller.from_dm_serial(port, baud)` | Serial | Damiao serial bridge adapter |
+
+## SocketCAN (Standard CAN)
+
+The default transport for most motor vendors. Uses the Linux SocketCAN subsystem.
+
+### Usage
+
+```python
+from motorbridge import Controller
+
+# Open standard CAN interface
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    # ... control motor
+```
+
+### Supported Vendors
+
+- Damiao (all models)
+- RobStride
+- MyActuator
+- HighTorque
+
+### System Setup
+
+```bash
+# Configure CAN interface at 1M bitrate
+sudo ip link set can0 type can bitrate 1000000
+sudo ip link set can0 up
+
+# Increase TX queue to prevent buffer overflow
+sudo ifconfig can0 txqueuelen 1000
+```
+
+### Multiple CAN Interfaces
+
+```python
+# Control motors on different CAN buses
+with Controller("can0") as ctrl0:
+    motor0 = ctrl0.add_damiao_motor(0x01, 0x11, "4340P")
+
+with Controller("can1") as ctrl1:
+    motor1 = ctrl1.add_robstride_motor(127, 0xFE, "rs-00")
+```
+
+## CAN-FD (SocketCAN-FD)
+
+Extended CAN with larger payload and higher bandwidth. Required for some vendors.
+
+### Usage
+
+```python
+from motorbridge import Controller
+
+# Open CAN-FD interface
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(0x01, 0x00, "hexfellow")
+    # ... control motor
+```
+
+### Supported Vendors
+
+- Hexfellow (required)
+- Damiao (optional, for higher bandwidth)
+
+### System Setup
+
+```bash
+# Configure CAN-FD interface
+sudo ip link set can0 type can bitrate 1000000 dbitrate 5000000 fd on
+sudo ip link set can0 up
+```
+
+<Note>
+Hexfellow motors require CAN-FD transport. Using standard SocketCAN will fail.
+</Note>
+
+## DM Serial Bridge
+
+Serial-to-CAN bridge for Damiao motors using the official Damiao serial adapter.
+
+### Usage
+
+```python
+from motorbridge import Controller
+
+# Open serial bridge
+with Controller.from_dm_serial("/dev/ttyACM0", baud=921600) as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    # ... control motor
+```
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `serial_port` | str | "/dev/ttyACM0" | Serial device path |
+| `baud` | int | 921600 | Baud rate (use 921600 for Damiao) |
+
+### Supported Vendors
+
+- Damiao only
+
+### Serial Port Setup
+
+```bash
+# Check available serial ports
+ls -la /dev/ttyACM* /dev/ttyUSB*
+
+# Add user to dialout group for permission
+sudo usermod -a -G dialout $USER
+# Log out and back in
+```
+
+### Common Serial Devices
+
+| Device | Path | Notes |
+|--------|------|-------|
+| Damiao USB-CAN | /dev/ttyACM0 | Default |
+| USB-Serial Adapter | /dev/ttyUSB0 | Check with `dmesg` |
+
+## Transport Selection Guide
+
+### Decision Tree
+
+```
+What motor vendor are you using?
+│
+├── Hexfellow ──→ from_socketcanfd (required)
+│
+├── Damiao with USB-CAN adapter ──→ from_dm_serial
+│
+├── Damiao with CAN card ──→ Controller (SocketCAN)
+│
+├── RobStride ──→ Controller (SocketCAN)
+│
+├── MyActuator ──→ Controller (SocketCAN)
+│
+└── HighTorque ──→ Controller (SocketCAN)
+```
+
+### Mixed Vendor Setup
+
+When using multiple vendors on the same CAN bus, create separate `Controller` instances:
+
+```python
+from motorbridge import Controller
+
+# Each vendor gets its own controller
+with Controller("can0") as dm_ctrl:
+    dm_motor = dm_ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    dm_ctrl.enable_all()
+
+with Controller("can0") as rs_ctrl:
+    rs_motor = rs_ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+    rs_ctrl.enable_all()
+```
+
+<Warning>
+Do not add motors from different vendors to the same `Controller` instance. Each controller is optimized for a specific vendor protocol.
+</Warning>
+
+## Transport Performance
+
+### Latency Comparison
+
+| Transport | Typical Latency | Max Throughput |
+|-----------|-----------------|----------------|
+| SocketCAN | ~1-2 ms | ~5000 msg/s |
+| CAN-FD | ~0.5-1 ms | ~10000 msg/s |
+| DM Serial | ~2-5 ms | ~2000 msg/s |
+
+### Recommendations
+
+- **Real-time control**: Use SocketCAN or CAN-FD
+- **Development/Debug**: DM Serial is convenient for quick testing
+- **High-speed loops**: Use CAN-FD with `dt_ms >= 10`
+
+## Troubleshooting
+
+### SocketCAN: "No buffer space available" (Error 105)
+
+```bash
+# Stop other CAN senders
+# Increase TX queue
+sudo ifconfig can0 txqueuelen 1000
+
+# Increase control loop period
+# dt_ms = 20 or higher
+```
+
+### Serial: Permission Denied
+
+```bash
+sudo usermod -a -G dialout $USER
+# Log out and back in
+```
+
+### CAN-FD: "Invalid argument"
+
+```bash
+# Ensure CAN-FD is enabled on interface
+sudo ip link set can0 type can bitrate 1000000 dbitrate 5000000 fd on
+sudo ip link set can0 up
+```
+
+## Next Steps
+
+- [Quickstart](quickstart) - Your first motor control program
+- [API: Controller](api/controller) - Full controller API reference

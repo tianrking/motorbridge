@@ -1,0 +1,325 @@
+---
+title: CLI 命令行工具
+---
+
+# API：motorbridge-cli
+
+<mintly-toc>
+
+`motorbridge-cli` 命令行工具提供无需编写 Python 代码即可进行快速电机测试、扫描和配置。
+
+</mintly-toc>
+
+## 安装
+
+CLI 随 Python 包自动安装：
+
+```bash
+pip install motorbridge
+motorbridge-cli --help
+```
+
+## 全局选项
+
+```bash
+motorbridge-cli [选项] 命令 [参数]
+```
+
+| 选项 | 描述 |
+|------|------|
+| `--help` | 显示帮助信息并退出 |
+| `--version` | 显示版本并退出 |
+
+## 命令概览
+
+| 命令 | 描述 |
+|------|------|
+| `run` | 向电机发送控制命令 |
+| `scan` | 扫描 CAN 总线上的活动电机 |
+| `id-dump` | 读取达妙 ID/模式寄存器 |
+| `id-set` | 写入达妙 ID 寄存器 |
+| `robstride-read-param` | 读取 RobStride 参数 |
+| `robstride-write-param` | 写入 RobStride 参数 |
+
+---
+
+## run
+
+在循环中运行电机控制命令。
+
+### 用法
+
+```bash
+motorbridge-cli run [选项]
+```
+
+### 选项
+
+| 选项 | 默认值 | 描述 |
+|------|--------|------|
+| `--vendor` | `damiao` | 电机厂商：damiao, myactuator, robstride, hightorque, hexfellow |
+| `--channel` | `can0` | CAN 接口名称 |
+| `--transport` | `auto` | 传输方式：auto, socketcan, socketcanfd, dm-serial |
+| `--serial-port` | `/dev/ttyACM0` | 串口（用于 dm-serial 传输） |
+| `--serial-baud` | `921600` | 串口波特率 |
+| `--model` | `4340` | 电机型号字符串 |
+| `--motor-id` | `0x01` | 电机 CAN ID（支持十六进制） |
+| `--feedback-id` | `0x11` | 反馈 CAN ID（支持十六进制） |
+| `--mode` | `mit` | 控制模式：enable, disable, mit, pos-vel, vel, force-pos, ping |
+| `--loop` | `100` | 控制迭代次数 |
+| `--dt-ms` | `20` | 控制周期（毫秒） |
+| `--ensure-mode` | `1` | 是否在控制前确保模式 |
+| `--ensure-strict` | `0` | 模式切换失败时是否失败 |
+| `--ensure-timeout-ms` | `1000` | 模式切换超时 |
+| `--print-state` | `1` | 每次迭代打印状态 |
+| `--pos` | `0.0` | 目标位置（rad） |
+| `--vel` | `0.0` | 目标速度（rad/s） |
+| `--kp` | `30.0` | 位置刚度（MIT 模式） |
+| `--kd` | `1.0` | 速度阻尼（MIT 模式） |
+| `--tau` | `0.0` | 前馈力矩（Nm） |
+| `--vlim` | `1.0` | 速度限制（rad/s） |
+| `--ratio` | `0.3` | 力比例（force-pos 模式） |
+
+### 示例
+
+#### 仅使能电机
+
+```bash
+motorbridge-cli run --vendor damiao --channel can0 --motor-id 0x01 --mode enable --loop 1
+```
+
+#### MIT 模式控制
+
+```bash
+motorbridge-cli run \
+    --vendor damiao \
+    --channel can0 \
+    --model 4340P \
+    --motor-id 0x01 \
+    --feedback-id 0x11 \
+    --mode mit \
+    --loop 100 \
+    --dt-ms 20 \
+    --pos 1.0 \
+    --kp 30.0 \
+    --kd 1.0
+```
+
+#### 位置-速度模式
+
+```bash
+motorbridge-cli run \
+    --vendor damiao \
+    --channel can0 \
+    --model 4340P \
+    --motor-id 0x01 \
+    --feedback-id 0x11 \
+    --mode pos-vel \
+    --loop 200 \
+    --pos 2.0 \
+    --vlim 1.5
+```
+
+---
+
+## scan
+
+扫描 CAN 总线上的活动电机。
+
+### 用法
+
+```bash
+motorbridge-cli scan [选项]
+```
+
+### 选项
+
+| 选项 | 默认值 | 描述 |
+|------|--------|------|
+| `--vendor` | `damiao` | 扫描厂商：damiao, myactuator, robstride, hightorque, hexfellow, all |
+| `--channel` | `can0` | CAN 接口 |
+| `--transport` | `auto` | 传输类型 |
+| `--serial-port` | `/dev/ttyACM0` | 串口 |
+| `--serial-baud` | `921600` | 串口波特率 |
+| `--model` | `4340` | 电机型号 |
+| `--start-id` | `0x01` | 扫描起始 ID |
+| `--end-id` | `0x10` | 扫描结束 ID |
+
+### 示例
+
+#### 扫描所有厂商
+
+```bash
+motorbridge-cli scan --vendor all --channel can0 --start-id 1 --end-id 255
+```
+
+#### 仅扫描达妙
+
+```bash
+motorbridge-cli scan --vendor damiao --channel can0 --start-id 0x01 --end-id 0x20
+```
+
+---
+
+## id-dump
+
+从达妙电机读取关键 ID 和配置寄存器。
+
+### 用法
+
+```bash
+motorbridge-cli id-dump [选项]
+```
+
+### 选项
+
+| 选项 | 默认值 | 描述 |
+|------|--------|------|
+| `--vendor` | `damiao` | 必须为 damiao |
+| `--channel` | `can0` | CAN 接口 |
+| `--transport` | `auto` | 传输类型 |
+| `--model` | `4340` | 电机型号 |
+| `--motor-id` | `0x01` | 电机 ID |
+| `--feedback-id` | `0x11` | 反馈 ID |
+| `--timeout-ms` | `500` | 寄存器读取超时 |
+| `--rids` | `7,8,9,10,21,22,23` | 要读取的寄存器 ID |
+
+### 示例
+
+```bash
+motorbridge-cli id-dump \
+    --vendor damiao \
+    --channel can0 \
+    --motor-id 0x01 \
+    --feedback-id 0x11 \
+    --rids 7,8,9,10,21,22,23
+```
+
+---
+
+## id-set
+
+向达妙电机写入 ID 寄存器并可选保存到闪存。
+
+### 用法
+
+```bash
+motorbridge-cli id-set [选项]
+```
+
+### 选项
+
+| 选项 | 默认值 | 描述 |
+|------|--------|------|
+| `--vendor` | `damiao` | 必须为 damiao |
+| `--channel` | `can0` | CAN 接口 |
+| `--transport` | `auto` | 传输类型 |
+| `--model` | `4340` | 电机型号 |
+| `--motor-id` | `0x01` | 当前电机 ID |
+| `--feedback-id` | `0x11` | 当前反馈 ID |
+| `--new-motor-id` | (相同) | 要设置的新电机 ID |
+| `--new-feedback-id` | (相同) | 要设置的新反馈 ID |
+| `--store` | `1` | 写入后保存到闪存 |
+| `--verify` | `1` | 写入后验证 |
+| `--timeout-ms` | `800` | 验证超时 |
+
+### 示例
+
+```bash
+# 将电机 ID 从 0x01 改为 0x05
+motorbridge-cli id-set \
+    --vendor damiao \
+    --channel can0 \
+    --motor-id 0x01 \
+    --feedback-id 0x11 \
+    --new-motor-id 0x05 \
+    --new-feedback-id 0x15 \
+    --store 1 \
+    --verify 1
+```
+
+---
+
+## robstride-read-param
+
+从 RobStride 电机读取参数。
+
+### 用法
+
+```bash
+motorbridge-cli robstride-read-param [选项]
+```
+
+### 选项
+
+| 选项 | 默认值 | 描述 |
+|------|--------|------|
+| `--channel` | `can0` | CAN 接口 |
+| `--model` | `rs-00` | 电机型号 |
+| `--motor-id` | `127` | 电机 ID |
+| `--param-id` | (必需) | 要读取的参数 ID |
+| `--type` | (必需) | 数据类型：i8, u8, u16, u32, f32 |
+| `--timeout-ms` | `500` | 读取超时 |
+
+### 示例
+
+```bash
+motorbridge-cli robstride-read-param \
+    --channel can0 \
+    --motor-id 127 \
+    --param-id 0x7019 \
+    --type f32
+```
+
+---
+
+## robstride-write-param
+
+向 RobStride 电机写入参数。
+
+### 用法
+
+```bash
+motorbridge-cli robstride-write-param [选项]
+```
+
+### 选项
+
+| 选项 | 默认值 | 描述 |
+|------|--------|------|
+| `--channel` | `can0` | CAN 接口 |
+| `--model` | `rs-00` | 电机型号 |
+| `--motor-id` | `127` | 电机 ID |
+| `--param-id` | (必需) | 要写入的参数 ID |
+| `--type` | (必需) | 数据类型：i8, u8, u16, u32, f32 |
+| `--value` | (必需) | 要写入的值 |
+| `--verify` | `1` | 回读并验证 |
+| `--timeout-ms` | `500` | 验证超时 |
+
+### 示例
+
+```bash
+motorbridge-cli robstride-write-param \
+    --channel can0 \
+    --motor-id 127 \
+    --param-id 0x7019 \
+    --type f32 \
+    --value 2.0 \
+    --verify 1
+```
+
+---
+
+## 退出代码
+
+| 代码 | 含义 |
+|------|------|
+| 0 | 成功 |
+| 1 | 一般错误 |
+| 2 | 无效参数 |
+
+## 另见
+
+- [快速开始](quickstart) - 入门指南
+- [教程](tutorials/01-scan-and-identify) - 分步教程
+- [接口手册](api/controller) - Python API 文档

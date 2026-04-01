@@ -1,0 +1,211 @@
+# Installation
+
+<mintly-toc>
+
+This guide covers installing the `motorbridge` Python package on Linux systems.
+
+</mintly-toc>
+
+## Requirements
+
+### System Requirements
+
+- **Operating System**: Linux (tested on Ubuntu 20.04+)
+- **Python**: 3.10, 3.11, 3.12, 3.13, or 3.14
+- **Hardware**: CAN interface (SocketCAN, PCAN) or serial adapter
+
+### Python Dependencies
+
+The package automatically installs required dependencies:
+- `ctypes` (standard library)
+- `dataclasses` (standard library, backport for Python 3.9)
+
+## Install from PyPI
+
+The recommended installation method:
+
+```bash
+python3 -m pip install motorbridge
+```
+
+### Install Specific Version
+
+```bash
+python3 -m pip install motorbridge==0.1.7
+```
+
+### Upgrade Existing Installation
+
+```bash
+python3 -m pip install --upgrade motorbridge
+```
+
+## Verify Installation
+
+### Quick Test
+
+```bash
+python3 -c "import motorbridge; print('motorbridge installed successfully')"
+```
+
+### Check Version
+
+```bash
+python3 -c "import motorbridge; print(motorbridge.__version__)"
+```
+
+### Test CLI
+
+```bash
+motorbridge-cli --help
+```
+
+Expected output:
+```
+usage: motorbridge-cli [-h] {run,scan,id-dump,id-set,robstride-read-param,robstride-write-param} ...
+
+motorbridge Python SDK CLI
+...
+```
+
+## Pre-release Versions (TestPyPI)
+
+For testing bleeding-edge features before official release:
+
+```bash
+# Install from TestPyPI
+python3 -m pip install -i https://test.pypi.org/simple/ motorbridge==0.1.8a1
+```
+
+<Note>
+Pre-release versions may be unstable. Do not use in production.
+</Note>
+
+## Development Installation
+
+### From Source (Git)
+
+```bash
+git clone https://github.com/your-org/dm_candrive.git
+cd dm_candrive/rust_dm/bindings/python
+
+# Install in editable mode
+pip install -e ./src
+```
+
+### Set Library Path (Source Builds Only)
+
+If building from source without a packaged wheel:
+
+```bash
+# Set Python path to source directory
+export PYTHONPATH=/path/to/dm_candrive/rust_dm/bindings/python/src
+
+# Set library path for ABI shared object
+export LD_LIBRARY_PATH=/path/to/dm_candrive/target/release:${LD_LIBRARY_PATH}
+```
+
+<Warning>
+Source builds require the Rust toolchain and compiling the `libmotor_abi.so` library first.
+</Warning>
+
+## Virtual Environment (Recommended)
+
+Isolate your installation using a virtual environment:
+
+```bash
+# Create virtual environment
+python3 -m venv ~/venv/motorbridge
+
+# Activate
+source ~/venv/motorbridge/bin/activate
+
+# Install
+pip install motorbridge
+
+# Deactivate when done
+deactivate
+```
+
+## System CAN Setup
+
+Before using the SDK, ensure your CAN interface is configured:
+
+### SocketCAN Setup
+
+```bash
+# Load CAN kernel modules
+sudo modprobe can
+sudo modprobe can_raw
+sudo modprobe can_dev
+
+# Configure CAN interface (example: 1M bitrate)
+sudo ip link set can0 type can bitrate 1000000
+sudo ip link set can0 up
+
+# Verify interface exists
+ip link show can0
+```
+
+### Increase TX Queue Length
+
+Prevent "No buffer space available" errors:
+
+```bash
+# Increase TX queue length
+sudo ifconfig can0 txqueuelen 1000
+
+# Or permanently in /etc/network/interfaces:
+# auto can0
+# iface can0 inet manual
+#     pre-up ip link set can0 type can bitrate 1000000
+#     up ip link set can0 up
+#     post-up ifconfig can0 txqueuelen 1000
+```
+
+### Serial Port Permissions
+
+For DM serial bridge transport:
+
+```bash
+# Add user to dialout group for serial port access
+sudo usermod -a -G dialout $USER
+
+# Log out and back in for changes to take effect
+```
+
+## Troubleshooting Installation
+
+### ImportError: cannot import name 'Controller'
+
+The ABI library cannot be found. Ensure:
+1. You installed from a wheel (not just copying source)
+2. `libmotor_abi.so` is in the package directory or `LD_LIBRARY_PATH`
+
+### Permission Denied on /dev/ttyACM0
+
+```bash
+# Check serial port permissions
+ls -la /dev/ttyACM0
+
+# Add user to dialout group
+sudo usermod -a -G dialout $USER
+# Log out and back in
+```
+
+### CAN Interface Not Found
+
+```bash
+# Check if CAN interface exists
+ip link show can0
+
+# If not, load modules and configure
+sudo modprobe can_raw
+sudo ip link set can0 type can bitrate 1000000
+sudo ip link set can0 up
+```
+
+## Next Steps
+
+- [Transports](transports) - Configure your communication layer
+- [Quickstart](quickstart) - Run your first motor control program

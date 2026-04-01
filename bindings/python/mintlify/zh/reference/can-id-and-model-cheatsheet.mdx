@@ -1,0 +1,505 @@
+---
+title: CAN ID 与型号速查
+---
+
+# 参考：CAN ID 与型号速查表
+
+<mintly-toc>
+
+本速查表提供 CAN ID、型号字符串和常见配置的快速参考。大多数运行时问题来自错误的 `(model, motor_id, feedback_id)` 组合。
+
+</mintly-toc>
+
+## 为什么这很重要？
+
+正确的电机配置需要匹配：
+1. **型号字符串** - 电机类型标识
+2. **电机 ID (motor_id)** - CAN 命令 ID
+3. **反馈 ID (feedback_id)** - CAN 响应 ID
+
+**错误值 = 无法通信或控制错误的电机！**
+
+---
+
+## 快速发现工作流程
+
+```bash
+# 1. 扫描电机
+motorbridge-cli scan --vendor all --channel can0 --start-id 1 --end-id 255
+
+# 2. 记录发现的 ID
+
+# 3. 在 Python 配置中使用
+```
+
+---
+
+## 达妙 (Damiao) 配置
+
+### 型号字符串
+
+| 型号 | 说明 | 峰值力矩 | 应用场景 |
+|------|------|----------|----------|
+| `4310` | 小型 | ~1 Nm | 夹爪、小关节 |
+| `4340` | 中型 | ~4 Nm | 手臂、中等关节 |
+| `4340P` | 中型（位置） | ~4 Nm | 通用 |
+| `6001` | 大型 | ~10 Nm | 腿部、重载 |
+
+### CAN ID 规则
+
+```
+motor_id:    0x01 - 0x20 (1-32)
+feedback_id: motor_id + 0x10
+
+示例:
+  motor_id = 0x01 → feedback_id = 0x11
+  motor_id = 0x0A → feedback_id = 0x1A
+  motor_id = 0x10 → feedback_id = 0x20
+```
+
+### 代码示例
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    # 标准设置
+    motor = ctrl.add_damiao_motor(
+        motor_id=0x01,      # 命令 ID
+        feedback_id=0x11,   # 反馈 ID (motor_id + 0x10)
+        model="4340P"       # 型号字符串
+    )
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+```
+
+### 串口桥设置
+
+```python
+from motorbridge import Controller, Mode
+
+# 使用达妙 USB-CAN 适配器
+with Controller.from_dm_serial("/dev/ttyACM0", 921600) as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    # ... 其余同上
+```
+
+---
+
+## RobStride 配置
+
+### 型号字符串
+
+| 型号 | 说明 |
+|------|------|
+| `rs-00` | 标准 RobStride 电机 |
+
+### CAN ID 规则
+
+```
+motor_id:    127 (设备 ID，可配置 1-127)
+feedback_id: 0xFE 或 0xFF (响应者 ID)
+
+默认:
+  motor_id = 127
+  feedback_id = 0xFE
+```
+
+### 代码示例
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_robstride_motor(
+        motor_id=127,       # 设备 ID
+        feedback_id=0xFE,   # 响应者 ID
+        model="rs-00"       # 型号字符串
+    )
+
+    ctrl.enable_all()
+
+    # 可选: Ping 验证
+    device_id, responder_id = motor.robstride_ping()
+    print(f"发现: device={device_id}, responder={responder_id}")
+
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 2.0, 0.1, 0.0)
+```
+
+---
+
+## MyActuator 配置
+
+### 型号字符串
+
+| 型号 | 说明 |
+|------|------|
+| `X8` | 标准 MyActuator 电机 |
+
+### CAN ID 规则
+
+```
+motor_id:    1 - 32
+feedback_id: 0x240 + motor_id
+
+示例:
+  motor_id = 1  → feedback_id = 0x241
+  motor_id = 8  → feedback_id = 0x248
+  motor_id = 32 → feedback_id = 0x260
+```
+
+### 代码示例
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_myactuator_motor(
+        motor_id=1,         # 电机 ID
+        feedback_id=0x241,  # 0x240 + motor_id
+        model="X8"          # 型号字符串
+    )
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)  # 无 MIT 模式
+    motor.send_pos_vel(0.5, vlim=1.5)
+```
+
+---
+
+## HighTorque 配置
+
+### 型号字符串
+
+| 型号 | 说明 |
+|------|------|
+| `hightorque` | 通用 HighTorque 电机 |
+
+### CAN ID 规则
+
+```
+motor_id:    1 - 127
+feedback_id: 0x01 (固定)
+```
+
+### 代码示例
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_hightorque_motor(
+        motor_id=1,         # 电机 ID
+        feedback_id=0x01,   # 固定反馈 ID
+        model="hightorque"  # 型号字符串
+    )
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+```
+
+---
+
+## Hexfellow 配置
+
+### 型号字符串
+
+| 型号 | 说明 |
+|------|------|
+| `hexfellow` | 通用 Hexfellow 电机 |
+
+### CAN ID 规则
+
+```
+motor_id:    0x01 - 0xFF
+feedback_id: 0x00 (固定)
+```
+
+<Warning>
+Hexfellow 电机需要 CAN-FD 传输。标准 SocketCAN 无法工作。
+</Warning>
+
+### 代码示例
+
+```python
+from motorbridge import Controller, Mode
+
+# 必须使用 CAN-FD
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(
+        motor_id=0x01,      # 电机 ID
+        feedback_id=0x00,   # 固定反馈 ID
+        model="hexfellow"   # 型号字符串
+    )
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)  # 无 VEL 模式
+    motor.send_pos_vel(0.5, vlim=1.5)
+```
+
+---
+
+## 常见 ID 组合
+
+### 单个达妙电机
+
+```python
+# 典型单电机设置
+motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+```
+
+### 双电机腿部
+
+```python
+# 2 电机腿（髋 + 膝）
+hip = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+knee = ctrl.add_damiao_motor(0x02, 0x12, "4340P")
+```
+
+### 四足机器人配置
+
+```python
+# 4 电机四足配置
+motors = {
+    "front_left_hip": ctrl.add_damiao_motor(0x01, 0x11, "4340P"),
+    "front_left_knee": ctrl.add_damiao_motor(0x02, 0x12, "4340P"),
+    "front_right_hip": ctrl.add_damiao_motor(0x03, 0x13, "4340P"),
+    "front_right_knee": ctrl.add_damiao_motor(0x04, 0x14, "4340P"),
+}
+```
+
+### 混合厂商系统
+
+```python
+# 达妙 + RobStride 同总线
+with Controller("can0") as dm_ctrl:
+    dm = dm_ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    with Controller("can0") as rs_ctrl:
+        rs = rs_ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+```
+
+---
+
+## ID 配置工具
+
+### 扫描 ID
+
+```bash
+# 扫描所有厂商
+motorbridge-cli scan --vendor all --channel can0 --start-id 1 --end-id 255
+
+# 扫描特定厂商
+motorbridge-cli scan --vendor damiao --channel can0 --start-id 1 --end-id 32
+motorbridge-cli scan --vendor robstride --channel can0 --start-id 1 --end-id 127
+```
+
+### 转储寄存器 ID
+
+```bash
+# 读取达妙 ID 寄存器
+motorbridge-cli id-dump --motor-id 0x01 --feedback-id 0x11 --rids 7,8
+
+# RID 7 = MST_ID (反馈 ID)
+# RID 8 = ESC_ID (电机 ID)
+```
+
+### 修改 ID（达妙）
+
+```bash
+# 将电机 ID 从 0x01 改为 0x05
+motorbridge-cli id-set \
+    --motor-id 0x01 \
+    --feedback-id 0x11 \
+    --new-motor-id 0x05 \
+    --new-feedback-id 0x15 \
+    --store 1 \
+    --verify 1
+```
+
+### 修改 ID（RobStride）
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+
+    # 设置新设备 ID
+    motor.robstride_set_device_id(42)
+```
+
+---
+
+## ID 问题故障排除
+
+### 电机无响应
+
+**检查：**
+1. 电机已上电
+2. CAN 接线正确
+3. motor_id 正确
+4. feedback_id 正确
+5. 型号字符串正确
+
+```bash
+# 尝试更宽范围扫描
+motorbridge-cli scan --vendor all --start-id 0 --end-id 255
+```
+
+### 错误的电机在动
+
+**原因：** 多个电机 ID 相同或配置中 ID 错误。
+
+**解决方案：**
+1. 一次只给一个电机上电
+2. 扫描并记录 ID
+3. 使用 `id-set` 修改冲突的 ID
+
+### 响应断断续续
+
+**原因：**
+- CAN 接线松动
+- 缺少终端电阻
+- CAN 波特率不匹配
+
+**解决方案：**
+```bash
+# 检查 CAN 状态
+ip -details link show can0
+
+# 验证波特率与电机配置匹配
+sudo ip link set can0 type can bitrate 1000000
+```
+
+---
+
+## 配置模板
+
+```python
+#!/usr/bin/env python3
+"""电机配置模板"""
+
+from motorbridge import Controller, Mode
+
+# ============ 配置区域 ============
+CHANNEL = "can0"
+
+# 电机配置
+MOTORS = {
+    # 达妙电机
+    "左髋": {
+        "vendor": "damiao",
+        "motor_id": 0x01,
+        "feedback_id": 0x11,
+        "model": "4340P",
+    },
+    "左膝": {
+        "vendor": "damiao",
+        "motor_id": 0x02,
+        "feedback_id": 0x12,
+        "model": "4340P",
+    },
+
+    # RobStride 电机
+    "夹爪": {
+        "vendor": "robstride",
+        "motor_id": 127,
+        "feedback_id": 0xFE,
+        "model": "rs-00",
+    },
+}
+# =================================
+
+def create_motor(ctrl, config):
+    """根据配置创建电机"""
+    vendor = config["vendor"]
+
+    if vendor == "damiao":
+        return ctrl.add_damiao_motor(
+            config["motor_id"],
+            config["feedback_id"],
+            config["model"]
+        )
+    elif vendor == "robstride":
+        return ctrl.add_robstride_motor(
+            config["motor_id"],
+            config["feedback_id"],
+            config["model"]
+        )
+    elif vendor == "myactuator":
+        return ctrl.add_myactuator_motor(
+            config["motor_id"],
+            config["feedback_id"],
+            config["model"]
+        )
+    elif vendor == "hightorque":
+        return ctrl.add_hightorque_motor(
+            config["motor_id"],
+            config["feedback_id"],
+            config["model"]
+        )
+    elif vendor == "hexfellow":
+        return ctrl.add_hexfellow_motor(
+            config["motor_id"],
+            config["feedback_id"],
+            config["model"]
+        )
+    else:
+        raise ValueError(f"未知厂商: {vendor}")
+
+def main():
+    with Controller(CHANNEL) as ctrl:
+        motors = {
+            name: create_motor(ctrl, cfg)
+            for name, cfg in MOTORS.items()
+        }
+
+        ctrl.enable_all()
+
+        for name, motor in motors.items():
+            print(f"已初始化: {name}")
+
+        # ... 你的控制代码 ...
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+## ID 快速参考表
+
+### 达妙 ID 对照表
+
+| motor_id | feedback_id | 十进制 |
+|----------|-------------|--------|
+| 0x01 | 0x11 | 1, 17 |
+| 0x02 | 0x12 | 2, 18 |
+| 0x03 | 0x13 | 3, 19 |
+| 0x04 | 0x14 | 4, 20 |
+| 0x05 | 0x15 | 5, 21 |
+| 0x0A | 0x1A | 10, 26 |
+| 0x10 | 0x20 | 16, 32 |
+
+### MyActuator ID 对照表
+
+| motor_id | feedback_id | 计算 |
+|----------|-------------|------|
+| 1 | 0x241 | 0x240 + 1 |
+| 2 | 0x242 | 0x240 + 2 |
+| 8 | 0x248 | 0x240 + 8 |
+| 16 | 0x250 | 0x240 + 16 |
+| 32 | 0x260 | 0x240 + 32 |
+
+---
+
+## 参见
+
+- [厂商能力矩阵](reference/vendor-capability-matrix) - 厂商功能支持
+- [教程 01：扫描与识别](tutorials/01-scan-and-identify) - 电机发现
+- [CLI 参考](api/cli) - 命令行工具

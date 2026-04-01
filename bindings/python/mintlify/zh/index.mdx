@@ -1,0 +1,176 @@
+---
+title: 首页
+---
+
+# MotorBridge Python SDK
+
+<Badge variant="primary">v0.1.7</Badge> <Badge variant="secondary">Python 3.10+</Badge>
+
+统一的 Python 电机控制库，用一套 API 控制多个品牌的无刷电机。
+
+<Cards>
+  <Card title="快速开始" icon="rocket" href="quickstart">
+    5 分钟让电机跑起来
+  </Card>
+  <Card title="安装指南" icon="download" href="setup">
+    安装和配置环境
+  </Card>
+  <Card title="接口手册" icon="book" href="api/controller">
+    完整 API 文档
+  </Card>
+  <Card title="代码配方" icon="code" href="tutorials/06-practical-recipes">
+    复制粘贴即用的代码
+  </Card>
+</Cards>
+
+## 为什么选择 MotorBridge？
+
+<Cards>
+  <Card title="多厂商支持" icon="gears">
+    支持达妙、RobStride、MyActuator、HighTorque、Hexfellow
+  </Card>
+  <Card title="统一 API" icon="layer-group">
+    所有品牌使用相同的 Python 接口
+  </Card>
+  <Card title="高性能" icon="bolt">
+    基于 Rust ABI，低延迟可靠通信
+  </Card>
+  <Card title="类型安全" icon="shield-check">
+    完整类型提示、dataclass 和枚举
+  </Card>
+  <Card title="CLI 工具" icon="terminal">
+    内置扫描、测试、调试工具
+  </Card>
+  <Card title="易集成" icon="plug">
+    上下文管理器自动资源清理
+  </Card>
+</Cards>
+
+## 最小示例
+
+```python
+from motorbridge import Controller, Mode
+
+# 打开 CAN 接口
+with Controller("can0") as ctrl:
+    # 添加达妙电机
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    
+    # 使能并配置
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    
+    # 发送控制命令
+    motor.send_mit(pos=0.5, vel=0.0, kp=30.0, kd=1.0, tau=0.0)
+    
+    # 读取状态
+    state = motor.get_state()
+    if state:
+        print(f"位置: {state.pos:.3f} rad")
+```
+
+## 支持的厂商
+
+| 厂商 | 型号 | MIT | POS_VEL | VEL | FORCE_POS |
+|------|------|-----|---------|-----|-----------|
+| 达妙 (Damiao) | 4310, 4340P, 6001 | ✅ | ✅ | ✅ | ✅ |
+| RobStride | rs-00 | ✅ | ❌ | ✅ | ❌ |
+| MyActuator | X8 | ❌ | ✅ | ✅ | ❌ |
+| HighTorque | HT | ✅ | ✅ | ✅ | ✅ |
+| Hexfellow | * | ✅ | ✅ | ❌ | ✅ |
+
+<Note>
+Hexfellow 电机需要 CAN-FD 传输。使用 `Controller.from_socketcanfd("can0")`。
+</Note>
+
+## 系统架构
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                     Controller                          │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
+│  │   Motor 1   │  │   Motor 2   │  │   Motor N   │    │
+│  │  (达妙)     │  │ (RobStride) │  │(MyActuator) │    │
+│  └─────────────┘  └─────────────┘  └─────────────┘    │
+│                        │                               │
+│              ┌─────────┴─────────┐                    │
+│              │    Transport      │                    │
+│              │  (CAN/Serial/FD)  │                    │
+│              └───────────────────┘                    │
+└─────────────────────────────────────────────────────────┘
+```
+
+## 核心概念
+
+| 组件 | 说明 |
+|------|------|
+| **Controller** | 管理传输层和多个电机句柄 |
+| **Motor** | 单个电机的控制句柄 |
+| **Mode** | 控制模式枚举 (MIT, POS_VEL, VEL, FORCE_POS) |
+| **MotorState** | 电机状态数据（位置、速度、力矩等） |
+
+## 文档导航
+
+<AccordionGroup>
+  <Accordion title="入门指南">
+    - [安装环境](setup) - 设置开发环境
+    - [传输方式](transports) - 配置 CAN/串口连接
+    - [快速开始](quickstart) - 第一个控制程序
+  </Accordion>
+  
+  <Accordion title="教程">
+    分步指南教你完成常见任务：
+    - [扫描与识别](tutorials/01-scan-and-identify) - 发现 CAN 总线上的电机
+    - [使能与状态](tutorials/02-enable-and-status) - 读取电机状态
+    - [模式与控制](tutorials/03-mode-switch-and-control) - 发送控制命令
+    - [多电机控制](tutorials/04-multi-motor) - 同时控制多个电机
+    - [寄存器参数](tutorials/05-register-and-params) - 配置电机参数
+  </Accordion>
+  
+  <Accordion title="接口手册">
+    - [Controller API](api/controller) - 主入口点
+    - [Motor API](api/motor) - 单电机操作
+    - [Mode 与 State](api/mode-and-state) - 枚举和数据结构
+    - [CLI 工具](api/cli) - 命令行工具
+  </Accordion>
+</AccordionGroup>
+
+## 三步安装
+
+<Steps>
+  <Step title="安装包">
+    ```bash
+    pip install motorbridge
+    ```
+  </Step>
+  
+  <Step title="配置 CAN 接口">
+    ```bash
+    sudo ip link set can0 type can bitrate 1000000
+    sudo ip link set can0 up
+    ```
+  </Step>
+  
+  <Step title="运行第一个程序">
+    ```python
+    from motorbridge import Controller
+    
+    with Controller("can0") as ctrl:
+        motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+        ctrl.enable_all()
+        print("电机就绪！")
+    ```
+  </Step>
+</Steps>
+
+## 获取帮助
+
+<Callout type="info">
+  - 📖 阅读 [教程](tutorials/01-scan-and-identify) 获取分步指南
+  - 🔍 查看 [故障排除](best-practices/troubleshooting) 解决常见问题
+  - 💻 使用 `motorbridge-cli --help` 查看 CLI 参考
+</Callout>
+
+## 许可证
+
+MIT License - 详见项目仓库。

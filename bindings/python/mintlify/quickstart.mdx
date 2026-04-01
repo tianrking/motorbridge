@@ -1,0 +1,309 @@
+# Quickstart
+
+<mintly-toc>
+
+Get your first motor running in under 5 minutes with this hands-on guide.
+
+</mintly-toc>
+
+## Prerequisites
+
+Before starting, ensure:
+- [x] motorbridge installed (`pip install motorbridge`)
+- [x] CAN interface configured (see [Install](install))
+- [x] Motor connected and powered on
+- [x] Known motor ID and feedback ID
+
+## 30-Second Minimal Example
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    # Send position command
+    motor.send_mit(pos=0.5, vel=0.0, kp=20.0, kd=1.0, tau=0.0)
+
+    # Read state
+    print(motor.get_state())
+```
+
+## Step-by-Step Walkthrough
+
+### 1. Import the SDK
+
+```python
+from motorbridge import Controller, Mode, MotorState
+from motorbridge.errors import CallError, MotorBridgeError
+```
+
+### 2. Create Controller
+
+The controller manages the CAN interface and motor handles:
+
+```python
+# SocketCAN (most common)
+ctrl = Controller("can0")
+
+# CAN-FD (for Hexfellow)
+# ctrl = Controller.from_socketcanfd("can0")
+
+# DM Serial bridge (for Damiao)
+# ctrl = Controller.from_dm_serial("/dev/ttyACM0", 921600)
+```
+
+### 3. Add Motor
+
+Create a motor handle with vendor-specific parameters:
+
+```python
+# Damiao motor
+motor = ctrl.add_damiao_motor(
+    motor_id=0x01,      # Command CAN ID
+    feedback_id=0x11,   # Feedback CAN ID
+    model="4340P"       # Motor model string
+)
+```
+
+<Note>
+`motor_id` and `feedback_id` are motor-specific. Use `motorbridge-cli scan` to discover them.
+</Note>
+
+### 4. Enable and Set Mode
+
+```python
+# Enable motor output (apply power)
+ctrl.enable_all()
+
+# Switch to MIT control mode with 1-second timeout
+motor.ensure_mode(Mode.MIT, timeout_ms=1000)
+```
+
+### 5. Send Commands
+
+```python
+# MIT mode: full control over position, velocity, stiffness, damping, torque
+motor.send_mit(
+    pos=1.0,    # Target position (radians)
+    vel=0.0,    # Target velocity (rad/s)
+    kp=30.0,    # Position stiffness
+    kd=1.0,     # Velocity damping
+    tau=0.0     # Feedforward torque (Nm)
+)
+
+# Position-velocity mode: simpler interface
+# motor.send_pos_vel(pos=1.0, vlim=2.0)
+
+# Velocity mode: speed control only
+# motor.send_vel(vel=1.5)
+
+# Force position mode: compliant position control
+# motor.send_force_pos(pos=1.0, vlim=2.0, ratio=0.3)
+```
+
+### 6. Read Motor State
+
+```python
+import time
+
+# Request fresh feedback
+motor.request_feedback()
+
+# Read cached state (may be None if no feedback yet)
+state = motor.get_state()
+
+if state:
+    print(f"Position: {state.pos:.3f} rad")
+    print(f"Velocity: {state.vel:.3f} rad/s")
+    print(f"Torque: {state.torq:.3f} Nm")
+    print(f"MOS Temperature: {state.t_mos:.1f} °C")
+    print(f"Rotor Temperature: {state.t_rotor:.1f} °C")
+else:
+    print("No feedback received yet")
+```
+
+### 7. Clean Up
+
+```python
+# Disable motor
+motor.disable()
+
+# Close resources (automatic with context manager)
+motor.close()
+ctrl.close()
+```
+
+## Complete Control Loop Example
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+# Context manager ensures proper cleanup
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # Enable and set mode
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, timeout_ms=1000)
+
+    # Control loop
+    dt_s = 0.02  # 20ms period = 50Hz
+    target_pos = 1.0  # radians
+
+    for i in range(100):
+        t0 = time.time()
+
+        # Send command
+        motor.send_pos_vel(pos=target_pos, vlim=1.0)
+
+        # Read state
+        state = motor.get_state()
+        if state:
+            print(f"#{i:03d} pos={state.pos:+.3f} vel={state.vel:+.3f}")
+
+        # Maintain loop timing
+        elapsed = time.time() - t0
+        if elapsed < dt_s:
+            time.sleep(dt_s - elapsed)
+```
+
+## Multi-Motor Control
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    # Add multiple motors
+    motor1 = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    motor2 = ctrl.add_damiao_motor(0x02, 0x12, "4340P")
+
+    # Enable all at once
+    ctrl.enable_all()
+
+    # Set modes individually
+    motor1.ensure_mode(Mode.MIT, 1000)
+    motor2.ensure_mode(Mode.MIT, 1000)
+
+    # Control each motor
+    motor1.send_mit(0.5, 0.0, 20.0, 1.0, 0.0)
+    motor2.send_mit(-0.5, 0.0, 20.0, 1.0, 0.0)
+```
+
+## Error Handling
+
+```python
+from motorbridge import Controller, Mode
+from motorbridge.errors import CallError, MotorBridgeError
+
+try:
+    with Controller("can0") as ctrl:
+        motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+        ctrl.enable_all()
+        motor.ensure_mode(Mode.MIT, 1000)
+
+        for i in range(100):
+            try:
+                motor.send_mit(0.5, 0.0, 20.0, 1.0, 0.0)
+            except CallError as e:
+                print(f"Command failed: {e}")
+                # Optionally continue or break
+
+except MotorBridgeError as e:
+    print(f"Motor bridge error: {e}")
+except Exception as e:
+    print(f"Unexpected error: {e}")
+```
+
+## CLI Quick Reference
+
+After `pip install`, use the CLI for quick testing:
+
+```bash
+# Scan for motors
+motorbridge-cli scan --vendor all --channel can0 --start-id 1 --end-id 32
+
+# Run motor in MIT mode
+motorbridge-cli run \
+    --vendor damiao \
+    --channel can0 \
+    --model 4340P \
+    --motor-id 0x01 \
+    --feedback-id 0x11 \
+    --mode mit \
+    --loop 100 \
+    --dt-ms 20 \
+    --pos 1.0 \
+    --kp 30.0 \
+    --kd 1.0
+
+# Read Damiao registers
+motorbridge-cli id-dump \
+    --vendor damiao \
+    --channel can0 \
+    --motor-id 0x01 \
+    --feedback-id 0x11 \
+    --rids 7,8,9,10,21,22,23
+```
+
+## Vendor-Specific Examples
+
+### Damiao
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+```
+
+### RobStride
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    # RobStride uses different IDs and model string
+    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 2.0, 0.1, 0.0)
+```
+
+### MyActuator
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    # MyActuator uses feedback_id = 0x240 + motor_id
+    motor = ctrl.add_myactuator_motor(1, 0x241, "X8")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)
+    motor.send_pos_vel(0.5, 1.0)
+```
+
+### Hexfellow
+
+```python
+from motorbridge import Controller, Mode
+
+# Hexfellow requires CAN-FD
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(0x01, 0x00, "hexfellow")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)
+    motor.send_pos_vel(0.5, 1.0)
+```
+
+## Next Steps
+
+- [Tutorials](tutorials/01-scan-and-identify) - Detailed step-by-step guides
+- [API Reference](api/controller) - Complete API documentation
+- [Best Practices](best-practices/control-loop-patterns) - Production patterns

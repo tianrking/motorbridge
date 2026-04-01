@@ -1,0 +1,337 @@
+---
+title: 发布与版本
+---
+
+# 最佳实践：发布与版本
+
+<mintly-toc>
+
+本指南介绍 motorbridge Python SDK 的版本管理、发布渠道和升级策略。
+
+</mintly-toc>
+
+## 支持的 Python 版本
+
+motorbridge SDK 支持以下 Python 版本：
+
+| 版本 | 状态 | 说明 |
+|------|------|------|
+| Python 3.10 | ✅ 支持 | 最低版本 |
+| Python 3.11 | ✅ 支持 | 推荐 |
+| Python 3.12 | ✅ 支持 | 最新稳定版 |
+| Python 3.13 | ✅ 支持 | 最新版本 |
+| Python 3.14 | ✅ 支持 | 预发布版 |
+| Python 3.9 及更早 | ❌ 不支持 | 使用 3.10+ |
+
+---
+
+## 版本号规则
+
+SDK 遵循 [语义化版本](https://semver.org/)：
+
+```
+主版本.次版本.补丁版本[-预发布标识]
+
+示例:
+0.1.0   - 初始发布
+0.1.1   - Bug 修复
+0.1.2   - 另一个 Bug 修复
+0.2.0   - 新功能，向后兼容
+1.0.0   - 稳定 API，与 0.x 有破坏性变更
+1.1.0a1 - Alpha 预发布
+1.1.0b1 - Beta 预发布
+1.1.0rc1 - 候选版本
+```
+
+### 版本类别
+
+| 类别 | 示例 | 稳定性 |
+|------|------|--------|
+| 稳定版 | `0.1.7` | 生产就绪 |
+| 预发布 | `0.2.0a1` | 仅测试 |
+| 开发版 | `0.2.0.dev1` | 内部使用 |
+
+---
+
+## 安装渠道
+
+### PyPI（生产）
+
+```bash
+# 最新稳定版
+pip install motorbridge
+
+# 特定版本
+pip install motorbridge==0.1.7
+
+# 升级
+pip install --upgrade motorbridge
+```
+
+### TestPyPI（预发布）
+
+```bash
+# 从 TestPyPI 安装
+pip install -i https://test.pypi.org/simple/ motorbridge==0.2.0a1
+```
+
+<Warning>
+预发布版本可能有破坏性变更，不推荐用于生产环境。
+</Warning>
+
+### Git 安装
+
+```bash
+# 从 Git 安装
+pip install git+https://github.com/your-org/dm_candrive.git@v0.1.7
+
+# 安装特定分支
+pip install git+https://github.com/your-org/dm_candrive.git@main
+```
+
+---
+
+## 检查已安装版本
+
+### 命令行
+
+```bash
+# 使用 pip
+pip show motorbridge
+
+# 使用 Python
+python3 -c "import motorbridge; print(motorbridge.__version__)"
+```
+
+### 代码中检查
+
+```python
+import motorbridge
+
+print(f"motorbridge 版本: {motorbridge.__version__}")
+```
+
+---
+
+## 升级策略
+
+### 保守升级
+
+保持在稳定版本，只升级修复 Bug：
+
+```bash
+# 当前: 0.1.5
+# 升级到最新补丁: 0.1.7
+pip install --upgrade motorbridge
+
+# 或特定补丁
+pip install motorbridge==0.1.7
+```
+
+### 早期采用者
+
+在开发环境测试预发布版本：
+
+```bash
+# 开发环境
+pip install -i https://test.pypi.org/simple/ motorbridge==0.2.0b1
+
+# 测试代码
+python3 -m pytest tests/
+
+# 生产环境保持稳定
+pip install motorbridge==0.1.7
+```
+
+### 固定版本
+
+用于可复现部署：
+
+```requirements.txt
+# requirements.txt
+motorbridge==0.1.7
+```
+
+或使用版本约束：
+
+```requirements.txt
+# 允许补丁更新，阻止次版本/主版本变更
+motorbridge>=0.1.7,<0.2.0
+```
+
+---
+
+## API 稳定性
+
+### 版本 0.x（当前）
+
+- 次版本之间 API 可能变更
+- 破坏性变更在发布说明中记录
+- 建议固定版本
+
+### 版本 1.0+（未来）
+
+- 语义化版本保证
+- 破坏性变更只在主版本中
+- 移除前有弃用警告
+
+---
+
+## 变更日志
+
+### v0.1.7
+
+- 默认启用后台反馈轮询
+- `poll_feedback_once()` 现为可选
+- 多电机同步 Bug 修复
+
+### v0.1.6
+
+- 添加 RobStride 参数读写
+- 改进错误处理
+- 修复 CAN-FD 问题
+
+### v0.1.5
+
+- 初始公开发布
+- 支持达妙、RobStride、MyActuator、HighTorque、Hexfellow
+
+---
+
+## 弃用政策
+
+1. **公告：** 功能在发布说明中标记为弃用
+2. **警告：** 添加运行时弃用警告
+3. **宽限期：** 至少一个次版本
+4. **移除：** 在下一个主版本/次版本中移除
+
+```python
+# 弃用警告示例
+import warnings
+
+def old_function():
+    warnings.warn(
+        "old_function 已弃用，请使用 new_function",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return new_function()
+```
+
+---
+
+## 发布检查清单
+
+维护者发布新版本：
+
+### 1. 更新版本号
+
+```bash
+# 更新 __init__.py 中的版本
+__version__ = "0.2.0"
+```
+
+### 2. 更新变更日志
+
+- 记录所有变更
+- 注明破坏性变更
+
+### 3. 打标签
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+### 4. 构建包
+
+```bash
+python -m build
+```
+
+### 5. 上传到 TestPyPI
+
+```bash
+twine upload -r testpypi dist/*
+```
+
+### 6. 验证安装
+
+```bash
+pip install -i https://test.pypi.org/simple/ motorbridge==0.2.0
+python3 -m pytest tests/
+```
+
+### 7. 上传到 PyPI
+
+```bash
+twine upload dist/*
+```
+
+---
+
+## 重要规则
+
+<Warning>
+**切勿重复上传同一包版本。**
+
+一旦版本上传到 PyPI，就无法覆盖。新上传必须增加版本号。
+</Warning>
+
+### 上传失败处理
+
+```bash
+# 错误：尝试重新上传同一版本
+twine upload dist/motorbridge-0.1.7.tar.gz
+# 错误: 文件已存在
+
+# 解决方案：增加版本号
+# 更新 __version__ = "0.1.8"
+# 重新构建并上传
+```
+
+---
+
+## CI/CD 集成
+
+### GitHub Actions 示例
+
+```yaml
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: python -m build
+
+      - name: Publish to PyPI
+        run: twine upload dist/*
+        env:
+          TWINE_TOKEN: ${{ secrets.PYPI_TOKEN }}
+```
+
+---
+
+## 版本兼容性表
+
+| SDK 版本 | 最低 Python | 推荐传输 | 说明 |
+|---------|-------------|----------|------|
+| 0.1.5 | 3.10 | SocketCAN | 初始发布 |
+| 0.1.6 | 3.10 | SocketCAN | 添加 RobStride 参数 |
+| 0.1.7 | 3.10 | SocketCAN | 后台轮询默认启用 |
+
+---
+
+## 下一步
+
+- [安装指南](install) - 安装和验证
+- [故障排除](best-practices/troubleshooting) - 常见问题
+- [变更日志](https://github.com/your-org/dm_candrive/releases) - 发布历史

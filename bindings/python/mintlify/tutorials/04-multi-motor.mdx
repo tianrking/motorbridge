@@ -1,0 +1,353 @@
+# Tutorial 04: Multi-Motor Control
+
+<mintly-toc>
+
+Most robotic systems require coordinated control of multiple motors. This tutorial covers patterns for controlling multiple motors safely and efficiently.
+
+</mintly-toc>
+
+## Prerequisites
+
+- Completed [Tutorial 03: Mode Switch and Control](tutorials/03-mode-switch-and-control)
+- Multiple motors connected and identified
+
+## Same Vendor, Same Controller
+
+For motors from the same vendor, use one controller:
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    # Add multiple Damiao motors
+    m1 = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    m2 = ctrl.add_damiao_motor(0x02, 0x12, "4340P")
+    m3 = ctrl.add_damiao_motor(0x03, 0x13, "4340P")
+
+    # Enable all at once
+    ctrl.enable_all()
+
+    # Set modes individually
+    m1.ensure_mode(Mode.MIT, 1000)
+    m2.ensure_mode(Mode.MIT, 1000)
+    m3.ensure_mode(Mode.MIT, 1000)
+```
+
+## Different Vendors, Separate Controllers
+
+For mixed vendor setups, use separate controllers:
+
+```python
+from motorbridge import Controller, Mode
+
+# Damiao motors
+with Controller("can0") as dm_ctrl:
+    dm = dm_ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    dm_ctrl.enable_all()
+
+    # RobStride motors (different controller on same bus)
+    with Controller("can0") as rs_ctrl:
+        rs = rs_ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+        rs_ctrl.enable_all()
+
+        # Control both
+        dm.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+        rs.send_mit(0.3, 0.0, 2.0, 0.1, 0.0)
+```
+
+<Warning>
+Do not mix vendors in the same `Controller` instance. Each vendor has a different protocol implementation.
+</Warning>
+
+## Dictionary-Based Motor Management
+
+Use dictionaries for organized motor access:
+
+```python
+from motorbridge import Controller, Mode
+
+# Configuration
+MOTOR_CONFIG = {
+    "front_left_hip": {"motor_id": 0x01, "feedback_id": 0x11, "model": "4340P"},
+    "front_left_knee": {"motor_id": 0x02, "feedback_id": 0x12, "model": "4340P"},
+    "front_right_hip": {"motor_id": 0x03, "feedback_id": 0x13, "model": "4340P"},
+    "front_right_knee": {"motor_id": 0x04, "feedback_id": 0x14, "model": "4340P"},
+}
+
+with Controller("can0") as ctrl:
+    # Create motor handles
+    motors = {}
+    for name, cfg in MOTOR_CONFIG.items():
+        motors[name] = ctrl.add_damiao_motor(
+            cfg["motor_id"],
+            cfg["feedback_id"],
+            cfg["model"]
+        )
+
+    # Enable all
+    ctrl.enable_all()
+
+    # Set modes
+    for motor in motors.values():
+        motor.ensure_mode(Mode.MIT, 1000)
+
+    # Send commands by name
+    motors["front_left_hip"].send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+    motors["front_left_knee"].send_mit(-0.3, 0.0, 30.0, 1.0, 0.0)
+```
+
+## Batch Feedback Query Pattern
+
+Efficiently query all motor states:
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motors = [ctrl.add_damiao_motor(i, 0x10+i, "4340P") for i in range(1, 5)]
+    ctrl.enable_all()
+
+    for i in range(100):
+        # Request all feedbacks
+        for m in motors:
+            m.request_feedback()
+
+        # Single poll for all
+        ctrl.poll_feedback_once()
+
+        # Read all states
+        states = [m.get_state() for m in motors]
+
+        # Print summary
+        for j, state in enumerate(states):
+            if state:
+                print(f"Motor {j+1}: pos={state.pos:.3f}")
+
+        time.sleep(0.02)
+```
+
+## Coordinated Motion
+
+### Synchronized Motion
+
+```python
+import time
+import math
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    m1 = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    m2 = ctrl.add_damiao_motor(0x02, 0x12, "4340P")
+
+    ctrl.enable_all()
+    m1.ensure_mode(Mode.MIT, 1000)
+    m2.ensure_mode(Mode.MIT, 1000)
+
+    # Synchronized sinusoidal motion
+    for i in range(200):
+        t = i * 0.02
+        target = math.sin(t)
+
+        # Same target for both
+        m1.send_mit(target, 0.0, 30.0, 1.0, 0.0)
+        m2.send_mit(target, 0.0, 30.0, 1.0, 0.0)
+
+        time.sleep(0.02)
+```
+
+### Alternating Motion
+
+```python
+import time
+import math
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    m1 = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    m2 = ctrl.add_damiao_motor(0x02, 0x12, "4340P")
+
+    ctrl.enable_all()
+    m1.ensure_mode(Mode.MIT, 1000)
+    m2.ensure_mode(Mode.MIT, 1000)
+
+    # 180° phase difference
+    for i in range(200):
+        t = i * 0.02
+
+        target1 = math.sin(t)
+        target2 = math.sin(t + math.pi)  # Phase shift
+
+        m1.send_mit(target1, 0.0, 30.0, 1.0, 0.0)
+        m2.send_mit(target2, 0.0, 30.0, 1.0, 0.0)
+
+        time.sleep(0.02)
+```
+
+## Safety Monitoring
+
+Monitor multiple motors for safety:
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+TEMP_LIMIT = 80.0
+TORQUE_LIMIT = 10.0
+
+def check_safety(states):
+    """Check states for safety issues."""
+    issues = []
+    for name, state in states.items():
+        if state is None:
+            continue
+
+        if state.t_mos > TEMP_LIMIT:
+            issues.append(f"{name}: MOSFET overheat ({state.t_mos:.1f}°C)")
+        if state.t_rotor > TEMP_LIMIT:
+            issues.append(f"{name}: Rotor overheat ({state.t_rotor:.1f}°C)")
+        if abs(state.torq) > TORQUE_LIMIT:
+            issues.append(f"{name}: Over-torque ({state.torq:.2f} Nm)")
+        if state.status_code != 0:
+            issues.append(f"{name}: Error 0x{state.status_code:02X}")
+
+    return issues
+
+with Controller("can0") as ctrl:
+    motors = {
+        "m1": ctrl.add_damiao_motor(0x01, 0x11, "4340P"),
+        "m2": ctrl.add_damiao_motor(0x02, 0x12, "4340P"),
+    }
+
+    ctrl.enable_all()
+
+    try:
+        for i in range(1000):
+            # Send commands
+            for motor in motors.values():
+                motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+
+            # Read states
+            states = {}
+            for name, motor in motors.items():
+                motor.request_feedback()
+                states[name] = motor.get_state()
+
+            # Safety check
+            issues = check_safety(states)
+            if issues:
+                print("SAFETY ALERT:")
+                for issue in issues:
+                    print(f"  {issue}")
+                ctrl.disable_all()
+                break
+
+            time.sleep(0.02)
+
+    except KeyboardInterrupt:
+        pass
+    finally:
+        ctrl.disable_all()
+```
+
+## Performance Tips
+
+### Minimize CAN Overhead
+
+```python
+# Bad: Multiple polls
+for motor in motors:
+    motor.request_feedback()
+    ctrl.poll_feedback_once()  # Poll for each motor
+    state = motor.get_state()
+
+# Good: Single poll
+for motor in motors:
+    motor.request_feedback()
+ctrl.poll_feedback_once()  # Single poll for all
+for motor in motors:
+    state = motor.get_state()
+```
+
+### Maintain Loop Timing
+
+```python
+import time
+
+DT_S = 0.02  # 50Hz target
+
+for i in range(100):
+    t0 = time.time()
+
+    # Control work
+    # ...
+
+    work_time = time.time() - t0
+    if work_time < DT_S:
+        time.sleep(DT_S - work_time)
+    else:
+        print(f"WARNING: Overrun! {work_time*1000:.1f}ms > {DT_S*1000:.1f}ms")
+```
+
+## Complete Example
+
+```python
+import time
+import math
+from motorbridge import Controller, Mode
+
+def main():
+    MOTORS = {
+        "left_hip": {"id": 0x01, "fb": 0x11},
+        "left_knee": {"id": 0x02, "fb": 0x12},
+        "right_hip": {"id": 0x03, "fb": 0x13},
+        "right_knee": {"id": 0x04, "fb": 0x14},
+    }
+
+    with Controller("can0") as ctrl:
+        motors = {
+            name: ctrl.add_damiao_motor(cfg["id"], cfg["fb"], "4340P")
+            for name, cfg in MOTORS.items()
+        }
+
+        print("Enabling...")
+        ctrl.enable_all()
+
+        print("Setting mode...")
+        for motor in motors.values():
+            motor.ensure_mode(Mode.MIT, 1000)
+
+        print("Running (Ctrl+C to stop)...")
+        try:
+            for i in range(500):
+                t = i * 0.02
+
+                # Generate targets
+                targets = {
+                    "left_hip": 0.3 * math.sin(t),
+                    "left_knee": 0.5 * math.sin(t),
+                    "right_hip": 0.3 * math.sin(t + 0.1),
+                    "right_knee": 0.5 * math.sin(t + 0.1),
+                }
+
+                # Send commands
+                for name, target in targets.items():
+                    motors[name].send_mit(target, 0.0, 30.0, 1.0, 0.0)
+
+                time.sleep(0.02)
+
+        except KeyboardInterrupt:
+            print("\nInterrupted")
+        finally:
+            print("Disabling...")
+            ctrl.disable_all()
+
+if __name__ == "__main__":
+    main()
+```
+
+## Next Steps
+
+- [Tutorial 05: Register and Parameters](tutorials/05-register-and-params) - Motor parameter tuning
+- [Best Practices](best-practices/control-loop-patterns) - Production patterns
+- [Controller API](api/controller) - Full API reference

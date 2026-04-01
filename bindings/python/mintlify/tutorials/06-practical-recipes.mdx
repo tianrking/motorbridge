@@ -1,0 +1,474 @@
+# Tutorial 06: Practical Recipes
+
+<mintly-toc>
+
+This page provides ready-to-use code recipes for common motor control tasks. Copy, paste, and adapt as needed.
+
+</mintly-toc>
+
+## Recipe A: Basic Position Control
+
+Simple move to target position:
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+TARGET_POS = 1.0  # radians
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)
+
+    # Send position command
+    motor.send_pos_vel(TARGET_POS, vlim=1.5)
+
+    # Wait for arrival
+    for i in range(50):
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state:
+            error = abs(state.pos - TARGET_POS)
+            print(f"#{i:02d} pos={state.pos:.3f} error={error:.4f}")
+
+            if error < 0.02:
+                print("Position reached!")
+                break
+
+        time.sleep(0.05)
+
+    motor.disable()
+```
+
+## Recipe B: MIT Mode Sinusoidal Motion
+
+Smooth sinusoidal trajectory:
+
+```python
+import time
+import math
+from motorbridge import Controller, Mode
+
+AMPLITUDE = 0.5  # radians
+FREQUENCY = 0.5  # Hz
+DURATION = 5.0   # seconds
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    dt = 0.02
+    for i in range(int(DURATION / dt)):
+        t = i * dt
+
+        # Sinusoidal target
+        target = AMPLITUDE * math.sin(2 * math.pi * FREQUENCY * t)
+        target_vel = AMPLITUDE * 2 * math.pi * FREQUENCY * math.cos(2 * math.pi * FREQUENCY * t)
+
+        # Send with velocity feedforward
+        motor.send_mit(target, target_vel, kp=30.0, kd=1.0, tau=0.0)
+
+        # Read state
+        motor.request_feedback()
+        state = motor.get_state()
+        if state:
+            print(f"t={t:.2f}s target={target:+.3f} actual={state.pos:+.3f}")
+
+        time.sleep(dt)
+
+    motor.disable()
+```
+
+## Recipe C: Velocity Control Ramp
+
+Accelerate and decelerate smoothly:
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+MAX_VEL = 3.0      # rad/s
+ACCEL = 1.0        # rad/s^2
+HOLD_TIME = 2.0    # seconds at max speed
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.VEL, 1000)
+
+    dt = 0.02
+
+    # Accelerate
+    print("Accelerating...")
+    vel = 0.0
+    while vel < MAX_VEL:
+        motor.send_vel(vel)
+        motor.request_feedback()
+        state = motor.get_state()
+        if state:
+            print(f"vel_cmd={vel:.2f} vel_actual={state.vel:.2f}")
+        vel += ACCEL * dt
+        time.sleep(dt)
+
+    # Hold
+    print(f"Holding at {MAX_VEL} rad/s...")
+    motor.send_vel(MAX_VEL)
+    time.sleep(HOLD_TIME)
+
+    # Decelerate
+    print("Decelerating...")
+    while vel > 0:
+        motor.send_vel(vel)
+        motor.request_feedback()
+        state = motor.get_state()
+        if state:
+            print(f"vel_cmd={vel:.2f} vel_actual={state.vel:.2f}")
+        vel -= ACCEL * dt
+        time.sleep(dt)
+
+    # Stop
+    motor.send_vel(0.0)
+    motor.disable()
+    print("Done")
+```
+
+## Recipe D: Multi-Motor Synchronized Motion
+
+Control multiple motors in sync:
+
+```python
+import time
+import math
+from motorbridge import Controller, Mode
+
+MOTORS = {
+    "m1": {"id": 0x01, "fb": 0x11},
+    "m2": {"id": 0x02, "fb": 0x12},
+    "m3": {"id": 0x03, "fb": 0x13},
+}
+
+with Controller("can0") as ctrl:
+    motors = {
+        name: ctrl.add_damiao_motor(cfg["id"], cfg["fb"], "4340P")
+        for name, cfg in MOTORS.items()
+    }
+
+    ctrl.enable_all()
+    for motor in motors.values():
+        motor.ensure_mode(Mode.MIT, 1000)
+
+    # Synchronized motion
+    dt = 0.02
+    for i in range(200):
+        t = i * dt
+        target = 0.5 * math.sin(t)
+
+        # Send same command to all
+        for motor in motors.values():
+            motor.send_mit(target, 0.0, 30.0, 1.0, 0.0)
+
+        # Read all states
+        if i % 10 == 0:
+            states = []
+            for name, motor in motors.items():
+                motor.request_feedback()
+                state = motor.get_state()
+                if state:
+                    states.append(f"{name}={state.pos:+.2f}")
+            print(f"#{i:03d} " + " ".join(states))
+
+        time.sleep(dt)
+
+    ctrl.disable_all()
+```
+
+## Recipe E: Temperature Monitoring with Safety
+
+Monitor and protect motors from overheating:
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+TEMP_WARNING = 70.0
+TEMP_CRITICAL = 85.0
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    try:
+        for i in range(1000):
+            # Control command
+            motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+
+            # Read state
+            motor.request_feedback()
+            state = motor.get_state()
+
+            if state:
+                # Check temperatures
+                if state.t_mos > TEMP_CRITICAL:
+                    print(f"CRITICAL: MOSFET {state.t_mos:.1f}°C - Emergency stop!")
+                    motor.disable()
+                    break
+
+                if state.t_rotor > TEMP_CRITICAL:
+                    print(f"CRITICAL: Rotor {state.t_rotor:.1f}°C - Emergency stop!")
+                    motor.disable()
+                    break
+
+                # Warning
+                if state.t_mos > TEMP_WARNING:
+                    print(f"WARNING: MOSFET temperature {state.t_mos:.1f}°C")
+                if state.t_rotor > TEMP_WARNING:
+                    print(f"WARNING: Rotor temperature {state.t_rotor:.1f}°C")
+
+            time.sleep(0.02)
+
+    except KeyboardInterrupt:
+        print("\nInterrupted")
+    finally:
+        motor.disable()
+```
+
+## Recipe F: RobStride Parameter Read/Write
+
+Read and write RobStride motor parameters:
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+
+    # Ping motor
+    device_id, responder_id = motor.robstride_ping()
+    print(f"Device ID: {device_id}, Responder ID: {responder_id}")
+
+    # Read parameter
+    param_id = 0x7019
+    value = motor.robstride_get_param_f32(param_id, timeout_ms=1000)
+    print(f"Parameter 0x{param_id:04X} = {value}")
+
+    # Write parameter
+    new_value = 2.5
+    motor.robstride_write_param_f32(param_id, new_value)
+
+    # Verify
+    verify = motor.robstride_get_param_f32(param_id, timeout_ms=1000)
+    print(f"Verified: 0x{param_id:04X} = {verify}")
+
+    # Control
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    for i in range(50):
+        motor.send_mit(0.3, 0.0, 2.0, 0.1, 0.0)
+        motor.request_feedback()
+        state = motor.get_state()
+        if state:
+            print(f"#{i:02d} pos={state.pos:.3f}")
+```
+
+## Recipe G: Error Recovery
+
+Handle and recover from motor errors:
+
+```python
+import time
+from motorbridge import Controller, Mode
+from motorbridge.errors import CallError
+
+def safe_control(motor, pos, kp, kd):
+    """Send control with error recovery."""
+    try:
+        motor.send_mit(pos, 0.0, kp, kd, 0.0)
+    except CallError as e:
+        print(f"Command failed: {e}")
+
+        # Try to recover
+        try:
+            motor.clear_error()
+            time.sleep(0.1)
+            motor.enable()
+            time.sleep(0.1)
+            motor.send_mit(pos, 0.0, kp, kd, 0.0)
+            print("Recovery successful")
+            return True
+        except Exception as e:
+            print(f"Recovery failed: {e}")
+            return False
+
+    return True
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    for i in range(100):
+        # Check for errors
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state and state.status_code != 0:
+            print(f"Error detected: 0x{state.status_code:02X}")
+            motor.clear_error()
+            time.sleep(0.1)
+
+        # Safe control
+        safe_control(motor, 0.5 * (1 if i < 50 else -1), 30.0, 1.0)
+        time.sleep(0.02)
+
+    motor.disable()
+```
+
+## Recipe H: Gripper Control with Force Limit
+
+Compliant gripper using force-pos mode:
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+def gripper_open(motor):
+    """Open gripper."""
+    motor.send_force_pos(pos=1.5, vlim=2.0, ratio=0.5)
+
+def gripper_close(motor, force_ratio=0.3):
+    """Close gripper with specified force."""
+    motor.send_force_pos(pos=-0.5, vlim=1.0, ratio=force_ratio)
+
+def gripper_get_position(motor):
+    """Get current gripper position."""
+    motor.request_feedback()
+    state = motor.get_state()
+    return state.pos if state else None
+
+with Controller("can0") as ctrl:
+    gripper = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    ctrl.enable_all()
+    gripper.ensure_mode(Mode.FORCE_POS, 1000)
+
+    # Open
+    print("Opening gripper...")
+    gripper_open(gripper)
+    time.sleep(1.0)
+
+    # Close gently
+    print("Closing gently...")
+    gripper_close(gripper, force_ratio=0.2)
+    time.sleep(1.0)
+
+    # Grip firmly
+    print("Gripping firmly...")
+    gripper_close(gripper, force_ratio=0.5)
+    time.sleep(0.5)
+
+    # Check position
+    pos = gripper_get_position(gripper)
+    print(f"Gripper position: {pos:.3f}")
+
+    # Release
+    print("Releasing...")
+    gripper_open(gripper)
+    time.sleep(1.0)
+
+    gripper.disable()
+```
+
+## Recipe I: Serial Bridge Connection
+
+Use Damiao serial adapter:
+
+```python
+import time
+from motorbridge import Controller, Mode
+
+# Connect via serial bridge
+with Controller.from_dm_serial("/dev/ttyACM0", baud=921600) as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    for i in range(50):
+        motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+        motor.request_feedback()
+        state = motor.get_state()
+        if state:
+            print(f"#{i:02d} pos={state.pos:.3f}")
+        time.sleep(0.02)
+
+    motor.disable()
+```
+
+## Recipe J: Context Manager Pattern
+
+Production-ready pattern with proper cleanup:
+
+```python
+import time
+from motorbridge import Controller, Mode
+from motorbridge.errors import CallError, MotorBridgeError
+
+class MotorController:
+    def __init__(self, channel, motor_id, feedback_id, model):
+        self.channel = channel
+        self.motor_id = motor_id
+        self.feedback_id = feedback_id
+        self.model = model
+        self.ctrl = None
+        self.motor = None
+
+    def __enter__(self):
+        self.ctrl = Controller(self.channel)
+        self.motor = self.ctrl.add_damiao_motor(
+            self.motor_id, self.feedback_id, self.model
+        )
+        self.ctrl.enable_all()
+        return self.motor
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.motor:
+            try:
+                self.motor.disable()
+            except:
+                pass
+        if self.ctrl:
+            try:
+                self.ctrl.shutdown()
+                self.ctrl.close()
+            except:
+                pass
+        return False
+
+# Usage
+with MotorController("can0", 0x01, 0x11, "4340P") as motor:
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    for i in range(100):
+        motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+        motor.request_feedback()
+        state = motor.get_state()
+        if state:
+            print(f"pos={state.pos:.3f}")
+        time.sleep(0.02)
+# Automatic cleanup
+```
+
+## Next Steps
+
+- [Tutorial 07: Complete Interface Guide](tutorials/07-complete-binding-interface-guide) - Full API overview
+- [Best Practices](best-practices/control-loop-patterns) - Production patterns
+- [Troubleshooting](best-practices/troubleshooting) - Common issues

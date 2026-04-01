@@ -1,0 +1,387 @@
+---
+title: 01 扫描与识别电机
+---
+
+# 教程 01：扫描与识别电机
+
+<mintly-toc>
+
+在控制任何电机之前，你必须先找到它。本教程教你如何扫描 CAN 总线，发现连接的电机，并记录它们的 ID 信息。
+
+</mintly-toc>
+
+## 为什么要先扫描？
+
+扫描是必不可少的步骤，因为：
+
+1. **确认接线正确** - CAN_H 和 CAN_L 有没有接反
+2. **确认波特率匹配** - 电机和 CAN 接口波特率必须一致
+3. **获取电机 ID** - 控制电机需要知道它的 `motor_id` 和 `feedback_id`
+4. **发现 ID 冲突** - 多个电机不能有相同的 ID
+
+## 准备工作
+
+### 硬件检查
+
+在开始扫描前，确认：
+
+- [ ] CAN 接口已连接（USB-CAN 或 PCAN）
+- [ ] CAN 总线两端有 120Ω 终端电阻
+- [ ] 电机已上电（LED 灯亮）
+- [ ] 只有一个程序在访问 CAN 接口
+
+### 软件检查
+
+```bash
+# 检查 CAN 接口是否存在
+ip link show can0
+
+# 如果不存在，配置它
+sudo ip link set can0 type can bitrate 1000000
+sudo ip link set can0 up
+
+# 增加 TX 队列长度（防止缓冲区溢出）
+sudo ifconfig can0 txqueuelen 1000
+```
+
+## 方法一：使用 CLI 工具扫描（推荐）
+
+### 扫描所有厂商
+
+最简单的方式是扫描所有支持的厂商：
+
+```bash
+motorbridge-cli scan --vendor all --channel can0 --start-id 1 --end-id 255
+```
+
+**参数详解：**
+
+| 参数 | 含义 | 默认值 | 可选值 |
+|------|------|--------|--------|
+| `--vendor` | 扫描哪个厂商的电机 | `damiao` | `damiao`, `robstride`, `myactuator`, `hightorque`, `hexfellow`, `all` |
+| `--channel` | CAN 接口名称 | `can0` | `can0`, `can1`, `slcan0` 等 |
+| `--start-id` | 扫描起始 ID | `1` | 0-255 |
+| `--end-id` | 扫描结束 ID | `32` | 0-255 |
+| `--timeout-ms` | 每个 ID 的超时时间 | `80` | 50-500 |
+
+### 扫描特定厂商
+
+如果你知道电机厂商，可以只扫描那个厂商：
+
+```bash
+# 只扫描达妙电机
+motorbridge-cli scan --vendor damiao --channel can0 --start-id 1 --end-id 32
+
+# 只扫描 RobStride 电机
+motorbridge-cli scan --vendor robstride --channel can0 --start-id 1 --end-id 127
+
+# 只扫描 MyActuator 电机
+motorbridge-cli scan --vendor myactuator --channel can0 --start-id 1 --end-id 32
+```
+
+### 理解扫描结果
+
+扫描成功时，你会看到类似这样的输出：
+
+```
+command=scan vendor=damiao channel=can0 id_range=[0x1,0x20] timeout_ms=80
+
+[scan:damiao] channel=can0 model=4340 id_range=[0x1,0x20]
+[hit] vendor=damiao probe=0x01 esc_id=0x1 mst_id=0x11
+[hit] vendor=damiao probe=0x02 esc_id=0x2 mst_id=0x12
+[.. ] vendor=damiao probe=0x03 no reply
+
+scan done: 2 motor(s) found
+  probe=0x01 vendor=damiao esc_id=0x1 mst_id=0x11
+  probe=0x02 vendor=damiao esc_id=0x2 mst_id=0x12
+```
+
+**输出解释：**
+
+| 字段 | 含义 |
+|------|------|
+| `[hit]` | 找到电机了！ |
+| `probe=0x01` | 扫描的 CAN ID |
+| `esc_id=0x1` | 电机的命令 ID（这就是你要用的 `motor_id`） |
+| `mst_id=0x11` | 电机的反馈 ID（这就是你要用的 `feedback_id`） |
+| `[.. ]` | 这个 ID 没有响应 |
+| `no reply` | 没有收到回复，可能是没接电机或 ID 不对 |
+
+### 记录扫描结果
+
+把扫描到的信息记录下来，后面会用到：
+
+```python
+# motor_config.py - 根据扫描结果填写
+
+MOTORS = {
+    "左髋关节": {
+        "vendor": "damiao",
+        "model": "4340P",
+        "motor_id": 0x01,      # 从扫描结果获取
+        "feedback_id": 0x11,   # 从扫描结果获取
+    },
+    "左膝关节": {
+        "vendor": "damiao",
+        "model": "4340P",
+        "motor_id": 0x02,
+        "feedback_id": 0x12,
+    },
+}
+```
+
+## 方法二：使用 Python 代码扫描
+
+如果你想在自己的程序中扫描电机：
+
+```python
+import time
+from motorbridge import Controller
+
+def scan_damiao_motors(channel, start_id, end_id):
+    """
+    扫描达妙电机。
+    
+    参数:
+        channel: CAN 接口名，如 "can0"
+        start_id: 起始 ID，如 1
+        end_id: 结束 ID，如 32
+    
+    返回:
+        找到的电机列表，每个元素是 (motor_id, feedback_id) 元组
+    """
+    found_motors = []
+    
+    print(f"开始扫描 {channel}，ID 范围: {start_id} - {end_id}")
+    
+    for motor_id in range(start_id, end_id + 1):
+        # 达妙的 feedback_id 通常是 motor_id + 0x10
+        feedback_id = 0x10 + (motor_id & 0x0F)
+        
+        # 创建新的控制器实例
+        ctrl = Controller(channel)
+        
+        try:
+            # 尝试添加电机
+            motor = ctrl.add_damiao_motor(motor_id, feedback_id, "4340P")
+            
+            try:
+                # 尝试读取寄存器来验证电机存在
+                # RID 8 是 ESC_ID（电机 ID）
+                esc_id = motor.get_register_u32(8, timeout_ms=100)
+                # RID 7 是 MST_ID（反馈 ID）
+                mst_id = motor.get_register_u32(7, timeout_ms=100)
+                
+                print(f"[找到] motor_id=0x{motor_id:02X} esc=0x{esc_id:X} mst=0x{mst_id:X}")
+                found_motors.append((motor_id, feedback_id))
+                
+            except Exception:
+                # 读取失败，说明这个 ID 没有电机
+                print(f"[无响应] motor_id=0x{motor_id:02X}")
+                
+            finally:
+                motor.close()
+                
+        except Exception as e:
+            print(f"[错误] motor_id=0x{motor_id:02X}: {e}")
+            
+        finally:
+            ctrl.close_bus()
+            ctrl.close()
+    
+    print(f"\n扫描完成，找到 {len(found_motors)} 个电机")
+    return found_motors
+
+# 运行扫描
+if __name__ == "__main__":
+    motors = scan_damiao_motors("can0", 1, 20)
+    
+    print("\n找到的电机配置:")
+    for motor_id, feedback_id in motors:
+        print(f"  motor_id=0x{motor_id:02X}, feedback_id=0x{feedback_id:02X}")
+```
+
+## 不同厂商的 ID 规则
+
+每个厂商的 ID 命名规则不同：
+
+### 达妙 (Damiao)
+
+```
+motor_id:    0x01 - 0x20 (1-32)
+feedback_id: motor_id + 0x10
+
+示例:
+  motor_id = 0x01 → feedback_id = 0x11
+  motor_id = 0x0A → feedback_id = 0x1A
+  motor_id = 0x10 → feedback_id = 0x20
+```
+
+### RobStride
+
+```
+motor_id:    1-127 (通常默认是 127)
+feedback_id: 0xFE 或 0xFF
+
+示例:
+  motor_id = 127, feedback_id = 0xFE
+```
+
+### MyActuator
+
+```
+motor_id:    1-32
+feedback_id: 0x240 + motor_id
+
+示例:
+  motor_id = 1  → feedback_id = 0x241
+  motor_id = 8  → feedback_id = 0x248
+```
+
+### HighTorque
+
+```
+motor_id:    1-127
+feedback_id: 0x01 (固定)
+```
+
+### Hexfellow
+
+```
+motor_id:    0x01 - 0xFF
+feedback_id: 0x00 (固定)
+注意: Hexfellow 必须用 CAN-FD
+```
+
+## 使用串口扫描（达妙专用）
+
+如果你用的是达妙的 USB-CAN 串口适配器：
+
+```bash
+motorbridge-cli scan \
+    --vendor damiao \
+    --transport dm-serial \
+    --serial-port /dev/ttyACM0 \
+    --serial-baud 921600 \
+    --start-id 1 \
+    --end-id 32
+```
+
+**串口参数说明：**
+
+| 参数 | 含义 | 常见值 |
+|------|------|--------|
+| `--serial-port` | 串口设备路径 | `/dev/ttyACM0`, `/dev/ttyUSB0` |
+| `--serial-baud` | 波特率 | 达妙用 921600 |
+
+## 故障排除
+
+### 扫描不到任何电机？
+
+**检查清单：**
+
+1. **CAN 接口是否启动？**
+   ```bash
+   ip link show can0
+   # 应该显示 "UP"
+   ```
+
+2. **电机是否上电？**
+   - 检查电机 LED 灯是否亮
+   - 检查电源电压是否正确（通常 24V）
+
+3. **CAN 线是否接对？**
+   - CAN_H 接 CAN_H
+   - CAN_L 接 CAN_L
+   - 不要接反！
+
+4. **波特率是否匹配？**
+   ```bash
+   # 大多数电机默认 1M 波特率
+   sudo ip link set can0 type can bitrate 1000000
+   ```
+
+5. **终端电阻是否安装？**
+   - CAN 总线两端需要 120Ω 电阻
+
+### 只能扫描到部分电机？
+
+可能原因：
+- 某些电机 ID 重复了
+- 某些电机波特率不同
+- CAN 线太长或接触不良
+
+**解决方法：**
+```bash
+# 逐个上电扫描
+# 给每个电机分配不同的 ID
+```
+
+### 扫描很慢？
+
+增加超时时间：
+```bash
+motorbridge-cli scan --timeout-ms 200 ...
+```
+
+或者缩小 ID 范围：
+```bash
+# 只扫描 1-10
+motorbridge-cli scan --start-id 1 --end-id 10 ...
+```
+
+## 完整示例：从扫描到控制
+
+```python
+#!/usr/bin/env python3
+"""完整的电机发现和控制示例"""
+
+from motorbridge import Controller, Mode
+
+# 第一步：扫描电机（假设我们已经通过 CLI 扫描过了）
+# 扫描结果：motor_id=0x01, feedback_id=0x11
+
+# 第二步：配置电机
+MOTOR_ID = 0x01
+FEEDBACK_ID = 0x11
+MODEL = "4340P"
+
+# 第三步：创建控制器
+with Controller("can0") as ctrl:
+    
+    # 第四步：添加电机
+    motor = ctrl.add_damiao_motor(MOTOR_ID, FEEDBACK_ID, MODEL)
+    print(f"已添加电机: ID=0x{MOTOR_ID:02X}")
+    
+    # 第五步：使能电机
+    ctrl.enable_all()
+    print("电机已使能")
+    
+    # 第六步：设置模式
+    motor.ensure_mode(Mode.MIT, timeout_ms=1000)
+    print("已设置为 MIT 模式")
+    
+    # 第七步：控制电机
+    print("开始控制...")
+    for i in range(10):
+        motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+        
+        motor.request_feedback()
+        state = motor.get_state()
+        if state:
+            print(f"位置: {state.pos:.3f} rad")
+        
+        import time
+        time.sleep(0.02)
+    
+    # 第八步：关闭电机
+    motor.disable()
+    print("电机已关闭")
+```
+
+## 下一步
+
+现在你已经知道如何扫描电机了！接下来学习：
+
+- [教程 02：使能和状态读取](tutorials/02-enable-and-status) - 如何正确读取电机数据
+- [CAN ID 和型号速查表](reference/can-id-and-model-cheatsheet) - 各厂商 ID 规则

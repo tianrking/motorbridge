@@ -1,0 +1,454 @@
+---
+title: 03 模式切换与控制
+---
+
+# 教程 03：模式切换与控制
+
+<mintly-toc>
+
+电机有多种控制模式，每种模式适合不同的应用场景。本教程详细讲解如何切换模式和发送各种控制命令。
+
+</mintly-toc>
+
+## 四种控制模式
+
+| 模式 | 适合场景 | 可控制参数 |
+|------|----------|------------|
+| **MIT** | 最灵活，可调软硬 | 位置、速度、刚度、阻尼、力矩 |
+| **POS_VEL** | 简单位置控制 | 位置、最大速度 |
+| **VEL** | 持续旋转 | 速度 |
+| **FORCE_POS** | 柔顺控制、夹爪 | 位置、最大速度、力比例 |
+
+## 如何选择模式？
+
+```
+你想做什么？
+│
+├── 精确控制位置，想调整"硬度"
+│   └── MIT 模式
+│
+├── 简单的点到点运动
+│   └── POS_VEL 模式
+│
+├── 让电机一直转（传送带、轮子）
+│   └── VEL 模式
+│
+└── 做夹爪，需要力控制
+    └── FORCE_POS 模式
+```
+
+## 步骤一：导入 Mode 枚举
+
+```python
+from motorbridge import Controller, Mode
+```
+
+**Mode 枚举值：**
+
+| 枚举 | 值 | 说明 |
+|------|-----|------|
+| `Mode.MIT` | 1 | MIT 模式，最灵活 |
+| `Mode.POS_VEL` | 2 | 位置-速度模式 |
+| `Mode.VEL` | 3 | 纯速度模式 |
+| `Mode.FORCE_POS` | 4 | 力位置模式 |
+
+## 步骤二：切换模式
+
+使用 `ensure_mode()` 切换到目标模式：
+
+```python
+# 切换到 MIT 模式，超时 1000ms
+motor.ensure_mode(Mode.MIT, timeout_ms=1000)
+
+# 切换到位置-速度模式
+motor.ensure_mode(Mode.POS_VEL, timeout_ms=1000)
+
+# 切换到速度模式
+motor.ensure_mode(Mode.VEL, timeout_ms=1000)
+
+# 切换到力位置模式
+motor.ensure_mode(Mode.FORCE_POS, timeout_ms=1000)
+```
+
+**ensure_mode 参数详解：**
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `mode` | Mode | 必填 | 目标控制模式 |
+| `timeout_ms` | int | 1000 | 切换超时时间（毫秒） |
+
+**超时时间怎么选？**
+- 正常情况：1000ms（1秒）足够
+- 如果通信不稳定：可以增加到 2000ms
+- 如果一直超时：检查电机 ID 和接线
+
+## MIT 模式详解
+
+MIT 模式是最灵活的，可以控制 5 个参数：
+
+```python
+motor.ensure_mode(Mode.MIT, 1000)
+
+motor.send_mit(
+    pos=1.0,    # 目标位置（弧度）
+    vel=0.0,    # 目标速度（弧度/秒）
+    kp=30.0,    # 位置刚度（Nm/rad）
+    kd=1.0,     # 速度阻尼（Nm·s/rad）
+    tau=0.0     # 前馈力矩（Nm）
+)
+```
+
+### send_mit 参数详解
+
+| 参数 | 类型 | 单位 | 说明 | 典型范围 |
+|------|------|------|------|----------|
+| `pos` | float | rad | 目标位置 | -12.566 ~ +12.566（±2圈） |
+| `vel` | float | rad/s | 目标速度 | -30.0 ~ +30.0 |
+| `kp` | float | Nm/rad | 位置刚度 | 0.1 ~ 100.0 |
+| `kd` | float | Nm·s/rad | 速度阻尼 | 0.01 ~ 10.0 |
+| `tau` | float | Nm | 前馈力矩 | -10.0 ~ +10.0 |
+
+### 参数如何影响行为？
+
+**kp（刚度）：**
+- `kp = 0.1`：非常软，像海绵
+- `kp = 10.0`：中等，像弹簧
+- `kp = 100.0`：非常硬，像刚性连接
+
+**kd（阻尼）：**
+- `kd = 0.01`：几乎无阻尼，会震荡
+- `kd = 1.0`：适度阻尼，平稳
+- `kd = 10.0`：过阻尼，响应慢
+
+**tau（前馈力矩）：**
+- `tau = 0.0`：不额外施力
+- `tau = 1.0`：额外施加 1Nm 力矩
+- 用于补偿重力或摩擦力
+
+### MIT 模式示例
+
+#### 硬位置控制
+
+```python
+# 硬：位置控制，响应快
+motor.send_mit(
+    pos=1.0,
+    vel=0.0,
+    kp=50.0,   # 高刚度
+    kd=2.0,    # 适度阻尼
+    tau=0.0
+)
+```
+
+#### 柔顺控制
+
+```python
+# 软：柔顺控制，可以推动
+motor.send_mit(
+    pos=1.0,
+    vel=0.0,
+    kp=5.0,    # 低刚度
+    kd=0.5,    # 低阻尼
+    tau=0.0
+)
+```
+
+#### 速度前馈
+
+```python
+# 加入速度前馈，让运动更平滑
+import math
+import time
+
+for i in range(100):
+    t = i * 0.02
+    target_pos = math.sin(t)       # 目标位置
+    target_vel = math.cos(t)       # 目标速度（导数）
+
+    motor.send_mit(
+        pos=target_pos,
+        vel=target_vel,  # 速度前馈
+        kp=30.0,
+        kd=1.0,
+        tau=0.0
+    )
+    time.sleep(0.02)
+```
+
+#### 纯力矩控制
+
+```python
+# 只用力矩，不用位置控制
+motor.send_mit(
+    pos=0.0,
+    vel=0.0,
+    kp=0.0,    # 零刚度
+    kd=0.0,    # 零阻尼
+    tau=0.5    # 0.5Nm 力矩
+)
+```
+
+## POS_VEL 模式详解
+
+简单位置控制，带速度限制：
+
+```python
+motor.ensure_mode(Mode.POS_VEL, 1000)
+
+motor.send_pos_vel(
+    pos=2.0,    # 目标位置（弧度）
+    vlim=1.5    # 最大速度（弧度/秒）
+)
+```
+
+### send_pos_vel 参数详解
+
+| 参数 | 类型 | 单位 | 说明 |
+|------|------|------|------|
+| `pos` | float | rad | 目标位置 |
+| `vlim` | float | rad/s | 最大速度限制 |
+
+### POS_VEL 模式示例
+
+```python
+import time
+
+# 移动到 2 弧度位置，速度不超过 1.5 rad/s
+motor.send_pos_vel(pos=2.0, vlim=1.5)
+
+# 等待到达
+for i in range(100):
+    motor.request_feedback()
+    state = motor.get_state()
+
+    if state:
+        error = abs(state.pos - 2.0)
+        print(f"位置误差: {error:.4f} rad")
+
+        if error < 0.02:  # 误差小于 0.02 rad 认为到达
+            print("到达目标！")
+            break
+
+    time.sleep(0.02)
+```
+
+## VEL 模式详解
+
+纯速度控制，电机会一直转：
+
+```python
+motor.ensure_mode(Mode.VEL, 1000)
+
+motor.send_vel(vel=2.0)  # 2 rad/s
+```
+
+### send_vel 参数详解
+
+| 参数 | 类型 | 单位 | 说明 |
+|------|------|------|------|
+| `vel` | float | rad/s | 目标速度 |
+
+### VEL 模式示例
+
+```python
+import time
+
+# 加速
+for v in range(0, 30):
+    motor.send_vel(vel=v * 0.1)  # 0 到 3 rad/s
+    time.sleep(0.05)
+
+# 保持
+time.sleep(2.0)
+
+# 减速
+for v in range(30, 0, -1):
+    motor.send_vel(vel=v * 0.1)
+    time.sleep(0.05)
+
+# 停止
+motor.send_vel(vel=0.0)
+```
+
+## FORCE_POS 模式详解
+
+柔顺的位置控制，带力限制：
+
+```python
+motor.ensure_mode(Mode.FORCE_POS, 1000)
+
+motor.send_force_pos(
+    pos=0.5,    # 目标位置（弧度）
+    vlim=1.0,   # 最大速度（弧度/秒）
+    ratio=0.3   # 力比例（0.0 - 1.0）
+)
+```
+
+### send_force_pos 参数详解
+
+| 参数 | 类型 | 单位 | 说明 |
+|------|------|------|------|
+| `pos` | float | rad | 目标位置 |
+| `vlim` | float | rad/s | 最大速度限制 |
+| `ratio` | float | - | 力比例（0.0 = 无力，1.0 = 全力） |
+
+### FORCE_POS 模式示例（夹爪）
+
+```python
+import time
+
+def gripper_open(motor):
+    """打开夹爪"""
+    motor.send_force_pos(pos=1.5, vlim=2.0, ratio=0.5)
+
+def gripper_close(motor, force=0.3):
+    """关闭夹爪"""
+    motor.send_force_pos(pos=-0.5, vlim=1.0, ratio=force)
+
+# 打开
+gripper_open(motor)
+time.sleep(1.0)
+
+# 轻轻夹
+gripper_close(motor, force=0.2)
+time.sleep(1.0)
+
+# 用力夹
+gripper_close(motor, force=0.6)
+time.sleep(0.5)
+
+# 释放
+gripper_open(motor)
+```
+
+## 厂商模式支持
+
+**不是所有厂商都支持所有模式！**
+
+| 厂商 | MIT | POS_VEL | VEL | FORCE_POS |
+|------|:---:|:-------:|:---:|:---------:|
+| 达妙 | ✅ | ✅ | ✅ | ✅ |
+| RobStride | ✅ | ❌ | ✅ | ❌ |
+| MyActuator | ❌ | ✅ | ✅ | ❌ |
+| HighTorque | ✅ | ✅ | ✅ | ✅ |
+| Hexfellow | ✅ | ✅ | ❌ | ✅ |
+
+**如果使用不支持的模式，会抛出异常！**
+
+## 控制循环模式
+
+### 固定频率控制
+
+```python
+import time
+
+DT = 0.02  # 20ms = 50Hz
+
+for i in range(500):
+    t0 = time.time()
+
+    # 发送命令
+    motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+
+    # 读取状态
+    motor.request_feedback()
+    state = motor.get_state()
+
+    if state:
+        print(f"#{i:03d} pos={state.pos:.3f}")
+
+    # 保持固定频率
+    elapsed = time.time() - t0
+    if elapsed < DT:
+        time.sleep(DT - elapsed)
+```
+
+### 状态驱动控制
+
+```python
+import time
+
+TARGET = 1.0
+TOLERANCE = 0.02  # 0.02 rad
+
+motor.ensure_mode(Mode.POS_VEL, 1000)
+motor.send_pos_vel(TARGET, vlim=1.5)
+
+while True:
+    motor.request_feedback()
+    state = motor.get_state()
+
+    if state:
+        error = abs(state.pos - TARGET)
+        print(f"误差: {error:.4f} rad")
+
+        if error < TOLERANCE:
+            print("到达目标！")
+            break
+
+    time.sleep(0.02)
+```
+
+## 完整示例
+
+```python
+#!/usr/bin/env python3
+"""完整控制示例"""
+
+import time
+import math
+from motorbridge import Controller, Mode
+
+def main():
+    with Controller("can0") as ctrl:
+        motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+        print("使能电机...")
+        ctrl.enable_all()
+
+        # ===== MIT 模式演示 =====
+        print("\n--- MIT 模式 ---")
+        motor.ensure_mode(Mode.MIT, 1000)
+
+        print("硬位置控制")
+        for _ in range(50):
+            motor.send_mit(0.5, 0.0, 50.0, 2.0, 0.0)
+            time.sleep(0.02)
+
+        print("柔顺控制")
+        for _ in range(50):
+            motor.send_mit(0.0, 0.0, 5.0, 0.5, 0.0)
+            time.sleep(0.02)
+
+        # ===== POS_VEL 模式演示 =====
+        print("\n--- POS_VEL 模式 ---")
+        motor.ensure_mode(Mode.POS_VEL, 1000)
+
+        for pos in [1.0, -1.0, 0.0]:
+            print(f"移动到 {pos:.1f} rad")
+            motor.send_pos_vel(pos, vlim=1.5)
+            time.sleep(1.0)
+
+        # ===== VEL 模式演示 =====
+        print("\n--- VEL 模式 ---")
+        motor.ensure_mode(Mode.VEL, 1000)
+
+        print("旋转 2 rad/s")
+        for _ in range(50):
+            motor.send_vel(2.0)
+            time.sleep(0.02)
+
+        print("停止")
+        motor.send_vel(0.0)
+
+        print("\n演示完成")
+
+if __name__ == "__main__":
+    main()
+```
+
+## 下一步
+
+- [教程 04：多电机控制](tutorials/04-multi-motor) - 同时控制多个电机
+- [教程 05：寄存器参数](tutorials/05-register-and-params) - 修改电机参数
+- [厂商能力矩阵](reference/vendor-capability-matrix) - 查看厂商支持

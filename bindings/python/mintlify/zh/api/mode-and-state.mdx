@@ -1,0 +1,272 @@
+---
+title: Mode 与 State
+---
+
+# API：Mode 与 State
+
+<mintly-toc>
+
+本文档介绍用于控制模式的 `Mode` 枚举和用于电机反馈的 `MotorState` 数据类。
+
+</mintly-toc>
+
+## Mode 枚举
+
+`Mode` 枚举定义了电机可用的控制模式。
+
+### 导入
+
+```python
+from motorbridge import Mode
+```
+
+### 定义
+
+```python
+class Mode(IntEnum):
+    MIT = 1
+    POS_VEL = 2
+    VEL = 3
+    FORCE_POS = 4
+```
+
+### 模式描述
+
+| 模式 | 值 | 描述 | 使用场景 |
+|------|-----|------|----------|
+| `MIT` | 1 | 完全阻抗控制 | 需要可调刚度的精确位置/力矩控制 |
+| `POS_VEL` | 2 | 带速度限制的位置控制 | 带速度限制的简单位置控制 |
+| `VEL` | 3 | 纯速度控制 | 连续旋转，速度控制 |
+| `FORCE_POS` | 4 | 柔顺位置控制 | 带力限制的位置控制 |
+
+### 模式详情
+
+#### `Mode.MIT`
+
+MIT 模式提供完全阻抗控制，可独立控制：
+- 位置目标
+- 速度目标
+- 位置刚度（Kp）
+- 速度阻尼（Kd）
+- 前馈力矩
+
+**命令：** `motor.send_mit(pos, vel, kp, kd, tau)`
+
+**适用于：**
+- 需要柔顺控制的足式机器人
+- 具有可变刚度的机械臂
+- 触觉反馈应用
+
+**示例：**
+
+```python
+motor.ensure_mode(Mode.MIT, 1000)
+motor.send_mit(
+    pos=1.0,    # 目标位置（rad）
+    vel=0.0,    # 目标速度（rad/s）
+    kp=30.0,    # 位置刚度（Nm/rad）
+    kd=1.0,     # 速度阻尼（Nm·s/rad）
+    tau=0.0     # 前馈力矩（Nm）
+)
+```
+
+---
+
+#### `Mode.POS_VEL`
+
+带速度限制的位置控制。电机以受限速度移动到目标位置。
+
+**命令：** `motor.send_pos_vel(pos, vlim)`
+
+**适用于：**
+- 简单的点到点运动
+- 需要速度限制的应用
+- 初学者友好的控制
+
+**示例：**
+
+```python
+motor.ensure_mode(Mode.POS_VEL, 1000)
+motor.send_pos_vel(pos=2.0, vlim=1.5)
+```
+
+---
+
+#### `Mode.VEL`
+
+纯速度控制。电机以指令速度无限期运行。
+
+**命令：** `motor.send_vel(vel)`
+
+**适用于：**
+- 传送带
+- 轮子和传动系统
+- 速度控制应用
+
+**示例：**
+
+```python
+motor.ensure_mode(Mode.VEL, 1000)
+motor.send_vel(vel=2.0)  # 2 rad/s
+
+# 停止电机
+motor.send_vel(vel=0.0)
+```
+
+---
+
+#### `Mode.FORCE_POS`
+
+带力比例的柔顺位置控制。电机移动到位置但限制施加的力。
+
+**命令：** `motor.send_force_pos(pos, vlim, ratio)`
+
+**适用于：**
+- 带力控制的夹爪
+- 接触任务
+- 安全关键应用
+
+**示例：**
+
+```python
+motor.ensure_mode(Mode.FORCE_POS, 1000)
+motor.send_force_pos(pos=1.0, vlim=1.0, ratio=0.3)
+```
+
+---
+
+## 厂商模式支持
+
+| 厂商 | MIT | POS_VEL | VEL | FORCE_POS |
+|------|-----|---------|-----|-----------|
+| 达妙 | ✅ | ✅ | ✅ | ✅ |
+| RobStride | ✅ | ❌ | ✅ | ❌ |
+| MyActuator | ❌ | ✅ | ✅ | ❌ |
+| HighTorque | ✅ | ✅ | ✅ | ✅ |
+| Hexfellow | ✅ | ✅ | ❌ | ✅ |
+
+<Warning>
+尝试使用不支持的模式将抛出 `CallError` 或 `ValueError`。
+</Warning>
+
+---
+
+## MotorState 数据类
+
+`MotorState` 是包含电机反馈数据的不可变数据类。
+
+### 导入
+
+```python
+from motorbridge import MotorState
+```
+
+### 定义
+
+```python
+@dataclass(frozen=True)
+class MotorState:
+    can_id: int
+    arbitration_id: int
+    status_code: int
+    pos: float
+    vel: float
+    torq: float
+    t_mos: float
+    t_rotor: float
+```
+
+### 字段描述
+
+| 字段 | 类型 | 单位 | 描述 |
+|------|------|------|------|
+| `can_id` | `int` | — | 电机 CAN ID |
+| `arbitration_id` | `int` | — | 反馈帧的 CAN 仲裁 ID |
+| `status_code` | `int` | — | 电机状态/错误代码（厂商特定） |
+| `pos` | `float` | rad | 电机位置 |
+| `vel` | `float` | rad/s | 电机速度 |
+| `torq` | `float` | Nm | 电机力矩（估计值） |
+| `t_mos` | `float` | °C | MOSFET 温度 |
+| `t_rotor` | `float` | °C | 转子温度 |
+
+### 使用示例
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+
+    # 请求反馈
+    motor.request_feedback()
+
+    # 获取状态（如果尚无反馈可能为 None）
+    state = motor.get_state()
+
+    if state is not None:
+        # 访问字段
+        print(f"位置: {state.pos:.3f} rad")
+        print(f"速度: {state.vel:.3f} rad/s")
+        print(f"力矩: {state.torq:.3f} Nm")
+        print(f"MOS 温度: {state.t_mos:.1f} °C")
+        print(f"转子温度: {state.t_rotor:.1f} °C")
+        print(f"状态: 0x{state.status_code:02X}")
+
+        # 检查温度警告
+        if state.t_mos > 80.0 or state.t_rotor > 80.0:
+            print("警告：高温！")
+    else:
+        print("未收到反馈")
+```
+
+### 状态代码解释
+
+状态代码是厂商特定的。常见模式：
+
+#### 达妙状态代码
+
+| 代码 | 含义 |
+|------|------|
+| 0 | 正常运行 |
+| 1 | 过压 |
+| 2 | 欠压 |
+| 3 | 过流 |
+| 4 | MOSFET 过温 |
+| 5 | 转子过温 |
+| 6 | 通信超时 |
+
+---
+
+## 状态读取重试模式
+
+由于反馈是异步的，实现重试逻辑：
+
+```python
+import time
+
+def get_state_with_retry(motor, max_attempts=10, delay=0.05):
+    """带重试的状态获取。"""
+    for _ in range(max_attempts):
+        motor.request_feedback()
+        state = motor.get_state()
+        if state is not None:
+            return state
+        time.sleep(delay)
+    return None
+
+# 用法
+state = get_state_with_retry(motor)
+if state:
+    print(f"获取状态: pos={state.pos:.3f}")
+else:
+    print("重试后未能获取状态")
+```
+
+---
+
+## 另见
+
+- [Motor API](api/motor) - 电机控制方法
+- [Controller API](api/controller) - 控制器方法
+- [厂商能力矩阵](reference/vendor-capability-matrix) - 厂商特性支持

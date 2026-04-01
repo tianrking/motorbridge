@@ -1,0 +1,333 @@
+# API: Mode and State
+
+<mintly-toc>
+
+This page documents the `Mode` enum for control modes and the `MotorState` dataclass for motor feedback.
+
+</mintly-toc>
+
+## Mode Enum
+
+The `Mode` enum defines the available control modes for motors.
+
+### Import
+
+```python
+from motorbridge import Mode
+```
+
+### Definition
+
+```python
+class Mode(IntEnum):
+    MIT = 1
+    POS_VEL = 2
+    VEL = 3
+    FORCE_POS = 4
+```
+
+### Mode Descriptions
+
+| Mode | Value | Description | Use Case |
+|------|-------|-------------|----------|
+| `MIT` | 1 | Full impedance control | Precise position/torque control with adjustable stiffness |
+| `POS_VEL` | 2 | Position with velocity limit | Simple position control with speed limit |
+| `VEL` | 3 | Pure velocity control | Continuous rotation, speed control |
+| `FORCE_POS` | 4 | Compliant position control | Force-limited position control |
+
+### Mode Details
+
+#### `Mode.MIT`
+
+MIT mode provides full impedance control with independent control over:
+- Position target
+- Velocity target
+- Position stiffness (Kp)
+- Velocity damping (Kd)
+- Feedforward torque
+
+**Command:** `motor.send_mit(pos, vel, kp, kd, tau)`
+
+**Best for:**
+- Legged robots requiring compliant control
+- Arms with variable stiffness
+- Haptic feedback applications
+
+**Example:**
+
+```python
+motor.ensure_mode(Mode.MIT, 1000)
+motor.send_mit(
+    pos=1.0,    # Target position (rad)
+    vel=0.0,    # Target velocity (rad/s)
+    kp=30.0,    # Position stiffness (Nm/rad)
+    kd=1.0,     # Velocity damping (Nm·s/rad)
+    tau=0.0     # Feedforward torque (Nm)
+)
+```
+
+---
+
+#### `Mode.POS_VEL`
+
+Position control with velocity limit. Motor moves to target position at limited speed.
+
+**Command:** `motor.send_pos_vel(pos, vlim)`
+
+**Best for:**
+- Simple point-to-point motion
+- Applications needing speed limits
+- Beginner-friendly control
+
+**Example:**
+
+```python
+motor.ensure_mode(Mode.POS_VEL, 1000)
+motor.send_pos_vel(
+    pos=2.0,    # Target position (rad)
+    vlim=1.5    # Velocity limit (rad/s)
+)
+```
+
+---
+
+#### `Mode.VEL`
+
+Pure velocity control. Motor runs at commanded velocity indefinitely.
+
+**Command:** `motor.send_vel(vel)`
+
+**Best for:**
+- Conveyor belts
+- Wheels and drivetrains
+- Speed-controlled applications
+
+**Example:**
+
+```python
+motor.ensure_mode(Mode.VEL, 1000)
+motor.send_vel(vel=2.0)  # 2 rad/s
+
+# Stop motor
+motor.send_vel(vel=0.0)
+```
+
+---
+
+#### `Mode.FORCE_POS`
+
+Compliant position control with force ratio. Motor moves to position but limits applied force.
+
+**Command:** `motor.send_force_pos(pos, vlim, ratio)`
+
+**Best for:**
+- Grippers with force control
+- Contact tasks
+- Safety-critical applications
+
+**Example:**
+
+```python
+motor.ensure_mode(Mode.FORCE_POS, 1000)
+motor.send_force_pos(
+    pos=1.0,    # Target position (rad)
+    vlim=1.0,   # Velocity limit (rad/s)
+    ratio=0.3   # Force ratio (0.0-1.0)
+)
+```
+
+---
+
+### Vendor Mode Support
+
+| Vendor | MIT | POS_VEL | VEL | FORCE_POS |
+|--------|-----|---------|-----|-----------|
+| Damiao | ✅ | ✅ | ✅ | ✅ |
+| RobStride | ✅ | ❌ | ✅ | ❌ |
+| MyActuator | ❌ | ✅ | ✅ | ❌ |
+| HighTorque | ✅ | ✅ | ✅ | ✅ |
+| Hexfellow | ✅ | ✅ | ❌ | ✅ |
+
+<Warning>
+Attempting to use an unsupported mode will raise a `CallError` or `ValueError`.
+</Warning>
+
+---
+
+## MotorState Dataclass
+
+`MotorState` is an immutable dataclass containing motor feedback data.
+
+### Import
+
+```python
+from motorbridge import MotorState
+```
+
+### Definition
+
+```python
+@dataclass(frozen=True)
+class MotorState:
+    can_id: int
+    arbitration_id: int
+    status_code: int
+    pos: float
+    vel: float
+    torq: float
+    t_mos: float
+    t_rotor: float
+```
+
+### Field Descriptions
+
+| Field | Type | Unit | Description |
+|-------|------|------|-------------|
+| `can_id` | `int` | — | Motor CAN ID |
+| `arbitration_id` | `int` | — | CAN arbitration ID of feedback frame |
+| `status_code` | `int` | — | Motor status/error code (vendor-specific) |
+| `pos` | `float` | rad | Motor position |
+| `vel` | `float` | rad/s | Motor velocity |
+| `torq` | `float` | Nm | Motor torque (estimated) |
+| `t_mos` | `float` | °C | MOSFET temperature |
+| `t_rotor` | `float` | °C | Rotor temperature |
+
+### Usage Example
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+
+    # Request feedback
+    motor.request_feedback()
+
+    # Get state (may be None if no feedback yet)
+    state = motor.get_state()
+
+    if state is not None:
+        # Access fields
+        print(f"Position: {state.pos:.3f} rad")
+        print(f"Velocity: {state.vel:.3f} rad/s")
+        print(f"Torque: {state.torq:.3f} Nm")
+        print(f"MOS Temp: {state.t_mos:.1f} °C")
+        print(f"Rotor Temp: {state.t_rotor:.1f} °C")
+        print(f"Status: 0x{state.status_code:02X}")
+
+        # Check for temperature warning
+        if state.t_mos > 80.0 or state.t_rotor > 80.0:
+            print("WARNING: High temperature!")
+    else:
+        print("No feedback received")
+```
+
+### Status Code Interpretation
+
+Status codes are vendor-specific. Common patterns:
+
+#### Damiao Status Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Normal operation |
+| 1 | Over-voltage |
+| 2 | Under-voltage |
+| 3 | Over-current |
+| 4 | MOSFET over-temperature |
+| 5 | Rotor over-temperature |
+| 6 | Communication timeout |
+
+#### Checking Status
+
+```python
+state = motor.get_state()
+if state and state.status_code != 0:
+    print(f"Motor error: status=0x{state.status_code:02X}")
+    motor.clear_error()
+```
+
+---
+
+## Retry Pattern for State Reading
+
+Since feedback is asynchronous, implement a retry pattern:
+
+```python
+import time
+
+def get_state_with_retry(motor, max_attempts=10, delay=0.05):
+    """Get motor state with retry on None."""
+    for attempt in range(max_attempts):
+        motor.request_feedback()
+        state = motor.get_state()
+        if state is not None:
+            return state
+        time.sleep(delay)
+    return None
+
+# Usage
+state = get_state_with_retry(motor)
+if state:
+    print(f"Got state: pos={state.pos:.3f}")
+else:
+    print("Failed to get state after retries")
+```
+
+---
+
+## Complete Example
+
+```python
+import time
+from motorbridge import Controller, Mode, MotorState
+
+def print_state(state: MotorState, prefix: str = ""):
+    """Pretty print motor state."""
+    print(f"{prefix}pos={state.pos:+7.3f} rad | "
+          f"vel={state.vel:+6.3f} rad/s | "
+          f"torq={state.torq:+5.2f} Nm | "
+          f"t_mos={state.t_mos:5.1f}°C | "
+          f"status=0x{state.status_code:02X}")
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # Enable motor
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)
+
+    # Control loop with state monitoring
+    target_pos = 0.0
+
+    for i in range(100):
+        # Sinusoidal position target
+        target_pos = 1.0 * (1.0 - (i / 50.0) if i < 50 else (i - 50) / 50.0)
+
+        # Send command
+        motor.send_pos_vel(target_pos, vlim=2.0)
+
+        # Read state
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state:
+            print_state(state, prefix=f"#{i:03d} ")
+
+            # Safety check
+            if state.t_mos > 85.0:
+                print("WARNING: MOSFET overheating!")
+            if state.status_code != 0:
+                print(f"ERROR: status=0x{state.status_code:02X}")
+
+        time.sleep(0.02)
+
+    motor.disable()
+```
+
+## See Also
+
+- [Motor API](api/motor) - Motor control methods
+- [Controller API](api/controller) - Controller methods
+- [Vendor Capability Matrix](reference/vendor-capability-matrix) - Vendor feature support

@@ -24,6 +24,8 @@
    作用：Python binding 总览（安装、API 范围、常用命令）。
 2. [examples/READMEzh_cn.md](examples/READMEzh_cn.md)（中文） / [examples/README.md](examples/README.md)（英文）  
    作用：所有 Python 示例的入口说明（从最简单到高级示例）。
+2.5. [mintlify/README.md](mintlify/README.md)  
+   作用：Python binding 的 Mintlify 文档站入口（教程 + API 手册风格）。
 3. [get_started/README.zh-CN.md](get_started/README.zh-CN.md) / [get_started/README.md](get_started/README.md)  
    作用：pip 安装用户的快速上手路径（安装 -> 扫描 -> 运行）。
 4. [DAMIAO_PYTHON_REFERENCE.zh-CN.md](DAMIAO_PYTHON_REFERENCE.zh-CN.md)  

@@ -1,0 +1,399 @@
+---
+title: 什么是 MotorBridge？
+---
+
+# 什么是 MotorBridge？
+
+<Badge variant="primary">v0.1.3</Badge> <Badge variant="secondary">Rust 核心</Badge> <Badge variant="outline">Python 绑定</Badge>
+
+MotorBridge 是一个**统一的电机控制栈**，具有可插拔的厂商驱动和跨语言集成的 C ABI。
+
+## 我们解决的问题
+
+每个电机厂商都有不同的协议：
+
+| 厂商 | 协议 | CAN 格式 | 控制模式 |
+|------|------|----------|----------|
+| 达妙 (Damiao) | DM-J4310/4340 | CAN 2.0 | MIT, POS_VEL, VEL, FORCE_POS |
+| RobStride | RobStride MIT | CAN 2.0 | MIT, 位置, 速度 |
+| MyActuator | RMD | CAN 2.0 | 电流, 位置, 速度 |
+| HighTorque | HT 原生 | CAN 2.0 | MIT, POS_VEL, VEL, FORCE_POS |
+| Hexfellow | Hexfellow MIT | CAN-FD | MIT, POS_VEL, FORCE_POS |
+
+<Callout type="warn">
+没有 MotorBridge，你需要：
+- 学习 5+ 种不同的协议
+- 为每个厂商维护独立的代码库
+- 更换电机时重写控制逻辑
+- 自己构建调试工具
+</Callout>
+
+## MotorBridge 架构
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          你的应用程序                                │
+│                   (Python / 未来: C++, ROS2)                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│    ┌─────────────────────────────────────────────────────────────┐  │
+│    │                     语言绑定层                               │  │
+│    │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │  │
+│    │  │   Python     │  │  C++ (开发中) │  │ ROS2 (开发中)│      │  │
+│    │  │   Binding    │  │   Binding    │  │    Node      │      │  │
+│    │  └──────────────┘  └──────────────┘  └──────────────┘      │  │
+│    └─────────────────────────────────────────────────────────────┘  │
+│                                │                                     │
+│                                ▼                                     │
+│    ┌─────────────────────────────────────────────────────────────┐  │
+│    │                       C ABI (FFI)                            │  │
+│    │              libmotor_abi.so / .dylib / .dll                 │  │
+│    │                                                              │  │
+│    │  • motor_controller_new_socketcan()                         │  │
+│    │  • motor_controller_add_damiao_motor()                      │  │
+│    │  • motor_handle_send_mit()                                  │  │
+│    │  • motor_handle_get_state()                                 │  │
+│    └─────────────────────────────────────────────────────────────┘  │
+│                                │                                     │
+│                                ▼                                     │
+│    ┌─────────────────────────────────────────────────────────────┐  │
+│    │                     Rust 核心层                              │  │
+│    │                                                              │  │
+│    │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │  │
+│    │  │ motor_core  │ │ motor_abi   │ │ motor_cli   │           │  │
+│    │  │ (核心抽象)  │ │ (FFI 层)    │ │ (CLI 工具)  │           │  │
+│    │  └─────────────┘ └─────────────┘ └─────────────┘           │  │
+│    │                                                              │  │
+│    │  ┌───────────────────────────────────────────────────────┐ │  │
+│    │  │                    厂商驱动层                          │ │  │
+│    │  │  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐│ │  │
+│    │  │  │ 达妙   │ │RobStride│ │MyActuat│ │HighTorq│ │Hexfellow││  │
+│    │  │  │ Damiao │ │        │ │        │ │        │ │        ││ │  │
+│    │  │  └────────┘ └────────┘ └────────┘ └────────┘ └────────┘│ │  │
+│    │  └───────────────────────────────────────────────────────┘ │  │
+│    └─────────────────────────────────────────────────────────────┘  │
+│                                │                                     │
+│                                ▼                                     │
+│    ┌─────────────────────────────────────────────────────────────┐  │
+│    │                      传输层                                  │  │
+│    │                                                              │  │
+│    │  ┌────────────┐  ┌────────────┐  ┌────────────┐            │  │
+│    │  │ SocketCAN  │  │SocketCAN-FD│  │  DM Serial │            │  │
+│    │  │ (CAN 2.0)  │  │  (CAN-FD)  │  │   串口桥   │            │  │
+│    │  └────────────┘  └────────────┘  └────────────┘            │  │
+│    └─────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## 项目结构
+
+```
+rust_dm/
+├── motor_core/           # 核心抽象（CanBus, MotorDevice）
+├── motor_abi/            # C ABI / FFI 层（cdylib + staticlib）
+├── motor_vendors/        # 厂商特定协议实现
+│   ├── damiao/          # 达妙电机协议
+│   ├── robstride/       # RobStride 电机协议
+│   ├── myactuator/      # MyActuator RMD 协议
+│   ├── hightorque/      # HighTorque 原生协议
+│   └── hexfellow/       # Hexfellow MIT 协议（CAN-FD）
+├── bindings/
+│   └── python/          # Python 绑定（基于 ctypes）
+├── motor_cli/           # 命令行工具
+├── integrations/
+│   └── ws_gateway/      # WebSocket 网关（远程控制）
+└── tools/
+    └── motor_calib/     # 电机校准工具
+```
+
+## 为什么叫 "Python 绑定" 不是 "SDK"？
+
+<AccordionGroup>
+  <Accordion title="什么是绑定（Binding）？">
+    **绑定（Binding）** 是通过 FFI（外部函数接口）将原生库暴露给其他语言的薄包装层。
+    
+    ```
+    ┌─────────────────────────────────────────────────┐
+    │  Python 代码                                    │
+    │  motor.send_mit(pos, vel, kp, kd, tau)         │
+    └───────────────────────┬─────────────────────────┘
+                            │ ctypes 调用
+                            ▼
+    ┌─────────────────────────────────────────────────┐
+    │  C ABI (libmotor_abi.so)                        │
+    │  motor_handle_send_mit(ptr, pos, vel, kp, kd, tau)│
+    └───────────────────────┬─────────────────────────┘
+                            │ 原生调用
+                            ▼
+    ┌─────────────────────────────────────────────────┐
+    │  Rust 核心                                      │
+    │  DamiaoMotor::send_mit_target(...)             │
+    └─────────────────────────────────────────────────┘
+    ```
+    
+    **关键特点：**
+    - 逻辑在 Rust 中，不在 Python 中
+    - Python 调用与 C ABI 函数 1:1 映射
+    - 没有重复实现
+    - 最小开销（直接 FFI 调用）
+  </Accordion>
+  
+  <Accordion title="ABI 是如何工作的？">
+    `motor_abi` crate 编译为共享库：
+    
+    ```toml
+    # motor_abi/Cargo.toml
+    [lib]
+    crate-type = ["cdylib", "staticlib"]  # 动态库 + 静态库
+    ```
+    
+    Python 通过 `ctypes` 加载它：
+    
+    ```python
+    # abi.py
+    lib = ctypes.CDLL("libmotor_abi.so")
+    
+    # 绑定函数签名
+    lib.motor_handle_send_mit.argtypes = [c_void_p, c_float, c_float, 
+                                           c_float, c_float, c_float]
+    lib.motor_handle_send_mit.restype = c_int32
+    
+    # 调用它
+    lib.motor_handle_send_mit(motor_ptr, 0.5, 0.0, 30.0, 1.0, 0.0)
+    ```
+    
+    对于基本类型这是**零拷贝**的 —— 浮点数和整数直接在 Python 和 Rust 之间传递。
+  </Accordion>
+  
+  <Accordion title="SDK 与 绑定 对比">
+    | 方面 | SDK | 绑定（MotorBridge） |
+    |------|-----|---------------------|
+    | 逻辑位置 | SDK 本身 | Rust 核心 |
+    | 语言 | 纯 Python | Rust + Python 包装 |
+    | 性能 | Python 开销 | 接近原生速度 |
+    | 内存安全 | Python GC | Rust 所有权 |
+    | 其他语言 | 不适用 | 同一 ABI 可用于 C++ 等 |
+    | 部署 | 纯 Python | 需要原生库 |
+    
+    **MotorBridge 是绑定的原因：**
+    - "SDK" 是 Rust 核心（`motor_core` + 厂商驱动）
+    - Python 只是访问该核心的一个接口
+    - 未来：C++、ROS2 节点将使用相同的 ABI
+  </Accordion>
+</AccordionGroup>
+
+## 为什么用 Rust 写核心？
+
+| 需求 | Rust 优势 |
+|------|----------|
+| **实时控制** | 无垃圾回收停顿 |
+| **内存安全** | 无缓冲区溢出、use-after-free |
+| **确定性时序** | 可预测的执行时间，适合控制循环 |
+| **零成本抽象** | 高级代码，低级性能 |
+| **跨平台** | 支持 Linux、macOS、Windows |
+| **CAN 集成** | 原生 SocketCAN 绑定 |
+
+## 核心组件
+
+### Controller（控制器）
+
+管理 CAN 接口和电机生命周期：
+
+```python
+from motorbridge import Controller
+
+# SocketCAN（最常用）
+with Controller("can0") as ctrl:
+    # ctrl 管理 CAN socket
+    # ctrl 追踪所有注册的电机
+    # ctrl 在退出时处理清理
+    pass
+
+# CAN-FD（Hexfellow 必须用）
+ctrl = Controller.from_socketcanfd("can0")
+
+# DM 串口桥（达妙专用）
+ctrl = Controller.from_dm_serial("/dev/ttyACM0", 921600)
+```
+
+<Warning>
+每个 Controller 绑定**一个厂商**。你不能在同一个 Controller 实例中混合使用达妙和 RobStride 电机。
+</Warning>
+
+### Motor（电机）
+
+单个物理电机的句柄：
+
+```python
+# 添加达妙电机
+motor = ctrl.add_damiao_motor(
+    motor_id=0x01,      # 命令 CAN ID
+    feedback_id=0x11,   # 反馈 CAN ID
+    model="4340P"       # 电机型号字符串
+)
+
+# 发送控制命令
+motor.send_mit(pos=0.5, vel=0.0, kp=30.0, kd=1.0, tau=0.0)
+
+# 读取状态
+state = motor.get_state()
+```
+
+### Mode（模式）
+
+控制模式决定电机如何响应：
+
+```python
+from motorbridge import Mode
+
+motor.ensure_mode(Mode.MIT, timeout_ms=1000)
+```
+
+| 模式 | 参数 | 用途 |
+|------|------|------|
+| `MIT` | pos, vel, kp, kd, tau | 完整阻抗控制 |
+| `POS_VEL` | pos, vlim | 带速度限制的位置控制 |
+| `VEL` | vel | 纯速度控制 |
+| `FORCE_POS` | pos, vlim, ratio | 带力限制的位置控制 |
+
+### MotorState（电机状态）
+
+实时反馈结构：
+
+```python
+@dataclass
+class MotorState:
+    can_id: int          # 电机 CAN ID
+    arbitration_id: int  # CAN 仲裁 ID
+    status_code: int     # 错误/状态码（0 = 正常）
+    pos: float           # 位置（弧度）
+    vel: float           # 速度（rad/s）
+    torq: float          # 力矩（Nm）
+    t_mos: float         # MOSFET 温度（°C）
+    t_rotor: float       # 转子温度（°C）
+```
+
+## 传输选项
+
+| 传输方式 | 支持厂商 | 构造函数 |
+|----------|----------|----------|
+| SocketCAN | 除 Hexfellow 外所有 | `Controller("can0")` |
+| CAN-FD | Hexfellow（必须） | `Controller.from_socketcanfd("can0")` |
+| DM 串口 | 仅达妙 | `Controller.from_dm_serial("/dev/ttyACM0", 921600)` |
+
+## CLI 工具
+
+项目包含命令行工具：
+
+```bash
+# 扫描电机
+motorbridge-cli scan --vendor all --channel can0
+
+# 使能并测试
+motorbridge-cli run --vendor damiao --motor-id 0x01 --mode enable
+
+# 转储寄存器
+motorbridge-cli id-dump --motor-id 0x01 --rids 7,8,9,10
+```
+
+## 集成组件
+
+### WebSocket 网关
+
+通过 WebSocket 控制电机（适用于浏览器/远程应用）：
+
+```bash
+# 启动网关
+cargo run -p ws_gateway
+```
+
+### 电机校准
+
+电机校准工具：
+
+```bash
+cargo run -p motor_calib
+```
+
+## 与其他方案对比
+
+| 特性 | 厂商库 | MotorBridge |
+|------|--------|-------------|
+| 多厂商支持 | ❌ 每厂商一个 | ✅ 统一 API |
+| 协议细节 | ❌ 暴露 | ✅ 抽象 |
+| 类型安全 | ⚠️ 参差不齐 | ✅ 完整类型提示 |
+| CLI 工具 | ❌ 通常没有 | ✅ 内置 |
+| 实时安全 | ⚠️ Python GC | ✅ Rust 核心 |
+| 其他语言 | ❌ 仅 Python | ✅ C ABI 支持任何语言 |
+| 文档 | ⚠️ 参差不齐 | ✅ 完整 |
+
+## 快速开始
+
+<Steps>
+  <Step title="安装 Python 包">
+    ```bash
+    pip install motorbridge
+    ```
+  </Step>
+  
+  <Step title="配置 CAN 接口">
+    ```bash
+    sudo ip link set can0 type can bitrate 1000000
+    sudo ip link set can0 up
+    ```
+  </Step>
+  
+  <Step title="运行你的第一个程序">
+    ```python
+    from motorbridge import Controller, Mode
+    
+    with Controller("can0") as ctrl:
+        motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+        ctrl.enable_all()
+        motor.ensure_mode(Mode.MIT, 1000)
+        motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+        print("电机运行中！")
+    ```
+  </Step>
+</Steps>
+
+## 你可以构建什么？
+
+<Cards>
+  <Card title="机械臂" icon="hand">
+    用混合电机厂商控制多关节手臂
+  </Card>
+  <Card title="四足机器人" icon="paw">
+    12+ 电机协调实现行走步态
+  </Card>
+  <Card title="夹爪" icon="grip-vertical">
+    用 FORCE_POS 模式实现力控抓取
+  </Card>
+  <Card title="测试设备" icon="flask">
+    自动化电机测试和特性分析
+  </Card>
+  <Card title="轮式机器人" icon="circle">
+    用速度模式实现差速驱动
+  </Card>
+  <Card title="研究平台" icon="graduation-cap">
+    快速原型验证电机控制研究
+  </Card>
+</Cards>
+
+## 下一步
+
+<CardGroup cols={2}>
+  <Card title="快速开始指南" href="quickstart" icon="rocket">
+    5 分钟让电机跑起来
+  </Card>
+  <Card title="接口手册" href="api/controller" icon="book">
+    完整 API 文档
+  </Card>
+  <Card title="教程" href="tutorials/01-scan-and-identify" icon="graduation-cap">
+    分步实用指南
+  </Card>
+  <Card title="最佳实践" href="best-practices/control-loop-patterns" icon="shield-check">
+    生产级模式
+  </Card>
+</CardGroup>

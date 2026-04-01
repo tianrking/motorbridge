@@ -1,0 +1,927 @@
+---
+title: 06 实用代码配方
+---
+
+# 教程 06：实用代码配方
+
+<mintly-toc>
+
+这里提供了可以直接复制粘贴使用的代码模板，涵盖常见的电机控制场景。每个配方都有完整的代码和详细解释。
+
+</mintly-toc>
+
+## 如何使用这些配方？
+
+1. **复制代码** - 直接复制你需要的代码块
+2. **修改参数** - 根据你的电机配置修改 ID、型号等参数
+3. **运行测试** - 先在安全环境下测试
+4. **集成项目** - 将代码集成到你的项目中
+
+## 配方 A：基本位置控制
+
+**场景**：让电机移动到指定位置，并等待到达。
+
+### 完整代码
+
+```python
+#!/usr/bin/env python3
+"""配方 A：基本位置控制"""
+import time
+from motorbridge import Controller, Mode
+
+# ============ 配置区域 ============
+TARGET_POS = 1.0      # 目标位置（弧度）
+MOTOR_ID = 0x01       # 电机 ID
+FEEDBACK_ID = 0x11    # 反馈 ID
+MODEL = "4340P"       # 电机型号
+CHANNEL = "can0"      # CAN 接口
+# =================================
+
+with Controller(CHANNEL) as ctrl:
+    motor = ctrl.add_damiao_motor(MOTOR_ID, FEEDBACK_ID, MODEL)
+
+    # 使能电机
+    ctrl.enable_all()
+    print("电机已使能")
+
+    # 切换到位置-速度模式
+    motor.ensure_mode(Mode.POS_VEL, timeout_ms=1000)
+    print("已设置为位置模式")
+
+    # 发送位置命令
+    # 参数1: 目标位置（弧度）
+    # 参数2: 最大速度限制（弧度/秒）
+    motor.send_pos_vel(TARGET_POS, vlim=1.5)
+    print(f"目标位置: {TARGET_POS} rad")
+
+    # 等待到达
+    for i in range(50):
+        # 请求反馈
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state:
+            error = abs(state.pos - TARGET_POS)
+            print(f"#{i:02d} 当前位置={state.pos:.3f} rad 误差={error:.4f} rad")
+
+            # 误差小于 0.02 弧度认为到达
+            if error < 0.02:
+                print("✓ 到达目标位置！")
+                break
+        else:
+            print(f"#{i:02d} 未收到反馈")
+
+        time.sleep(0.05)
+
+    # 禁用电机
+    motor.disable()
+    print("电机已禁用")
+```
+
+### 参数详解
+
+| 参数 | 类型 | 说明 | 推荐值 |
+|------|------|------|--------|
+| `TARGET_POS` | float | 目标位置（弧度） | -12.566 ~ +12.566 |
+| `vlim` | float | 最大速度限制 | 0.5 ~ 3.0 rad/s |
+| 误差阈值 | float | 判断到达的误差 | 0.01 ~ 0.05 rad |
+
+### 弧度与角度换算
+
+```python
+import math
+
+# 角度转弧度
+deg = 90
+rad = deg * math.pi / 180  # = 1.571 rad
+
+# 弧度转角度
+rad = 1.571
+deg = rad * 180 / math.pi  # = 90°
+```
+
+## 配方 B：MIT 模式正弦运动
+
+**场景**：让电机平滑地做正弦往复运动，适合测试和演示。
+
+### 完整代码
+
+```python
+#!/usr/bin/env python3
+"""配方 B：MIT 模式正弦运动"""
+import time
+import math
+from motorbridge import Controller, Mode
+
+# ============ 配置区域 ============
+AMPLITUDE = 0.5       # 振幅（弧度）- 最大偏移量
+FREQUENCY = 0.5       # 频率（Hz）- 每秒振动次数
+DURATION = 5.0        # 运行时间（秒）
+KP = 30.0             # 位置刚度
+KD = 1.0              # 速度阻尼
+MOTOR_ID = 0x01
+FEEDBACK_ID = 0x11
+MODEL = "4340P"
+CHANNEL = "can0"
+# =================================
+
+with Controller(CHANNEL) as ctrl:
+    motor = ctrl.add_damiao_motor(MOTOR_ID, FEEDBACK_ID, MODEL)
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    print(f"开始正弦运动: 振幅={AMPLITUDE} rad, 频率={FREQUENCY} Hz")
+
+    dt = 0.02  # 控制周期 20ms
+    for i in range(int(DURATION / dt)):
+        t = i * dt
+
+        # 计算正弦目标位置
+        # 公式: target = A * sin(2π * f * t)
+        target_pos = AMPLITUDE * math.sin(2 * math.pi * FREQUENCY * t)
+
+        # 计算目标速度（位置的导数）
+        # 公式: target_vel = A * 2π * f * cos(2π * f * t)
+        target_vel = AMPLITUDE * 2 * math.pi * FREQUENCY * math.cos(2 * math.pi * FREQUENCY * t)
+
+        # 发送 MIT 命令（带速度前馈）
+        motor.send_mit(
+            pos=target_pos,   # 目标位置
+            vel=target_vel,   # 目标速度（前馈）
+            kp=KP,            # 位置刚度
+            kd=KD,            # 速度阻尼
+            tau=0.0           # 前馈力矩
+        )
+
+        # 读取状态
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state:
+            error = state.pos - target_pos
+            print(f"t={t:.2f}s 目标={target_pos:+.3f} 实际={state.pos:+.3f} 误差={error:+.4f}")
+
+        time.sleep(dt)
+
+    motor.disable()
+    print("运动结束")
+```
+
+### 参数详解
+
+| 参数 | 类型 | 说明 | 效果 |
+|------|------|------|------|
+| `AMPLITUDE` | float | 振幅 | 越大摆动范围越大 |
+| `FREQUENCY` | float | 频率 | 越大振动越快 |
+| `KP` | float | 位置刚度 | 越大响应越硬 |
+| `KD` | float | 速度阻尼 | 越大越平稳 |
+
+### 为什么加入速度前馈？
+
+```python
+# 不加速度前馈
+motor.send_mit(target_pos, 0.0, KP, KD, 0.0)  # 电机需要"追赶"目标
+
+# 加入速度前馈
+motor.send_mit(target_pos, target_vel, KP, KD, 0.0)  # 电机"预知"运动方向
+```
+
+速度前馈让电机提前知道下一步要往哪个方向动，跟踪更准确。
+
+## 配方 C：速度控制加减速
+
+**场景**：平滑地加速到目标速度，保持，然后平滑减速停止。
+
+### 完整代码
+
+```python
+#!/usr/bin/env python3
+"""配方 C：速度控制加减速"""
+import time
+from motorbridge import Controller, Mode
+
+# ============ 配置区域 ============
+MAX_VEL = 3.0         # 最大速度（rad/s）
+ACCEL = 1.0           # 加速度（rad/s²）
+HOLD_TIME = 2.0       # 最大速度保持时间（秒）
+MOTOR_ID = 0x01
+FEEDBACK_ID = 0x11
+MODEL = "4340P"
+CHANNEL = "can0"
+# =================================
+
+with Controller(CHANNEL) as ctrl:
+    motor = ctrl.add_damiao_motor(MOTOR_ID, FEEDBACK_ID, MODEL)
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.VEL, 1000)
+
+    dt = 0.02  # 控制周期
+
+    # ========== 加速阶段 ==========
+    print("=== 加速阶段 ===")
+    vel = 0.0
+    step = 0
+
+    while vel < MAX_VEL:
+        # 发送速度命令
+        motor.send_vel(vel)
+
+        # 读取状态
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state:
+            print(f"#{step:03d} 命令速度={vel:.2f} rad/s 实际速度={state.vel:.2f} rad/s")
+
+        # 增加速度
+        vel += ACCEL * dt
+        step += 1
+        time.sleep(dt)
+
+    # ========== 保持阶段 ==========
+    print(f"\n=== 保持阶段（{HOLD_TIME}秒）===")
+    motor.send_vel(MAX_VEL)
+
+    for i in range(int(HOLD_TIME / dt)):
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state and i % 10 == 0:
+            print(f"保持中: 实际速度={state.vel:.2f} rad/s 位置={state.pos:.2f} rad")
+
+        time.sleep(dt)
+
+    # ========== 减速阶段 ==========
+    print("\n=== 减速阶段 ===")
+    step = 0
+
+    while vel > 0:
+        motor.send_vel(vel)
+
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state:
+            print(f"#{step:03d} 命令速度={vel:.2f} rad/s 实际速度={state.vel:.2f} rad/s")
+
+        # 减少速度
+        vel -= ACCEL * dt
+        if vel < 0:
+            vel = 0
+
+        step += 1
+        time.sleep(dt)
+
+    # 停止
+    motor.send_vel(0.0)
+    motor.disable()
+    print("\n完成！")
+```
+
+### 参数详解
+
+| 参数 | 类型 | 说明 | 计算 |
+|------|------|------|------|
+| `MAX_VEL` | float | 目标速度 | 3.0 rad/s ≈ 0.5 圈/秒 |
+| `ACCEL` | float | 加速度 | 1.0 rad/s² = 每秒增加 1 rad/s |
+| `HOLD_TIME` | float | 保持时间 | 加速时间 = MAX_VEL / ACCEL |
+
+### 加减速时间计算
+
+```python
+# 加速需要的时间
+accel_time = MAX_VEL / ACCEL  # 3.0 / 1.0 = 3 秒
+
+# 加速过程的距离
+accel_distance = 0.5 * ACCEL * accel_time ** 2  # 4.5 rad
+```
+
+## 配方 D：多电机同步运动
+
+**场景**：让多个电机同时做相同的运动。
+
+### 完整代码
+
+```python
+#!/usr/bin/env python3
+"""配方 D：多电机同步运动"""
+import time
+import math
+from motorbridge import Controller, Mode
+
+# ============ 电机配置 ============
+# 格式: "名字": {"id": 电机ID, "fb": 反馈ID}
+MOTORS = {
+    "电机1": {"id": 0x01, "fb": 0x11},
+    "电机2": {"id": 0x02, "fb": 0x12},
+    "电机3": {"id": 0x03, "fb": 0x13},
+}
+
+CHANNEL = "can0"
+MODEL = "4340P"
+DURATION = 4.0  # 运行时间
+# =================================
+
+with Controller(CHANNEL) as ctrl:
+    # 创建所有电机
+    motors = {}
+    for name, cfg in MOTORS.items():
+        motors[name] = ctrl.add_damiao_motor(cfg["id"], cfg["fb"], MODEL)
+        print(f"已添加: {name} (ID=0x{cfg['id']:02X})")
+
+    # 使能所有电机
+    ctrl.enable_all()
+    print("所有电机已使能")
+
+    # 设置所有电机为 MIT 模式
+    for name, motor in motors.items():
+        motor.ensure_mode(Mode.MIT, 1000)
+    print("所有电机已设置为 MIT 模式")
+
+    # 同步运动循环
+    dt = 0.02
+    print("\n开始同步运动...")
+
+    for i in range(int(DURATION / dt)):
+        t = i * dt
+        target = 0.5 * math.sin(t)
+
+        # 给所有电机发送相同的命令
+        for motor in motors.values():
+            motor.send_mit(target, 0.0, 30.0, 1.0, 0.0)
+
+        # 每 10 次读取一次状态
+        if i % 10 == 0:
+            # 先请求所有反馈
+            for motor in motors.values():
+                motor.request_feedback()
+
+            # 一起读取状态
+            states = []
+            for name, motor in motors.items():
+                state = motor.get_state()
+                if state:
+                    states.append(f"{name}={state.pos:+.2f}")
+
+            print(f"#{i:03d} " + " ".join(states))
+
+        time.sleep(dt)
+
+    # 禁用所有电机
+    ctrl.disable_all()
+    print("\n所有电机已禁用")
+```
+
+### 关键点
+
+```python
+# 1. 先发送所有命令
+for motor in motors.values():
+    motor.send_mit(target, 0.0, 30.0, 1.0, 0.0)
+
+# 2. 再请求所有反馈
+for motor in motors.values():
+    motor.request_feedback()
+
+# 3. 最后读取所有状态
+for name, motor in motors.items():
+    state = motor.get_state()
+```
+
+这种顺序可以最大化通信效率。
+
+## 配方 E：温度监控与安全保护
+
+**场景**：在运行时监控温度，超过阈值自动停止。
+
+### 完整代码
+
+```python
+#!/usr/bin/env python3
+"""配方 E：温度监控与安全保护"""
+import time
+from motorbridge import Controller, Mode
+
+# ============ 安全阈值 ============
+TEMP_WARNING = 70.0     # 警告温度（°C）
+TEMP_CRITICAL = 85.0    # 危险温度（°C）- 超过就停止
+# =================================
+
+MOTOR_ID = 0x01
+FEEDBACK_ID = 0x11
+MODEL = "4340P"
+CHANNEL = "can0"
+
+def check_temperature(state, motor_name="电机"):
+    """
+    检查温度是否安全。
+
+    返回:
+        True: 温度正常
+        False: 温度过高，需要停止
+    """
+    if state is None:
+        return True
+
+    # 检查 MOSFET 温度
+    if state.t_mos > TEMP_CRITICAL:
+        print(f"⚠️ 危险！{motor_name} MOSFET 温度: {state.t_mos:.1f}°C")
+        return False
+
+    # 检查转子温度
+    if state.t_rotor > TEMP_CRITICAL:
+        print(f"⚠️ 危险！{motor_name} 转子温度: {state.t_rotor:.1f}°C")
+        return False
+
+    # 警告提示
+    if state.t_mos > TEMP_WARNING:
+        print(f"⚠️ 警告：{motor_name} MOSFET 温度偏高: {state.t_mos:.1f}°C")
+    if state.t_rotor > TEMP_WARNING:
+        print(f"⚠️ 警告：{motor_name} 转子温度偏高: {state.t_rotor:.1f}°C")
+
+    return True
+
+with Controller(CHANNEL) as ctrl:
+    motor = ctrl.add_damiao_motor(MOTOR_ID, FEEDBACK_ID, MODEL)
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    try:
+        for i in range(1000):
+            # 控制命令
+            motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+
+            # 读取状态
+            motor.request_feedback()
+            state = motor.get_state()
+
+            if state:
+                # 检查温度
+                if not check_temperature(state):
+                    print("紧急停止！")
+                    motor.disable()
+                    break
+
+                # 正常打印
+                if i % 20 == 0:
+                    print(
+                        f"#{i:04d} "
+                        f"位置={state.pos:+.3f} "
+                        f"MOS={state.t_mos:.1f}°C "
+                        f"转子={state.t_rotor:.1f}°C"
+                    )
+
+            time.sleep(0.02)
+
+    except KeyboardInterrupt:
+        print("\n用户中断")
+    finally:
+        motor.disable()
+        print("电机已禁用")
+```
+
+### 温度阈值建议
+
+| 温度范围 | 状态 | 行动 |
+|---------|------|------|
+| < 50°C | 正常 | 无需操作 |
+| 50-70°C | 偏高 | 注意观察 |
+| 70-85°C | 警告 | 考虑降低负载 |
+| > 85°C | 危险 | 立即停止 |
+
+## 配方 F：RobStride 参数读写
+
+**场景**：读取和修改 RobStride 电机的参数。
+
+### 完整代码
+
+```python
+#!/usr/bin/env python3
+"""配方 F：RobStride 参数读写"""
+from motorbridge import Controller, Mode
+
+# ============ 配置 ============
+DEVICE_ID = 127        # RobStride 设备 ID
+RESPONDER_ID = 0xFE    # 响应者 ID
+MODEL = "rs-00"        # 型号
+CHANNEL = "can0"
+# ==============================
+
+with Controller(CHANNEL) as ctrl:
+    motor = ctrl.add_robstride_motor(DEVICE_ID, RESPONDER_ID, MODEL)
+
+    # ===== Ping 电机 =====
+    print("=== Ping 电机 ===")
+    try:
+        device_id, responder_id = motor.robstride_ping()
+        print(f"Ping 成功！设备 ID: {device_id}, 响应者 ID: {responder_id}")
+    except Exception as e:
+        print(f"Ping 失败: {e}")
+
+    # ===== 读取参数 =====
+    print("\n=== 读取参数 ===")
+    param_id = 0x7019  # 示例参数 ID
+
+    try:
+        # 读取 f32 类型参数
+        value = motor.robstride_get_param_f32(param_id, timeout_ms=1000)
+        print(f"参数 0x{param_id:04X} = {value}")
+    except Exception as e:
+        print(f"读取失败: {e}")
+
+    # ===== 写入参数 =====
+    print("\n=== 写入参数 ===")
+    new_value = 2.5
+
+    try:
+        motor.robstride_write_param_f32(param_id, new_value)
+        print(f"已写入: 0x{param_id:04X} = {new_value}")
+    except Exception as e:
+        print(f"写入失败: {e}")
+
+    # ===== 验证写入 =====
+    print("\n=== 验证 ===")
+    try:
+        verify = motor.robstride_get_param_f32(param_id, timeout_ms=1000)
+        print(f"验证: 0x{param_id:04X} = {verify}")
+    except Exception as e:
+        print(f"验证失败: {e}")
+
+    # ===== 控制 =====
+    print("\n=== 控制测试 ===")
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    for i in range(50):
+        motor.send_mit(0.3, 0.0, 2.0, 0.1, 0.0)
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state:
+            print(f"#{i:02d} 位置={state.pos:.3f}")
+
+    motor.disable()
+    print("完成")
+```
+
+### RobStride 参数类型
+
+| 方法 | 数据类型 | 范围 |
+|------|---------|------|
+| `robstride_get_param_i8` | 有符号 8 位 | -128 ~ 127 |
+| `robstride_get_param_u8` | 无符号 8 位 | 0 ~ 255 |
+| `robstride_get_param_u16` | 无符号 16 位 | 0 ~ 65535 |
+| `robstride_get_param_u32` | 无符号 32 位 | 0 ~ 4294967295 |
+| `robstride_get_param_f32` | 32 位浮点 | IEEE 754 |
+
+## 配方 G：错误恢复
+
+**场景**：电机出现错误时自动清除并恢复。
+
+### 完整代码
+
+```python
+#!/usr/bin/env python3
+"""配方 G：错误恢复"""
+import time
+from motorbridge import Controller, Mode
+from motorbridge.errors import CallError
+
+def safe_control(motor, pos, kp, kd):
+    """
+    安全控制函数，带错误恢复。
+
+    返回:
+        True: 命令成功
+        False: 恢复失败
+    """
+    try:
+        motor.send_mit(pos, 0.0, kp, kd, 0.0)
+        return True
+
+    except CallError as e:
+        print(f"命令失败: {e}")
+
+        # 尝试恢复
+        try:
+            print("尝试恢复...")
+            motor.clear_error()      # 清除错误
+            time.sleep(0.1)
+            motor.enable()           # 重新使能
+            time.sleep(0.1)
+            motor.send_mit(pos, 0.0, kp, kd, 0.0)
+            print("✓ 恢复成功")
+            return True
+
+        except Exception as e:
+            print(f"✗ 恢复失败: {e}")
+            return False
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    for i in range(100):
+        # 检查状态码
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state and state.status_code != 0:
+            print(f"检测到错误: 0x{state.status_code:02X}")
+            motor.clear_error()
+            time.sleep(0.1)
+
+        # 安全控制
+        target = 0.5 if i < 50 else -0.5
+        if not safe_control(motor, target, 30.0, 1.0):
+            print("无法恢复，停止运行")
+            break
+
+        time.sleep(0.02)
+
+    motor.disable()
+    print("完成")
+```
+
+### 状态码含义
+
+| 状态码 | 含义 | 处理方法 |
+|--------|------|---------|
+| 0x00 | 正常 | 无需处理 |
+| 0x01 | 过压 | 检查电源 |
+| 0x02 | 欠压 | 检查电源 |
+| 0x03 | 过流 | 减小负载 |
+| 0x04 | MOSFET 过温 | 冷却后继续 |
+| 0x05 | 转子过温 | 冷却后继续 |
+| 0x06 | 通信超时 | 检查连接 |
+
+## 配方 H：夹爪控制（力限制）
+
+**场景**：使用 FORCE_POS 模式做夹爪，可以控制夹持力度。
+
+### 完整代码
+
+```python
+#!/usr/bin/env python3
+"""配方 H：夹爪控制"""
+import time
+from motorbridge import Controller, Mode
+
+# ============ 夹爪参数 ============
+OPEN_POS = 1.5        # 打开位置
+CLOSE_POS = -0.5      # 关闭位置
+DEFAULT_SPEED = 2.0   # 默认速度
+# =================================
+
+def gripper_open(motor):
+    """打开夹爪"""
+    motor.send_force_pos(pos=OPEN_POS, vlim=DEFAULT_SPEED, ratio=0.5)
+    print("打开夹爪...")
+
+def gripper_close(motor, force_ratio=0.3):
+    """
+    关闭夹爪。
+
+    参数:
+        force_ratio: 力比例（0.0 - 1.0）
+            0.0 = 无力
+            0.3 = 轻夹
+            0.6 = 中等
+            1.0 = 全力
+    """
+    motor.send_force_pos(pos=CLOSE_POS, vlim=1.0, ratio=force_ratio)
+    print(f"关闭夹爪（力度={force_ratio*100:.0f}%）...")
+
+def gripper_get_position(motor):
+    """获取当前位置"""
+    motor.request_feedback()
+    state = motor.get_state()
+    return state.pos if state else None
+
+def wait_for_motion(motor, timeout=2.0):
+    """等待运动完成"""
+    dt = 0.05
+    last_pos = None
+    stable_count = 0
+
+    for i in range(int(timeout / dt)):
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state:
+            if last_pos is not None:
+                if abs(state.pos - last_pos) < 0.01:
+                    stable_count += 1
+                    if stable_count >= 5:
+                        print("运动完成")
+                        return True
+                else:
+                    stable_count = 0
+            last_pos = state.pos
+
+        time.sleep(dt)
+
+    print("等待超时")
+    return False
+
+# ===== 主程序 =====
+with Controller("can0") as ctrl:
+    gripper = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    ctrl.enable_all()
+    gripper.ensure_mode(Mode.FORCE_POS, 1000)
+    print("夹爪已就绪\n")
+
+    # 打开
+    gripper_open(gripper)
+    wait_for_motion(gripper)
+
+    # 轻夹
+    print()
+    gripper_close(gripper, force_ratio=0.2)
+    wait_for_motion(gripper)
+    pos = gripper_get_position(gripper)
+    print(f"当前位置: {pos:.3f} rad")
+
+    # 用力夹
+    print()
+    gripper_close(gripper, force_ratio=0.6)
+    time.sleep(0.5)
+    pos = gripper_get_position(gripper)
+    print(f"当前位置: {pos:.3f} rad")
+
+    # 释放
+    print()
+    gripper_open(gripper)
+    wait_for_motion(gripper)
+
+    gripper.disable()
+    print("\n夹爪已禁用")
+```
+
+### force_ratio 参数
+
+| 值 | 效果 | 应用场景 |
+|----|------|---------|
+| 0.1 | 非常轻 | 易碎物品 |
+| 0.3 | 轻柔 | 普通物品 |
+| 0.5 | 中等 | 需要一定夹持力 |
+| 0.8 | 较紧 | 重物 |
+| 1.0 | 全力 | 最大夹持力 |
+
+## 配方 I：串口桥连接
+
+**场景**：使用达妙 USB-CAN 串口适配器。
+
+### 完整代码
+
+```python
+#!/usr/bin/env python3
+"""配方 I：串口桥连接"""
+import time
+from motorbridge import Controller, Mode
+
+# ============ 串口配置 ============
+SERIAL_PORT = "/dev/ttyACM0"  # 串口设备
+BAUD_RATE = 921600            # 波特率（达妙固定用 921600）
+# =================================
+
+# 使用串口创建控制器
+with Controller.from_dm_serial(SERIAL_PORT, baud=BAUD_RATE) as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+
+    print(f"通过串口 {SERIAL_PORT} 连接成功")
+
+    for i in range(50):
+        motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+
+        motor.request_feedback()
+        state = motor.get_state()
+
+        if state:
+            print(f"#{i:02d} 位置={state.pos:.3f}")
+
+        time.sleep(0.02)
+
+    motor.disable()
+    print("完成")
+```
+
+### 查找串口设备
+
+```bash
+# Linux
+ls /dev/ttyACM* /dev/ttyUSB*
+
+# 常见设备名
+# /dev/ttyACM0  - Arduino、达妙适配器
+# /dev/ttyUSB0  - USB 转串口
+```
+
+## 配方 J：生产级上下文管理器
+
+**场景**：适合生产环境的完整模板，包含错误处理和资源清理。
+
+### 完整代码
+
+```python
+#!/usr/bin/env python3
+"""配方 J：生产级上下文管理器"""
+import time
+from motorbridge import Controller, Mode
+from motorbridge.errors import CallError, MotorBridgeError
+
+class MotorController:
+    """
+    生产级电机控制器封装。
+
+    使用:
+        with MotorController("can0", 0x01, 0x11, "4340P") as motor:
+            motor.ensure_mode(Mode.MIT, 1000)
+            motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+    """
+
+    def __init__(self, channel, motor_id, feedback_id, model):
+        self.channel = channel
+        self.motor_id = motor_id
+        self.feedback_id = feedback_id
+        self.model = model
+        self.ctrl = None
+        self.motor = None
+
+    def __enter__(self):
+        """进入上下文：创建并使能电机"""
+        self.ctrl = Controller(self.channel)
+        self.motor = self.ctrl.add_damiao_motor(
+            self.motor_id, self.feedback_id, self.model
+        )
+        self.ctrl.enable_all()
+        return self.motor
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """退出上下文：清理资源"""
+        if self.motor:
+            try:
+                self.motor.disable()
+            except Exception:
+                pass
+
+        if self.ctrl:
+            try:
+                self.ctrl.shutdown()
+                self.ctrl.close()
+            except Exception:
+                pass
+
+        return False  # 不抑制异常
+
+# ===== 使用示例 =====
+def main():
+    try:
+        with MotorController("can0", 0x01, 0x11, "4340P") as motor:
+            motor.ensure_mode(Mode.MIT, 1000)
+
+            for i in range(100):
+                motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+
+                motor.request_feedback()
+                state = motor.get_state()
+
+                if state:
+                    print(f"位置={state.pos:.3f}")
+
+                time.sleep(0.02)
+
+        print("正常完成")
+
+    except CallError as e:
+        print(f"API 调用失败: {e}")
+    except MotorBridgeError as e:
+        print(f"电机桥接错误: {e}")
+    except KeyboardInterrupt:
+        print("\n用户中断")
+
+if __name__ == "__main__":
+    main()
+```
+
+### 优点
+
+| 特性 | 说明 |
+|------|------|
+| 自动清理 | 无论正常结束还是异常，都会正确释放资源 |
+| 错误隔离 | 异常不会导致资源泄漏 |
+| 代码简洁 | 使用 with 语句，自动管理生命周期 |
+
+## 下一步
+
+- [教程 07：完整接口指南](tutorials/07-complete-binding-interface-guide) - 全 API 参考
+- [最佳实践：控制循环模式](best-practices/control-loop-patterns) - 生产级模式
+- [故障排除](best-practices/troubleshooting) - 常见问题解决

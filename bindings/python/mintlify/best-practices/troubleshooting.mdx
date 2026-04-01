@@ -1,0 +1,393 @@
+# Best Practices: Troubleshooting
+
+<mintly-toc>
+
+This guide covers common issues, error messages, and solutions when using the motorbridge Python SDK.
+
+</mintly-toc>
+
+## CAN Communication Errors
+
+### "socketcan write failed: No buffer space available (os error 105)"
+
+**Cause:** CAN TX buffer overflow - sending too many messages too fast.
+
+**Solutions:**
+
+1. **Increase control period:**
+   ```python
+   # Change from 5ms to 20ms or more
+   dt_s = 0.02  # 50Hz instead of 200Hz
+   ```
+
+2. **Increase TX queue length:**
+   ```bash
+   sudo ifconfig can0 txqueuelen 1000
+   ```
+
+3. **Stop other CAN senders:**
+   ```bash
+   # Check for other processes using CAN
+   lsof | grep can0
+   ```
+
+4. **Reduce feedback request frequency:**
+   ```python
+   # Only request every N iterations
+   if i % 5 == 0:
+       motor.request_feedback()
+   ```
+
+### "CAN interface not found"
+
+**Cause:** CAN interface not configured or not up.
+
+**Solutions:**
+
+```bash
+# Load CAN modules
+sudo modprobe can
+sudo modprobe can_raw
+sudo modprobe can_dev
+
+# Configure interface
+sudo ip link set can0 type can bitrate 1000000
+sudo ip link set can0 up
+
+# Verify
+ip link show can0
+```
+
+### "Permission denied on /dev/ttyACM0"
+
+**Cause:** User doesn't have permission to access serial port.
+
+**Solutions:**
+
+```bash
+# Add user to dialout group
+sudo usermod -a -G dialout $USER
+
+# Log out and back in for changes to take effect
+
+# Or temporary access
+sudo chmod 666 /dev/ttyACM0
+```
+
+## Motor Response Issues
+
+### "state = None"
+
+**Cause:** No feedback frame received yet.
+
+**Solutions:**
+
+```python
+# Implement retry loop
+import time
+
+def get_state_with_retry(motor, max_attempts=10):
+    for _ in range(max_attempts):
+        motor.request_feedback()
+        state = motor.get_state()
+        if state is not None:
+            return state
+        time.sleep(0.05)
+    return None
+
+state = get_state_with_retry(motor)
+if state:
+    print(f"Position: {state.pos}")
+else:
+    print("No feedback after retries")
+```
+
+**Check:**
+- Motor powered on
+- CAN wiring correct (CAN_H, CAN_L)
+- Correct motor_id and feedback_id
+- Bitrate matches motor configuration
+
+### "Mode switch timeout"
+
+**Cause:** Motor not responding to mode change command.
+
+**Solutions:**
+
+1. **Verify motor ID:**
+   ```bash
+   motorbridge-cli scan --vendor damiao --start-id 1 --end-id 32
+   ```
+
+2. **Check motor status:**
+   ```python
+   state = motor.get_state()
+   if state:
+       print(f"Status: 0x{state.status_code:02X}")
+   ```
+
+3. **Clear errors first:**
+   ```python
+   motor.clear_error()
+   time.sleep(0.1)
+   motor.ensure_mode(Mode.MIT, 1000)
+   ```
+
+4. **Increase timeout:**
+   ```python
+   motor.ensure_mode(Mode.MIT, timeout_ms=2000)
+   ```
+
+### "Motor not moving"
+
+**Cause:** Motor disabled, wrong mode, or command not being sent.
+
+**Checklist:**
+
+```python
+# 1. Motor enabled?
+ctrl.enable_all()
+
+# 2. Correct mode?
+motor.ensure_mode(Mode.MIT, 1000)
+
+# 3. Commands being sent?
+motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+
+# 4. Check status
+motor.request_feedback()
+state = motor.get_state()
+if state:
+    print(f"Status: 0x{state.status_code:02X}")
+    print(f"Position: {state.pos:.3f}")
+```
+
+## Error Code Reference
+
+### Damiao Status Codes
+
+| Code | Meaning | Action |
+|------|---------|--------|
+| 0 | Normal | None |
+| 1 | Over-voltage | Check power supply |
+| 2 | Under-voltage | Check power supply |
+| 3 | Over-current | Reduce load |
+| 4 | MOSFET over-temp | Cool down, reduce load |
+| 5 | Rotor over-temp | Cool down, reduce load |
+| 6 | Communication timeout | Check wiring |
+
+### Handling Errors
+
+```python
+def handle_motor_error(motor, status_code):
+    """Handle motor error based on status code."""
+    if status_code == 0:
+        return True  # OK
+
+    print(f"Motor error: 0x{status_code:02X}")
+
+    if status_code in (1, 2):  # Voltage errors
+        print("Check power supply voltage")
+        return False
+
+    if status_code in (3, 4, 5):  # Current/temperature
+        print("Reduce load and wait for cooling")
+        motor.disable()
+        return False
+
+    if status_code == 6:  # Timeout
+        print("Check CAN wiring")
+        motor.clear_error()
+        motor.enable()
+        return True
+
+    return False
+```
+
+## Import Errors
+
+### "ImportError: cannot import name 'Controller'"
+
+**Cause:** Package not installed or ABI library missing.
+
+**Solutions:**
+
+```bash
+# Reinstall package
+pip install --upgrade --force-reinstall motorbridge
+
+# Verify installation
+python3 -c "import motorbridge; print('OK')"
+
+# Check ABI library (for source builds)
+ls -la /path/to/motorbridge/lib/libmotor_abi.so
+export LD_LIBRARY_PATH=/path/to/lib:$LD_LIBRARY_PATH
+```
+
+### "AbiLoadError: Failed to load libmotor_abi"
+
+**Cause:** ABI shared library not found or incompatible.
+
+**Solutions:**
+
+```bash
+# Find library
+find /usr -name "libmotor_abi.so" 2>/dev/null
+
+# Set library path
+export LD_LIBRARY_PATH=/path/to/lib:$LD_LIBRARY_PATH
+
+# Or install from wheel (includes library)
+pip install motorbridge
+```
+
+## Performance Issues
+
+### High CPU Usage
+
+**Causes & Solutions:**
+
+1. **Tight loop without sleep:**
+   ```python
+   # Bad
+   while True:
+       motor.send_mit(...)
+       # No sleep - 100% CPU
+
+   # Good
+   while True:
+       motor.send_mit(...)
+       time.sleep(0.02)  # 50Hz
+   ```
+
+2. **Excessive polling:**
+   ```python
+   # Bad
+   while True:
+       ctrl.poll_feedback_once()  # Unnecessary in v0.1.7+
+
+   # Good (v0.1.7+)
+   while True:
+       motor.request_feedback()
+       state = motor.get_state()
+   ```
+
+### Inconsistent Timing
+
+**Solutions:**
+
+```python
+import time
+
+DT_S = 0.02
+next_time = time.time()
+
+for i in range(100):
+    # Work
+    motor.send_mit(...)
+    motor.request_feedback()
+
+    # Sleep until next period
+    next_time += DT_S
+    sleep_time = next_time - time.time()
+    if sleep_time > 0:
+        time.sleep(sleep_time)
+    else:
+        print(f"Overrun: {-sleep_time*1000:.1f}ms")
+        next_time = time.time()  # Reset timing
+```
+
+## Debugging Tips
+
+### Enable Verbose Logging
+
+```python
+import logging
+
+# Enable debug logging
+logging.basicConfig(level=logging.DEBUG)
+```
+
+### Check CAN Traffic
+
+```bash
+# Monitor CAN bus
+candump can0
+
+# Send test frame
+cansend can0 001#0102030405060708
+```
+
+### Test with CLI
+
+```bash
+# Scan for motors
+motorbridge-cli scan --vendor all --channel can0
+
+# Test single motor
+motorbridge-cli run --vendor damiao --motor-id 0x01 --mode enable --loop 1
+
+# Dump registers
+motorbridge-cli id-dump --motor-id 0x01 --rids 7,8,9,10
+```
+
+### Isolate Problem
+
+```python
+# Minimal test case
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # Test enable
+    try:
+        motor.enable()
+        print("Enable: OK")
+    except Exception as e:
+        print(f"Enable: FAILED - {e}")
+
+    # Test feedback
+    motor.request_feedback()
+    state = motor.get_state()
+    print(f"Feedback: {'OK' if state else 'FAILED'}")
+
+    # Test command
+    try:
+        motor.send_mit(0.0, 0.0, 10.0, 1.0, 0.0)
+        print("Command: OK")
+    except Exception as e:
+        print(f"Command: FAILED - {e}")
+```
+
+## Getting Help
+
+If issues persist:
+
+1. **Check documentation:**
+   - [Tutorials](tutorials/01-scan-and-identify)
+   - [API Reference](api/controller)
+   - [Best Practices](best-practices/control-loop-patterns)
+
+2. **Gather information:**
+   ```bash
+   # System info
+   uname -a
+   python3 --version
+   pip show motorbridge
+
+   # CAN status
+   ip link show can0
+   ```
+
+3. **Report issue with:**
+   - Full error message
+   - Code snippet
+   - System information
+   - CAN configuration
+
+## Next Steps
+
+- [Control Loop Patterns](best-practices/control-loop-patterns) - Reliable patterns
+- [CLI Reference](api/cli) - Debugging tools
+- [Tutorial 01](tutorials/01-scan-and-identify) - Verify setup

@@ -1,0 +1,314 @@
+---
+title: Controller 控制器
+---
+
+# API：Controller
+
+<mintly-toc>
+
+`Controller` 类管理传输层并创建电机句柄。它是所有电机控制操作的主入口点。
+
+</mintly-toc>
+
+## 导入
+
+```python
+from motorbridge import Controller
+```
+
+## 类概述
+
+```python
+class Controller:
+    def __init__(self, channel: str = "can0") -> None: ...
+    def __enter__(self) -> Controller: ...
+    def __exit__(self, exc_type, exc, tb) -> None: ...
+```
+
+## 构造函数
+
+### `Controller(channel="can0")`
+
+使用标准 SocketCAN 传输创建控制器。
+
+**参数：**
+
+| 名称 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `channel` | `str` | `"can0"` | CAN 接口名称 |
+
+**返回：** `Controller` 实例
+
+**抛出：** `CallError` 如果接口无法打开
+
+**示例：**
+
+```python
+from motorbridge import Controller
+
+# 基本用法
+ctrl = Controller("can0")
+
+# 使用上下文管理器（推荐）
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+```
+
+---
+
+### `Controller.from_socketcanfd(channel="can0")`（类方法）
+
+使用 CAN-FD 传输创建控制器。Hexfellow 电机需要。
+
+**参数：**
+
+| 名称 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `channel` | `str` | `"can0"` | CAN-FD 接口名称 |
+
+**返回：** `Controller` 实例
+
+**抛出：** `CallError` 如果接口无法打开
+
+**示例：**
+
+```python
+from motorbridge import Controller
+
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(0x01, 0x00, "hexfellow")
+```
+
+---
+
+### `Controller.from_dm_serial(serial_port="/dev/ttyACM0", baud=921600)`（类方法）
+
+使用达妙串口桥传输创建控制器。
+
+**参数：**
+
+| 名称 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `serial_port` | `str` | `"/dev/ttyACM0"` | 串口设备路径 |
+| `baud` | `int` | `921600` | 波特率（达妙使用 921600） |
+
+**返回：** `Controller` 实例
+
+**抛出：** `CallError` 如果串口无法打开
+
+**示例：**
+
+```python
+from motorbridge import Controller
+
+with Controller.from_dm_serial("/dev/ttyACM0", 921600) as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+```
+
+---
+
+## 生命周期方法
+
+### `close()`
+
+释放控制器资源。上下文管理器自动调用。
+
+**参数：** 无
+
+**返回：** `None`
+
+---
+
+### `shutdown()`
+
+优雅关闭控制器和所有关联的电机。
+
+**参数：** 无
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+---
+
+### `close_bus()`
+
+关闭 CAN 总线连接，同时保持控制器实例存活。
+
+**参数：** 无
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+---
+
+## 全局电机操作
+
+### `enable_all()`
+
+同时使能所有已注册的电机。
+
+**参数：** 无
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+**示例：**
+
+```python
+with Controller("can0") as ctrl:
+    m1 = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    m2 = ctrl.add_damiao_motor(0x02, 0x12, "4340P")
+    ctrl.enable_all()  # 使能两个电机
+```
+
+---
+
+### `disable_all()`
+
+同时禁用所有已注册的电机。
+
+**参数：** 无
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+---
+
+### `poll_feedback_once()`
+
+手动轮询所有电机的反馈帧。v0.1.7+ 中可选，因为后台轮询默认启用。
+
+**参数：** 无
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+---
+
+## 电机注册方法
+
+### `add_damiao_motor(motor_id, feedback_id, model)`
+
+注册达妙电机并返回其句柄。
+
+**参数：**
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| `motor_id` | `int` | 命令 CAN ID（通常为 0x01-0x20） |
+| `feedback_id` | `int` | 反馈 CAN ID（通常为 motor_id + 0x10） |
+| `model` | `str` | 电机型号："4310"、"4340"、"4340P"、"6001" 等 |
+
+**返回：** [`Motor`](api/motor) 实例
+
+**抛出：** `CallError` 如果注册失败
+
+---
+
+### `add_robstride_motor(motor_id, feedback_id, model)`
+
+注册 RobStride 电机并返回其句柄。
+
+**参数：**
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| `motor_id` | `int` | 设备 ID（通常为 127） |
+| `feedback_id` | `int` | 反馈 ID（通常为 0xFE 或 0xFF） |
+| `model` | `str` | 电机型号："rs-00" 等 |
+
+**返回：** [`Motor`](api/motor) 实例
+
+---
+
+### `add_myactuator_motor(motor_id, feedback_id, model)`
+
+注册 MyActuator 电机并返回其句柄。
+
+**参数：**
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| `motor_id` | `int` | 电机 ID（1-32） |
+| `feedback_id` | `int` | 反馈 ID（通常为 0x240 + motor_id） |
+| `model` | `str` | 电机型号："X8" 等 |
+
+**返回：** [`Motor`](api/motor) 实例
+
+---
+
+### `add_hightorque_motor(motor_id, feedback_id, model)`
+
+注册 HighTorque 电机并返回其句柄。
+
+**参数：**
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| `motor_id` | `int` | 电机 ID（1-127） |
+| `feedback_id` | `int` | 反馈 ID（通常为 0x01） |
+| `model` | `str` | 电机型号："hightorque" |
+
+**返回：** [`Motor`](api/motor) 实例
+
+---
+
+### `add_hexfellow_motor(motor_id, feedback_id, model)`
+
+注册 Hexfellow 电机并返回其句柄。需要 CAN-FD 传输。
+
+**参数：**
+
+| 名称 | 类型 | 描述 |
+|------|------|------|
+| `motor_id` | `int` | 电机 ID |
+| `feedback_id` | `int` | 反馈 ID（通常为 0x00） |
+| `model` | `str` | 电机型号："hexfellow" |
+
+**返回：** [`Motor`](api/motor) 实例
+
+**抛出：** `CallError` 如果不使用 CAN-FD 传输
+
+---
+
+## 上下文管理器支持
+
+`Controller` 类支持 Python 的上下文管理器协议，用于自动资源清理：
+
+```python
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    ctrl.enable_all()
+    # ... 使用电机
+# 此处自动清理资源
+```
+
+## 错误处理
+
+所有方法可能抛出 `motorbridge.errors` 中的异常：
+
+```python
+from motorbridge import Controller
+from motorbridge.errors import CallError, AbiLoadError, MotorBridgeError
+
+try:
+    with Controller("can0") as ctrl:
+        motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+except AbiLoadError:
+    print("加载 ABI 库失败")
+except CallError as e:
+    print(f"API 调用失败: {e}")
+except MotorBridgeError as e:
+    print(f"电机桥错误: {e}")
+```
+
+## 另见
+
+- [Motor API](api/motor) - 电机句柄方法
+- [Mode and State](api/mode-and-state) - 枚举和数据类
+- [传输方式](transports) - 传输配置指南

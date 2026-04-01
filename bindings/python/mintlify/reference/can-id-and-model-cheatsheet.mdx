@@ -1,0 +1,455 @@
+# Reference: CAN ID and Model Cheatsheet
+
+<mintly-toc>
+
+This cheatsheet provides quick reference for CAN IDs, model strings, and common configurations. Most runtime issues come from incorrect `(model, motor_id, feedback_id)` combinations.
+
+</mintly-toc>
+
+## Why This Matters
+
+Correct motor configuration requires matching:
+1. **Model string** - Motor type identifier
+2. **Motor ID** - CAN command ID
+3. **Feedback ID** - CAN response ID
+
+Wrong values = no communication or wrong motor controlled.
+
+## Quick Discovery Workflow
+
+```bash
+# 1. Scan for motors
+motorbridge-cli scan --vendor all --channel can0 --start-id 1 --end-id 255
+
+# 2. Record discovered IDs
+
+# 3. Use in Python config
+```
+
+## Damiao Configuration
+
+### Model Strings
+
+| Model | Description | Peak Torque | Use Case |
+|-------|-------------|-------------|----------|
+| `4310` | Small | ~1 Nm | Grippers, small joints |
+| `4340` | Medium | ~4 Nm | Arms, medium joints |
+| `4340P` | Medium (pos) | ~4 Nm | General purpose |
+| `6001` | Large | ~10 Nm | Legs, heavy loads |
+
+### CAN ID Convention
+
+```
+motor_id:    0x01 - 0x20 (1-32)
+feedback_id: motor_id + 0x10
+
+Example:
+  motor_id = 0x01
+  feedback_id = 0x11
+
+  motor_id = 0x0A
+  feedback_id = 0x1A
+```
+
+### Example Code
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    # Standard setup
+    motor = ctrl.add_damiao_motor(
+        motor_id=0x01,      # Command ID
+        feedback_id=0x11,   # Feedback ID (motor_id + 0x10)
+        model="4340P"       # Model string
+    )
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+```
+
+### Serial Bridge Setup
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller.from_dm_serial("/dev/ttyACM0", 921600) as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+    # ... rest same as above
+```
+
+## RobStride Configuration
+
+### Model Strings
+
+| Model | Description |
+|-------|-------------|
+| `rs-00` | Standard RobStride motor |
+
+### CAN ID Convention
+
+```
+motor_id:    127 (device ID, configurable 1-127)
+feedback_id: 0xFE or 0xFF (responder ID)
+
+Default:
+  motor_id = 127
+  feedback_id = 0xFE
+```
+
+### Example Code
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_robstride_motor(
+        motor_id=127,       # Device ID
+        feedback_id=0xFE,   # Responder ID
+        model="rs-00"       # Model string
+    )
+
+    ctrl.enable_all()
+
+    # Optional: Ping to verify
+    device_id, responder_id = motor.robstride_ping()
+    print(f"Found: device={device_id}, responder={responder_id}")
+
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 2.0, 0.1, 0.0)
+```
+
+## MyActuator Configuration
+
+### Model Strings
+
+| Model | Description |
+|-------|-------------|
+| `X8` | Standard MyActuator motor |
+
+### CAN ID Convention
+
+```
+motor_id:    1 - 32
+feedback_id: 0x240 + motor_id
+
+Example:
+  motor_id = 1
+  feedback_id = 0x241
+
+  motor_id = 8
+  feedback_id = 0x248
+```
+
+### Example Code
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_myactuator_motor(
+        motor_id=1,         # Motor ID
+        feedback_id=0x241,  # 0x240 + motor_id
+        model="X8"          # Model string
+    )
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)  # No MIT mode
+    motor.send_pos_vel(0.5, vlim=1.5)
+```
+
+## HighTorque Configuration
+
+### Model Strings
+
+| Model | Description |
+|-------|-------------|
+| `hightorque` | Generic HighTorque motor |
+
+### CAN ID Convention
+
+```
+motor_id:    1 - 127
+feedback_id: 0x01 (fixed)
+```
+
+### Example Code
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_hightorque_motor(
+        motor_id=1,         # Motor ID
+        feedback_id=0x01,   # Fixed feedback ID
+        model="hightorque"  # Model string
+    )
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.MIT, 1000)
+    motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+```
+
+## Hexfellow Configuration
+
+### Model Strings
+
+| Model | Description |
+|-------|-------------|
+| `hexfellow` | Generic Hexfellow motor |
+
+### CAN ID Convention
+
+```
+motor_id:    0x01 - 0xFF
+feedback_id: 0x00 (fixed)
+```
+
+<Warning>
+Hexfellow motors require CAN-FD transport. Standard SocketCAN will not work.
+</Warning>
+
+### Example Code
+
+```python
+from motorbridge import Controller, Mode
+
+# MUST use CAN-FD
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(
+        motor_id=0x01,      # Motor ID
+        feedback_id=0x00,   # Fixed feedback ID
+        model="hexfellow"   # Model string
+    )
+
+    ctrl.enable_all()
+    motor.ensure_mode(Mode.POS_VEL, 1000)  # No VEL mode
+    motor.send_pos_vel(0.5, vlim=1.5)
+```
+
+## Common ID Combinations
+
+### Single Damiao Motor
+
+```python
+# Typical single motor setup
+motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+```
+
+### Multi-Motor Damiao Leg
+
+```python
+# 2-motor leg (hip + knee)
+hip = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+knee = ctrl.add_damiao_motor(0x02, 0x12, "4340P")
+```
+
+### 4-Motor Quadruped Leg
+
+```python
+# 4-motor quadruped configuration
+motors = {
+    "front_left_hip": ctrl.add_damiao_motor(0x01, 0x11, "4340P"),
+    "front_left_knee": ctrl.add_damiao_motor(0x02, 0x12, "4340P"),
+    "front_right_hip": ctrl.add_damiao_motor(0x03, 0x13, "4340P"),
+    "front_right_knee": ctrl.add_damiao_motor(0x04, 0x14, "4340P"),
+}
+```
+
+### Mixed Vendor System
+
+```python
+# Damiao + RobStride on same bus
+with Controller("can0") as dm_ctrl:
+    dm = dm_ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    with Controller("can0") as rs_ctrl:
+        rs = rs_ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+```
+
+## ID Configuration Tools
+
+### Scan for IDs
+
+```bash
+# Scan all vendors
+motorbridge-cli scan --vendor all --channel can0 --start-id 1 --end-id 255
+
+# Scan specific vendor
+motorbridge-cli scan --vendor damiao --channel can0 --start-id 1 --end-id 32
+```
+
+### Dump Register IDs
+
+```bash
+# Read Damiao ID registers
+motorbridge-cli id-dump --motor-id 0x01 --feedback-id 0x11 --rids 7,8
+
+# RID 7 = MST_ID (feedback ID)
+# RID 8 = ESC_ID (motor ID)
+```
+
+### Change IDs (Damiao)
+
+```bash
+# Change motor ID from 0x01 to 0x05
+motorbridge-cli id-set \
+    --motor-id 0x01 \
+    --feedback-id 0x11 \
+    --new-motor-id 0x05 \
+    --new-feedback-id 0x15 \
+    --store 1 \
+    --verify 1
+```
+
+### Change ID (RobStride)
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+
+    # Set new device ID
+    motor.robstride_set_device_id(42)
+```
+
+## Troubleshooting ID Issues
+
+### No Response from Motor
+
+**Check:**
+1. Motor powered on
+2. CAN wiring correct
+3. Correct motor_id
+4. Correct feedback_id
+5. Correct model string
+
+```bash
+# Try scanning with wider range
+motorbridge-cli scan --vendor all --start-id 0 --end-id 255
+```
+
+### Wrong Motor Moves
+
+**Cause:** Multiple motors with same ID or wrong ID in config.
+
+**Solution:**
+1. Power on one motor at a time
+2. Scan and record IDs
+3. Use `id-set` to change conflicting IDs
+
+### Intermittent Response
+
+**Causes:**
+- Loose CAN wiring
+- Missing termination resistors
+- CAN bitrate mismatch
+
+**Solutions:**
+```bash
+# Check CAN status
+ip -details link show can0
+
+# Verify bitrate matches motor config
+sudo ip link set can0 type can bitrate 1000000
+```
+
+## Configuration Template
+
+```python
+#!/usr/bin/env python3
+"""Motor configuration template."""
+
+from motorbridge import Controller, Mode
+
+# ============ CONFIGURATION ============
+CHANNEL = "can0"
+
+# Motor configurations
+MOTORS = {
+    # Damiao motors
+    "left_hip": {
+        "vendor": "damiao",
+        "motor_id": 0x01,
+        "feedback_id": 0x11,
+        "model": "4340P",
+    },
+    "left_knee": {
+        "vendor": "damiao",
+        "motor_id": 0x02,
+        "feedback_id": 0x12,
+        "model": "4340P",
+    },
+
+    # RobStride motor
+    "gripper": {
+        "vendor": "robstride",
+        "motor_id": 127,
+        "feedback_id": 0xFE,
+        "model": "rs-00",
+    },
+}
+# =======================================
+
+def create_motor(ctrl, config):
+    """Create motor based on config."""
+    vendor = config["vendor"]
+
+    if vendor == "damiao":
+        return ctrl.add_damiao_motor(
+            config["motor_id"],
+            config["feedback_id"],
+            config["model"]
+        )
+    elif vendor == "robstride":
+        return ctrl.add_robstride_motor(
+            config["motor_id"],
+            config["feedback_id"],
+            config["model"]
+        )
+    elif vendor == "myactuator":
+        return ctrl.add_myactuator_motor(
+            config["motor_id"],
+            config["feedback_id"],
+            config["model"]
+        )
+    elif vendor == "hightorque":
+        return ctrl.add_hightorque_motor(
+            config["motor_id"],
+            config["feedback_id"],
+            config["model"]
+        )
+    elif vendor == "hexfellow":
+        return ctrl.add_hexfellow_motor(
+            config["motor_id"],
+            config["feedback_id"],
+            config["model"]
+        )
+    else:
+        raise ValueError(f"Unknown vendor: {vendor}")
+
+def main():
+    with Controller(CHANNEL) as ctrl:
+        motors = {
+            name: create_motor(ctrl, cfg)
+            for name, cfg in MOTORS.items()
+        }
+
+        ctrl.enable_all()
+
+        for name, motor in motors.items():
+            print(f"Initialized: {name}")
+
+        # ... your control code ...
+
+if __name__ == "__main__":
+    main()
+```
+
+## See Also
+
+- [Vendor Capability Matrix](reference/vendor-capability-matrix) - Vendor feature support
+- [Tutorial 01: Scan and Identify](tutorials/01-scan-and-identify) - Motor discovery
+- [CLI Reference](api/cli) - Command-line tools

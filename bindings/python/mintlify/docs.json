@@ -1,0 +1,137 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "MotorBridge Python SDK",
+  "theme": "mint",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#0EA5E9",
+    "light": "#38BDF8",
+    "dark": "#0369A1"
+  },
+  "topbarCtaButton": {
+    "type": "github",
+    "url": "https://github.com/your-org/dm_candrive"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "EN",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "index",
+              "what-is-motorbridge",
+              "install",
+              "transports",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Tutorials",
+            "pages": [
+              "tutorials/01-scan-and-identify",
+              "tutorials/02-enable-and-status",
+              "tutorials/03-mode-switch-and-control",
+              "tutorials/04-multi-motor",
+              "tutorials/05-register-and-params",
+              "tutorials/06-practical-recipes",
+              "tutorials/07-complete-binding-interface-guide"
+            ]
+          },
+          {
+            "group": "API Reference",
+            "pages": [
+              "api/controller",
+              "api/motor",
+              "api/mode-and-state",
+              "api/cli"
+            ]
+          },
+          {
+            "group": "Best Practices",
+            "pages": [
+              "best-practices/control-loop-patterns",
+              "best-practices/troubleshooting",
+              "best-practices/release-and-versioning"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "reference/vendor-capability-matrix",
+              "reference/can-id-and-model-cheatsheet"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "ZH",
+        "groups": [
+          {
+            "group": "快速开始",
+            "pages": [
+              "zh/index",
+              "zh/what-is-motorbridge",
+              "zh/setup",
+              "zh/transports",
+              "zh/quickstart"
+            ]
+          },
+          {
+            "group": "教程",
+            "pages": [
+              "zh/tutorials/01-scan-and-identify",
+              "zh/tutorials/02-enable-and-status",
+              "zh/tutorials/03-mode-switch-and-control",
+              "zh/tutorials/04-multi-motor",
+              "zh/tutorials/05-register-and-params",
+              "zh/tutorials/06-practical-recipes",
+              "zh/tutorials/07-complete-binding-interface-guide"
+            ]
+          },
+          {
+            "group": "接口手册",
+            "pages": [
+              "zh/api/controller",
+              "zh/api/motor",
+              "zh/api/mode-and-state",
+              "zh/api/cli"
+            ]
+          },
+          {
+            "group": "最佳实践",
+            "pages": [
+              "zh/best-practices/control-loop-patterns",
+              "zh/best-practices/troubleshooting",
+              "zh/best-practices/release-and-versioning"
+            ]
+          },
+          {
+            "group": "参考",
+            "pages": [
+              "zh/reference/vendor-capability-matrix",
+              "zh/reference/can-id-and-model-cheatsheet"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "feedback": {
+    "thumbsRating": true,
+    "suggestEdit": true
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/your-org/dm_candrive"
+    }
+  },
+  "search": {
+    "prompt": "搜索文档..."
+  }
+}

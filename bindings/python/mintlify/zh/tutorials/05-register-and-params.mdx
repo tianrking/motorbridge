@@ -1,0 +1,392 @@
+---
+title: 05 寄存器与参数
+---
+
+# 教程 05：寄存器与参数
+
+<mintly-toc>
+
+电机内部有寄存器存储配置参数。本教程教你如何读写这些寄存器来调整电机行为。
+
+</mintly-toc>
+
+## 什么是寄存器？
+
+寄存器是电机内部的参数存储单元：
+
+| 类型 | 作用 | 示例 |
+|------|------|------|
+| ID 寄存器 | 设置电机 ID | motor_id, feedback_id |
+| 模式寄存器 | 设置控制模式 | ctrl_mode |
+| 限制寄存器 | 设置安全限制 | pmax, vmax, tmax |
+| PID 寄存器 | 调整控制参数 | kp, ki |
+| 保护寄存器 | 设置保护阈值 | 过温、过压、过流 |
+
+## 通用寄存器 API
+
+### 读无符号整数
+
+```python
+# 读取 32 位无符号整数
+value = motor.get_register_u32(
+    rid=10,        # 寄存器 ID
+    timeout_ms=1000  # 超时时间
+)
+print(f"寄存器 10 的值: {value}")
+```
+
+### 写无符号整数
+
+```python
+# 写入 32 位无符号整数
+motor.write_register_u32(
+    rid=10,   # 寄存器 ID
+    value=2   # 要写入的值
+)
+```
+
+### 读浮点数
+
+```python
+# 读取 32 位浮点数
+value = motor.get_register_f32(rid=21, timeout_ms=1000)
+print(f"PMAX = {value:.3f}")
+```
+
+### 写浮点数
+
+```python
+# 写入 32 位浮点数
+motor.write_register_f32(rid=21, value=12.566)
+```
+
+## 达妙寄存器表
+
+### 关键寄存器
+
+| RID | 名称 | 类型 | 说明 | 范围 |
+|-----|------|------|------|------|
+| 0 | UV_Value | f32 | 欠压保护值 | (10.0, 3.4E38] |
+| 2 | OT_Value | f32 | 过温保护值 | [80.0, 200) |
+| 3 | OC_Value | f32 | 过流保护值 | (0.0, 1.0) |
+| 7 | MST_ID | u32 | 反馈 ID | [0, 0x7FF] |
+| 8 | ESC_ID | u32 | 电机 ID | [0, 0x7FF] |
+| 9 | TIMEOUT | u32 | 通信超时(ms) | [0, 2^32-1] |
+| 10 | CTRL_MODE | u32 | 控制模式 | [1, 4] |
+| 21 | PMAX | f32 | 位置映射范围 | (0.0, 3.4E38] |
+| 22 | VMAX | f32 | 速度映射范围 | (0.0, 3.4E38] |
+| 23 | TMAX | f32 | 力矩映射范围 | (0.0, 3.4E38] |
+| 25 | KP_ASR | f32 | 速度环 Kp | [0.0, 3.4E38] |
+| 26 | KI_ASR | f32 | 速度环 Ki | [0.0, 3.4E38] |
+| 27 | KP_APR | f32 | 位置环 Kp | [0.0, 3.4E38] |
+| 28 | KI_APR | f32 | 位置环 Ki | [0.0, 3.4E38] |
+
+### 使用预定义常量
+
+```python
+from motorbridge import (
+    RID_CTRL_MODE,  # 10
+    RID_MST_ID,     # 7
+    RID_ESC_ID,     # 8
+    RID_TIMEOUT,    # 9
+    RID_PMAX,       # 21
+    RID_VMAX,       # 22
+    RID_TMAX,       # 23
+    RID_KP_ASR,     # 25
+    RID_KI_ASR,     # 26
+    RID_KP_APR,     # 27
+    RID_KI_APR,     # 28
+)
+
+# 使用常量
+pmax = motor.get_register_f32(RID_PMAX, 1000)
+vmax = motor.get_register_f32(RID_VMAX, 1000)
+
+print(f"PMAX: {pmax:.3f} rad")
+print(f"VMAX: {vmax:.3f} rad/s")
+```
+
+### 使用寄存器规格
+
+```python
+from motorbridge import DAMIAO_RW_REGISTERS, get_damiao_register_spec
+
+# 获取寄存器规格
+spec = get_damiao_register_spec(21)
+if spec:
+    print(f"RID {spec.rid}: {spec.description}")
+    print(f"  变量名: {spec.variable}")
+    print(f"  数据类型: {spec.data_type}")
+    print(f"  访问权限: {spec.access}")
+    print(f"  范围: {spec.range_str}")
+```
+
+## 常见任务
+
+### 修改电机 ID
+
+```python
+from motorbridge import Controller, RID_MST_ID, RID_ESC_ID
+
+with Controller("can0") as ctrl:
+    # 用旧 ID 连接
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # 读取当前 ID
+    old_esc = motor.get_register_u32(RID_ESC_ID, 1000)
+    old_mst = motor.get_register_u32(RID_MST_ID, 1000)
+    print(f"当前: ESC_ID=0x{old_esc:X}, MST_ID=0x{old_mst:X}")
+
+    # 设置新 ID
+    new_motor_id = 0x05
+    new_feedback_id = 0x15
+
+    motor.write_register_u32(RID_MST_ID, new_feedback_id)
+    motor.write_register_u32(RID_ESC_ID, new_motor_id)
+
+    # 保存到闪存
+    motor.store_parameters()
+    print("ID 已修改并保存")
+
+# 用新 ID 验证
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(new_motor_id, new_feedback_id, "4340P")
+    esc = motor.get_register_u32(RID_ESC_ID, 1000)
+    mst = motor.get_register_u32(RID_MST_ID, 1000)
+    print(f"验证: ESC_ID=0x{esc:X}, MST_ID=0x{mst:X}")
+```
+
+### 调整 PID 参数
+
+```python
+from motorbridge import Controller, RID_KP_ASR, RID_KI_ASR, RID_KP_APR, RID_KI_APR
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # 读取当前 PID
+    kp_asr = motor.get_register_f32(RID_KP_ASR, 1000)
+    ki_asr = motor.get_register_f32(RID_KI_ASR, 1000)
+    kp_apr = motor.get_register_f32(RID_KP_APR, 1000)
+    ki_apr = motor.get_register_f32(RID_KI_APR, 1000)
+
+    print(f"当前 PID:")
+    print(f"  速度环: Kp={kp_asr:.3f}, Ki={ki_asr:.3f}")
+    print(f"  位置环: Kp={kp_apr:.3f}, Ki={ki_apr:.3f}")
+
+    # 设置新 PID
+    motor.write_register_f32(RID_KP_ASR, 0.5)
+    motor.write_register_f32(RID_KI_ASR, 0.01)
+    motor.write_register_f32(RID_KP_APR, 30.0)
+    motor.write_register_f32(RID_KI_APR, 0.1)
+
+    # 保存（如果要永久保存）
+    motor.store_parameters()
+```
+
+### 设置安全限制
+
+```python
+from motorbridge import Controller, RID_PMAX, RID_VMAX, RID_TMAX
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # 设置限制
+    motor.write_register_f32(RID_PMAX, 6.28)   # 位置限制 ±2π rad
+    motor.write_register_f32(RID_VMAX, 20.0)   # 速度限制 20 rad/s
+    motor.write_register_f32(RID_TMAX, 10.0)   # 力矩限制 10 Nm
+
+    motor.store_parameters()
+    print("安全限制已设置并保存")
+```
+
+### 读取所有寄存器
+
+```python
+from motorbridge import Controller, DAMIAO_RW_REGISTERS
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    print("寄存器转储:")
+    for rid, spec in DAMIAO_RW_REGISTERS.items():
+        try:
+            if spec.data_type == "f32":
+                value = motor.get_register_f32(rid, timeout_ms=500)
+                print(f"  RID={rid:2d} ({spec.variable:8s}): {value:.6f}")
+            else:
+                value = motor.get_register_u32(rid, timeout_ms=500)
+                print(f"  RID={rid:2d} ({spec.variable:8s}): {value} (0x{value:X})")
+        except Exception as e:
+            print(f"  RID={rid:2d} ({spec.variable:8s}): 错误 - {e}")
+```
+
+## RobStride 参数 API
+
+RobStride 使用不同的参数协议：
+
+### Ping 和 ID
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+
+    # Ping 电机
+    device_id, responder_id = motor.robstride_ping()
+    print(f"设备 ID: {device_id}, 响应者 ID: {responder_id}")
+
+    # 设置新设备 ID
+    motor.robstride_set_device_id(42)
+```
+
+### 类型化参数读写
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+
+    # 写入不同类型的参数
+    motor.robstride_write_param_i8(0x7001, -1)
+    motor.robstride_write_param_u8(0x7002, 1)
+    motor.robstride_write_param_u16(0x7003, 10)
+    motor.robstride_write_param_u32(0x7004, 100)
+    motor.robstride_write_param_f32(0x7019, 3.14)
+
+    # 读取参数
+    v_i8 = motor.robstride_get_param_i8(0x7001, 1000)
+    v_u8 = motor.robstride_get_param_u8(0x7002, 1000)
+    v_u16 = motor.robstride_get_param_u16(0x7003, 1000)
+    v_u32 = motor.robstride_get_param_u32(0x7004, 1000)
+    v_f32 = motor.robstride_get_param_f32(0x7019, 1000)
+
+    print(f"参数 0x7019: {v_f32}")
+```
+
+## 保存到闪存
+
+修改的参数只在当前生效，要永久保存需要调用：
+
+```python
+motor.store_parameters()
+print("参数已保存到闪存")
+```
+
+<Warning>
+频繁保存会磨损闪存。只在需要永久保存时调用。
+</Warning>
+
+## CLI 快捷命令
+
+### 转储寄存器
+
+```bash
+motorbridge-cli id-dump --motor-id 0x01 --feedback-id 0x11 --rids 7,8,9,10,21,22,23
+```
+
+### 修改 ID
+
+```bash
+motorbridge-cli id-set \
+    --motor-id 0x01 \
+    --feedback-id 0x11 \
+    --new-motor-id 0x05 \
+    --new-feedback-id 0x15 \
+    --store 1 \
+    --verify 1
+```
+
+## 完整示例
+
+```python
+#!/usr/bin/env python3
+"""寄存器配置完整示例"""
+
+from motorbridge import (
+    Controller, Mode,
+    RID_MST_ID, RID_ESC_ID, RID_TIMEOUT,
+    RID_PMAX, RID_VMAX, RID_TMAX,
+    RID_KP_ASR, RID_KI_ASR,
+    DAMIAO_RW_REGISTERS, get_damiao_register_spec
+)
+
+def configure_motor(motor, config):
+    """应用配置到电机"""
+    # 设置限制
+    motor.write_register_f32(RID_PMAX, config["pmax"])
+    motor.write_register_f32(RID_VMAX, config["vmax"])
+    motor.write_register_f32(RID_TMAX, config["tmax"])
+
+    # 设置 PID
+    motor.write_register_f32(RID_KP_ASR, config["kp_asr"])
+    motor.write_register_f32(RID_KI_ASR, config["ki_asr"])
+
+    # 设置超时
+    motor.write_register_u32(RID_TIMEOUT, config["timeout_ms"])
+
+    # 保存
+    motor.store_parameters()
+    print("配置已应用并保存")
+
+def verify_config(motor, config):
+    """验证配置"""
+    checks = [
+        (RID_PMAX, config["pmax"], "f32"),
+        (RID_VMAX, config["vmax"], "f32"),
+        (RID_TMAX, config["tmax"], "f32"),
+        (RID_KP_ASR, config["kp_asr"], "f32"),
+        (RID_KI_ASR, config["ki_asr"], "f32"),
+    ]
+
+    all_ok = True
+    for rid, expected, dtype in checks:
+        if dtype == "f32":
+            actual = motor.get_register_f32(rid, 1000)
+            ok = abs(actual - expected) < 0.001
+        else:
+            actual = motor.get_register_u32(rid, 1000)
+            ok = actual == expected
+
+        spec = get_damiao_register_spec(rid)
+        name = spec.variable if spec else f"RID{rid}"
+        status = "OK" if ok else "不匹配"
+        print(f"  {name}: {actual} ({status})")
+        all_ok = all_ok and ok
+
+    return all_ok
+
+# 配置
+MOTOR_CONFIG = {
+    "pmax": 12.566,  # ±4π rad
+    "vmax": 30.0,    # 30 rad/s
+    "tmax": 10.0,    # 10 Nm
+    "kp_asr": 0.5,
+    "ki_asr": 0.01,
+    "timeout_ms": 5000,
+}
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    print("当前配置:")
+    verify_config(motor, MOTOR_CONFIG)
+
+    print("\n应用新配置...")
+    configure_motor(motor, MOTOR_CONFIG)
+
+    print("\n验证新配置:")
+    if verify_config(motor, MOTOR_CONFIG):
+        print("配置验证成功！")
+    else:
+        print("配置验证失败！")
+```
+
+## 下一步
+
+- [教程 06：实用代码](tutorials/06-practical-recipes) - 复制粘贴就能用的代码
+- [Motor API](api/motor) - 寄存器访问方法
+- [故障排除](best-practices/troubleshooting) - 常见问题

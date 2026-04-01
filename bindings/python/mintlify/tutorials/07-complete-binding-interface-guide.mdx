@@ -1,0 +1,409 @@
+# Tutorial 07: Complete Binding Interface Guide
+
+<mintly-toc>
+
+This page is a comprehensive reference for all Python binding interfaces in the `motorbridge` package.
+
+</mintly-toc>
+
+## Module Overview
+
+```python
+from motorbridge import (
+    # Core classes
+    Controller,
+    Motor,
+
+    # Enums and dataclasses
+    Mode,
+    MotorState,
+
+    # Register utilities
+    RegisterSpec,
+    DAMIAO_RW_REGISTERS,
+    DAMIAO_HIGH_IMPACT_RIDS,
+    DAMIAO_PROTECTION_RIDS,
+    get_damiao_register_spec,
+
+    # Register ID constants
+    RID_CTRL_MODE,
+    RID_MST_ID,
+    RID_ESC_ID,
+    RID_TIMEOUT,
+    RID_PMAX,
+    RID_VMAX,
+    RID_TMAX,
+    RID_KP_ASR,
+    RID_KI_ASR,
+    RID_KP_APR,
+    RID_KI_APR,
+
+    # Mode constants
+    MODE_MIT,
+    MODE_POS_VEL,
+    MODE_VEL,
+    MODE_FORCE_POS,
+)
+
+from motorbridge.errors import (
+    MotorBridgeError,
+    AbiLoadError,
+    CallError,
+)
+```
+
+## Controller Constructors
+
+### `Controller(channel="can0")`
+
+Standard SocketCAN transport.
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    # Most common setup
+    pass
+```
+
+### `Controller.from_socketcanfd(channel="can0")`
+
+CAN-FD transport (required for Hexfellow).
+
+```python
+from motorbridge import Controller
+
+with Controller.from_socketcanfd("can0") as ctrl:
+    motor = ctrl.add_hexfellow_motor(0x01, 0x00, "hexfellow")
+```
+
+### `Controller.from_dm_serial(serial_port="/dev/ttyACM0", baud=921600)`
+
+Damiao serial bridge transport.
+
+```python
+from motorbridge import Controller
+
+with Controller.from_dm_serial("/dev/ttyACM0", 921600) as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+```
+
+## Controller Methods
+
+### Motor Registration
+
+| Method | Vendor | Notes |
+|--------|--------|-------|
+| `add_damiao_motor(motor_id, feedback_id, model)` | Damiao | Most complete protocol |
+| `add_robstride_motor(motor_id, feedback_id, model)` | RobStride | Supports ping + param rw |
+| `add_myactuator_motor(motor_id, feedback_id, model)` | MyActuator | Vendor-specific mode constraints |
+| `add_hightorque_motor(motor_id, feedback_id, model)` | HighTorque | Native vendor semantics |
+| `add_hexfellow_motor(motor_id, feedback_id, model)` | Hexfellow | Requires CAN-FD |
+
+### Global Operations
+
+```python
+ctrl.enable_all()    # Enable all motors
+ctrl.disable_all()   # Disable all motors
+ctrl.poll_feedback_once()  # Manual feedback poll (optional in v0.1.7+)
+```
+
+### Lifecycle
+
+```python
+ctrl.shutdown()      # Graceful shutdown
+ctrl.close_bus()     # Close CAN bus
+ctrl.close()         # Release resources
+```
+
+## Motor Methods
+
+### Lifecycle and Safety
+
+```python
+motor.enable()              # Enable motor output
+motor.disable()             # Disable motor output
+motor.clear_error()         # Clear error state
+motor.set_zero_position()   # Set current position as zero
+motor.close()               # Release motor handle
+```
+
+### Mode Control
+
+```python
+from motorbridge import Mode
+
+motor.ensure_mode(Mode.MIT, timeout_ms=1000)
+```
+
+### Control Commands
+
+```python
+# MIT mode (full impedance)
+motor.send_mit(pos, vel, kp, kd, tau)
+
+# Position-velocity mode
+motor.send_pos_vel(pos, vlim)
+
+# Velocity mode
+motor.send_vel(vel)
+
+# Force position mode
+motor.send_force_pos(pos, vlim, ratio)
+```
+
+### Feedback
+
+```python
+motor.request_feedback()    # Request fresh feedback
+state = motor.get_state()   # Get cached state (MotorState | None)
+```
+
+### Register Access
+
+```python
+# Unsigned 32-bit
+motor.write_register_u32(rid, value)
+value = motor.get_register_u32(rid, timeout_ms=1000)
+
+# Float 32-bit
+motor.write_register_f32(rid, value)
+value = motor.get_register_f32(rid, timeout_ms=1000)
+
+# Save to flash
+motor.store_parameters()
+
+# CAN timeout
+motor.set_can_timeout_ms(timeout_ms)
+```
+
+### RobStride-Specific
+
+```python
+# Ping
+device_id, responder_id = motor.robstride_ping()
+
+# Set device ID
+motor.robstride_set_device_id(new_device_id)
+
+# Parameter access
+motor.robstride_write_param_i8(param_id, value)
+motor.robstride_write_param_u8(param_id, value)
+motor.robstride_write_param_u16(param_id, value)
+motor.robstride_write_param_u32(param_id, value)
+motor.robstride_write_param_f32(param_id, value)
+
+v_i8 = motor.robstride_get_param_i8(param_id, timeout_ms=1000)
+v_u8 = motor.robstride_get_param_u8(param_id, timeout_ms=1000)
+v_u16 = motor.robstride_get_param_u16(param_id, timeout_ms=1000)
+v_u32 = motor.robstride_get_param_u32(param_id, timeout_ms=1000)
+v_f32 = motor.robstride_get_param_f32(param_id, timeout_ms=1000)
+```
+
+## Mode Enum
+
+```python
+from motorbridge import Mode
+
+class Mode(IntEnum):
+    MIT = 1        # Full impedance control
+    POS_VEL = 2    # Position with velocity limit
+    VEL = 3        # Pure velocity control
+    FORCE_POS = 4  # Compliant position control
+```
+
+## MotorState Dataclass
+
+```python
+from motorbridge import MotorState
+
+@dataclass(frozen=True)
+class MotorState:
+    can_id: int          # Motor CAN ID
+    arbitration_id: int  # CAN arbitration ID
+    status_code: int     # Status/error code
+    pos: float           # Position (rad)
+    vel: float           # Velocity (rad/s)
+    torq: float          # Torque (Nm)
+    t_mos: float         # MOSFET temperature (°C)
+    t_rotor: float       # Rotor temperature (°C)
+```
+
+## Error Classes
+
+```python
+from motorbridge.errors import MotorBridgeError, AbiLoadError, CallError
+
+# Base exception
+class MotorBridgeError(RuntimeError):
+    """Base error for motorbridge Python SDK."""
+
+# ABI loading failed
+class AbiLoadError(MotorBridgeError):
+    """Raised when libmotor_abi cannot be found or loaded."""
+
+# API call failed
+class CallError(MotorBridgeError):
+    """Raised when ABI call returns non-zero status."""
+```
+
+## Register Utilities
+
+### RegisterSpec
+
+```python
+from motorbridge import RegisterSpec
+
+@dataclass(frozen=True)
+class RegisterSpec:
+    rid: int          # Register ID
+    variable: str     # Variable name
+    description: str  # Human-readable description
+    data_type: str    # "f32" or "u32"
+    access: str       # "RW", "RO", etc.
+    range_str: str    # Range description
+```
+
+### DAMIAO_RW_REGISTERS
+
+Dictionary of all Damiao read-write registers:
+
+```python
+from motorbridge import DAMIAO_RW_REGISTERS, get_damiao_register_spec
+
+# Access register specification
+spec = DAMIAO_RW_REGISTERS[21]  # PMAX
+print(f"RID 21: {spec.variable} = {spec.description}")
+
+# Or use helper function
+spec = get_damiao_register_spec(21)
+```
+
+### Register ID Constants
+
+```python
+from motorbridge import (
+    RID_CTRL_MODE,  # 10 - Control mode
+    RID_MST_ID,     # 7  - Feedback ID
+    RID_ESC_ID,     # 8  - Motor ID
+    RID_TIMEOUT,    # 9  - Communication timeout
+    RID_PMAX,       # 21 - Position mapping range
+    RID_VMAX,       # 22 - Velocity mapping range
+    RID_TMAX,       # 23 - Torque mapping range
+    RID_KP_ASR,     # 25 - Speed loop Kp
+    RID_KI_ASR,     # 26 - Speed loop Ki
+    RID_KP_APR,     # 27 - Position loop Kp
+    RID_KI_APR,     # 28 - Position loop Ki
+)
+```
+
+## Complete Template
+
+```python
+#!/usr/bin/env python3
+"""Complete motorbridge template."""
+
+import time
+from motorbridge import (
+    Controller,
+    Mode,
+    MotorState,
+    RID_PMAX,
+    RID_VMAX,
+    DAMIAO_RW_REGISTERS,
+)
+from motorbridge.errors import CallError, MotorBridgeError
+
+# Configuration
+CHANNEL = "can0"
+MOTOR_ID = 0x01
+FEEDBACK_ID = 0x11
+MODEL = "4340P"
+MODE = Mode.MIT
+TARGET_POS = 1.0
+
+def main():
+    try:
+        with Controller(CHANNEL) as ctrl:
+            # Register motor
+            motor = ctrl.add_damiao_motor(MOTOR_ID, FEEDBACK_ID, MODEL)
+            print(f"Motor registered: ID=0x{MOTOR_ID:02X}")
+
+            # Enable
+            ctrl.enable_all()
+            print("Motor enabled")
+
+            # Set mode
+            motor.ensure_mode(MODE, timeout_ms=1000)
+            print(f"Mode set: {MODE.name}")
+
+            # Read configuration
+            pmax = motor.get_register_f32(RID_PMAX, 1000)
+            vmax = motor.get_register_f32(RID_VMAX, 1000)
+            print(f"Limits: PMAX={pmax:.3f}, VMAX={vmax:.3f}")
+
+            # Control loop
+            dt = 0.02
+            for i in range(100):
+                t0 = time.time()
+
+                # Send command
+                motor.send_mit(TARGET_POS, 0.0, 30.0, 1.0, 0.0)
+
+                # Read state
+                motor.request_feedback()
+                state = motor.get_state()
+
+                if state:
+                    print(
+                        f"#{i:03d} "
+                        f"pos={state.pos:+.3f} "
+                        f"vel={state.vel:+.3f} "
+                        f"torq={state.torq:+.2f} "
+                        f"t_mos={state.t_mos:.1f}°C"
+                    )
+                else:
+                    print(f"#{i:03d} No feedback")
+
+                # Maintain rate
+                elapsed = time.time() - t0
+                if elapsed < dt:
+                    time.sleep(dt - elapsed)
+
+            # Clean up
+            motor.disable()
+            print("Motor disabled")
+
+    except CallError as e:
+        print(f"API call failed: {e}")
+    except MotorBridgeError as e:
+        print(f"Motor bridge error: {e}")
+    except KeyboardInterrupt:
+        print("\nInterrupted")
+
+if __name__ == "__main__":
+    main()
+```
+
+## Vendor Rules
+
+| Rule | Description |
+|------|-------------|
+| Same vendor → same controller | Motors from same vendor share one `Controller` instance |
+| Different vendor → separate controller | Each vendor family needs its own `Controller` |
+| Hexfellow requires CAN-FD | Must use `from_socketcanfd()` |
+| DM serial is Damiao-only | `from_dm_serial()` only works with Damiao motors |
+
+## Version Compatibility
+
+| Version | Notes |
+|---------|-------|
+| v0.1.6 and earlier | Requires manual `poll_feedback_once()` |
+| v0.1.7+ | Background polling enabled by default |
+
+## See Also
+
+- [Controller API](api/controller) - Detailed controller reference
+- [Motor API](api/motor) - Detailed motor reference
+- [CLI Reference](api/cli) - Command-line tools
+- [Best Practices](best-practices/control-loop-patterns) - Production patterns

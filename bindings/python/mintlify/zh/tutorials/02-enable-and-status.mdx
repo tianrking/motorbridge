@@ -1,0 +1,302 @@
+---
+title: 02 使能与状态读取
+---
+
+# 教程 02：使能与状态读取
+
+<mintly-toc>
+
+找到电机后，下一步是让电机"活"起来（使能）并读取它的实时数据（位置、速度、温度等）。本教程详细讲解每一步。
+
+</mintly-toc>
+
+## 电机状态机
+
+在理解使能之前，先了解电机的状态：
+
+```
+┌─────────────┐     enable()      ┌─────────────┐
+│   禁用状态   │ ───────────────► │   使能状态   │
+│  (无输出)    │                  │  (有扭矩)    │
+│  转子自由    │                  │  锁定位置    │
+└─────────────┘ ◄─────────────── └─────────────┘
+                   disable()
+```
+
+**禁用状态：**
+- 电机绕组不通电
+- 转子可以用手自由转动
+- 发送命令无效
+
+**使能状态：**
+- 电机绕组通电
+- 产生扭矩，会锁住位置
+- 可以响应控制命令
+
+## 步骤一：创建控制器
+
+首先创建一个控制器来管理 CAN 通信：
+
+```python
+from motorbridge import Controller
+
+# 方式1：标准 CAN
+ctrl = Controller("can0")
+
+# 方式2：CAN-FD（Hexfellow 必须用这个）
+# ctrl = Controller.from_socketcanfd("can0")
+
+# 方式3：达妙串口桥
+# ctrl = Controller.from_dm_serial("/dev/ttyACM0", 921600)
+```
+
+**Controller 参数详解：**
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `channel` | str | `"can0"` | CAN 接口名称 |
+
+**返回值：** Controller 对象
+
+**可能抛出的异常：**
+- `CallError` - CAN 接口无法打开
+
+## 步骤二：添加电机
+
+告诉控制器你要控制哪个电机：
+
+```python
+# 达妙电机
+motor = ctrl.add_damiao_motor(
+    motor_id=0x01,      # 必填：电机的命令 ID
+    feedback_id=0x11,   # 必填：电机的反馈 ID
+    model="4340P"       # 必填：电机型号
+)
+```
+
+**add_damiao_motor 参数详解：**
+
+| 参数 | 类型 | 说明 | 示例 |
+|------|------|------|------|
+| `motor_id` | int | 命令帧的 CAN ID | `0x01` - `0x20` |
+| `feedback_id` | int | 反馈帧的 CAN ID | 通常是 `motor_id + 0x10` |
+| `model` | str | 电机型号字符串 | `"4310"`, `"4340P"`, `"6001"` |
+
+## 步骤三：使能电机
+
+使能就是给电机"通电"，让它开始工作：
+
+```python
+# 方式1：使能所有电机（推荐）
+ctrl.enable_all()
+
+# 方式2：只使能单个电机
+motor.enable()
+```
+
+**enable_all() vs enable() 的区别：**
+
+| 方法 | 作用 | 使用场景 |
+|------|------|----------|
+| `ctrl.enable_all()` | 使能该控制器下所有电机 | 多电机系统，需要同步启动 |
+| `motor.enable()` | 只使能这一个电机 | 单电机测试，或需要单独控制 |
+
+## 步骤四：读取状态
+
+获取电机的实时数据：
+
+```python
+# 请求电机发送反馈帧
+motor.request_feedback()
+
+# 读取缓存的状态（可能为 None）
+state = motor.get_state()
+
+if state:
+    print(f"位置: {state.pos:.3f} rad")
+    print(f"速度: {state.vel:.3f} rad/s")
+    print(f"力矩: {state.torq:.3f} Nm")
+else:
+    print("未收到反馈")
+```
+
+**MotorState 所有字段详解：**
+
+| 字段 | 类型 | 单位 | 说明 | 范围 |
+|------|------|------|------|------|
+| `can_id` | int | - | 电机 CAN ID | 0x01 - 0x7F |
+| `arbitration_id` | int | - | CAN 仲裁 ID | - |
+| `status_code` | int | - | 状态码（0=正常） | 0-255 |
+| `pos` | float | rad | 电机位置 | -12.566 ~ +12.566 |
+| `vel` | float | rad/s | 电机速度 | -30.0 ~ +30.0 |
+| `torq` | float | Nm | 电机力矩 | -10.0 ~ +10.0 |
+| `t_mos` | float | °C | MOSFET 温度 | 20.0 ~ 100.0 |
+| `t_rotor` | float | °C | 转子温度 | 20.0 ~ 100.0 |
+
+**弧度单位说明：**
+- 1 圈 = 2π 弧度 ≈ 6.28 弧度
+- 90° = π/2 弧度 ≈ 1.57 弧度
+- 180° = π 弧度 ≈ 3.14 弧度
+
+## 完整示例
+
+```python
+import time
+from motorbridge import Controller
+
+# 配置
+MOTOR_ID = 0x01
+FEEDBACK_ID = 0x11
+MODEL = "4340P"
+
+with Controller("can0") as ctrl:
+    # 添加电机
+    motor = ctrl.add_damiao_motor(MOTOR_ID, FEEDBACK_ID, MODEL)
+    print(f"已添加电机 ID=0x{MOTOR_ID:02X}")
+    
+    # 使能
+    ctrl.enable_all()
+    print("电机已使能")
+    
+    # 等待稳定
+    time.sleep(0.5)
+    
+    # 读取状态
+    motor.request_feedback()
+    state = motor.get_state()
+    
+    if state:
+        print("\n===== 电机状态 =====")
+        print(f"位置: {state.pos:+.3f} rad ({state.pos * 57.3:+.1f}°)")
+        print(f"速度: {state.vel:+.3f} rad/s")
+        print(f"力矩: {state.torq:+.3f} Nm")
+        print(f"MOS温度: {state.t_mos:.1f}°C")
+        print(f"转子温度: {state.t_rotor:.1f}°C")
+        print("====================")
+    else:
+        print("未收到反馈")
+    
+    # 自动清理（with 语句）
+```
+
+## 为什么 get_state() 返回 None？
+
+这是初学者最常遇到的问题：
+
+### 原因 1：没有调用 request_feedback()
+
+```python
+# 错误：没有请求反馈
+state = motor.get_state()  # 返回 None
+
+# 正确：先请求，再读取
+motor.request_feedback()
+state = motor.get_state()  # 返回 MotorState
+```
+
+### 原因 2：反馈还没到达
+
+CAN 通信有延迟，请求后需要等待：
+
+```python
+motor.request_feedback()
+time.sleep(0.01)  # 等待 10ms
+state = motor.get_state()
+```
+
+### 原因 3：电机 ID 错误
+
+用 `motorbridge-cli scan` 确认 ID 是否正确。
+
+## 重试模式（推荐）
+
+为了可靠读取状态，使用重试模式：
+
+```python
+import time
+
+def get_state_reliable(motor, max_retries=10):
+    """可靠地读取电机状态，带重试。"""
+    for i in range(max_retries):
+        motor.request_feedback()
+        time.sleep(0.05)
+        state = motor.get_state()
+        if state is not None:
+            return state
+    return None
+
+# 使用
+state = get_state_reliable(motor)
+if state:
+    print(f"位置: {state.pos:.3f}")
+else:
+    print("读取失败")
+```
+
+## 状态码含义
+
+| 代码 | 含义 | 处理方法 |
+|------|------|----------|
+| 0 | 正常 | - |
+| 1 | 过压 | 检查电源电压 |
+| 2 | 欠压 | 检查电源电压 |
+| 3 | 过流 | 减小负载 |
+| 4 | MOSFET 过温 | 停止运行，等待冷却 |
+| 5 | 转子过温 | 停止运行，等待冷却 |
+| 6 | 通信超时 | 检查 CAN 连接 |
+
+## 温度监控
+
+```python
+TEMP_WARNING = 70.0
+TEMP_CRITICAL = 85.0
+
+def check_temperature(state):
+    if state is None:
+        return True
+    
+    if state.t_mos > TEMP_CRITICAL:
+        print(f"危险！MOSFET温度: {state.t_mos:.1f}°C")
+        return False
+    
+    if state.t_rotor > TEMP_CRITICAL:
+        print(f"危险！转子温度: {state.t_rotor:.1f}°C")
+        return False
+    
+    return True
+```
+
+## 禁用电机
+
+用完后禁用电机：
+
+```python
+# 禁用单个电机
+motor.disable()
+
+# 禁用所有电机
+ctrl.disable_all()
+```
+
+## poll_feedback_once() 说明
+
+版本差异：
+- **v0.1.6 及以前**：需要手动调用 `ctrl.poll_feedback_once()`
+- **v0.1.7+**：后台自动处理，通常不需要手动调用
+
+```python
+# v0.1.6 及以前
+motor.request_feedback()
+ctrl.poll_feedback_once()  # 必须调用
+state = motor.get_state()
+
+# v0.1.7+
+motor.request_feedback()
+# 可省略 poll_feedback_once()
+state = motor.get_state()
+```
+
+## 下一步
+
+- [教程 03：模式切换和控制](tutorials/03-mode-switch-and-control) - 发送控制命令
+- [教程 04：多电机控制](tutorials/04-multi-motor) - 同时控制多个电机

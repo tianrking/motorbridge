@@ -1,0 +1,462 @@
+---
+title: 故障排除
+---
+
+# 最佳实践：故障排除
+
+<mintly-toc>
+
+本指南涵盖使用 motorbridge Python SDK 时的常见问题、错误消息和解决方案。
+
+</mintly-toc>
+
+## CAN 通信错误
+
+### "socketcan write failed: No buffer space available (os error 105)"
+
+**原因：** CAN TX 缓冲区溢出 - 发送消息太快。
+
+#### 解决方案 1：增加控制周期
+
+```python
+# 太快了
+dt_s = 0.005  # 200Hz - 可能溢出
+
+# 更安全
+dt_s = 0.02   # 50Hz - 通常稳定
+dt_s = 0.03   # 33Hz - 保守
+```
+
+#### 解决方案 2：增加 TX 队列长度
+
+```bash
+sudo ifconfig can0 txqueuelen 1000
+```
+
+#### 解决方案 3：停止其他 CAN 发送程序
+
+```bash
+# 检查其他使用 CAN 的进程
+lsof | grep can0
+```
+
+#### 解决方案 4：减少反馈请求频率
+
+```python
+# 不好：每次迭代都请求
+for i in range(1000):
+    motor.request_feedback()  # 每次都请求
+    motor.send_mit(...)
+
+# 好：每 N 次请求一次
+for i in range(1000):
+    if i % 5 == 0:
+        motor.request_feedback()
+    motor.send_mit(...)
+```
+
+---
+
+### "CAN interface not found"
+
+**原因：** CAN 接口未配置或未启动。
+
+#### 解决方案
+
+```bash
+# 加载 CAN 内核模块
+sudo modprobe can
+sudo modprobe can_raw
+sudo modprobe can_dev
+
+# 配置接口
+sudo ip link set can0 type can bitrate 1000000
+sudo ip link set can0 up
+
+# 验证
+ip link show can0
+```
+
+**预期输出：**
+```
+2: can0: <NOARP,UP,LOWER_UP,ECHO> mtu 16 qdisc pfifo_fast state UP mode DEFAULT group default qlen 1000
+    link/can
+```
+
+---
+
+### "Permission denied on /dev/ttyACM0"
+
+**原因：** 用户没有访问串口的权限。
+
+#### 解决方案 1：加入 dialout 组（永久）
+
+```bash
+# 将用户加入 dialout 组
+sudo usermod -a -G dialout $USER
+
+# 注销并重新登录使更改生效
+```
+
+#### 解决方案 2：临时权限（临时）
+
+```bash
+sudo chmod 666 /dev/ttyACM0
+```
+
+---
+
+## 电机响应问题
+
+### `state = None`
+
+**原因：** 还没收到反馈帧。
+
+#### 解决方案：实现重试循环
+
+```python
+import time
+
+def get_state_with_retry(motor, max_attempts=10):
+    """带重试的状态读取"""
+    for _ in range(max_attempts):
+        motor.request_feedback()
+        time.sleep(0.05)
+        state = motor.get_state()
+        if state is not None:
+            return state
+    return None
+
+# 使用
+state = get_state_with_retry(motor)
+if state:
+    print(f"位置: {state.pos}")
+else:
+    print("重试后仍无反馈")
+```
+
+#### 检查清单
+
+| 检查项 | 说明 |
+|--------|------|
+| 电机已上电 | 检查 LED 灯是否亮 |
+| CAN 接线正确 | CAN_H 接 CAN_H，CAN_L 接 CAN_L |
+| motor_id 正确 | 用 scan 命令确认 |
+| feedback_id 正确 | 用 scan 命令确认 |
+| 波特率匹配 | 电机和 CAN 接口波特率一致 |
+
+---
+
+### "Mode switch timeout"
+
+**原因：** 电机未响应模式切换命令。
+
+#### 解决方案 1：验证电机 ID
+
+```bash
+motorbridge-cli scan --vendor damiao --start-id 1 --end-id 32
+```
+
+#### 解决方案 2：检查电机状态
+
+```python
+state = motor.get_state()
+if state:
+    print(f"状态码: 0x{state.status_code:02X}")
+```
+
+#### 解决方案 3：先清除错误
+
+```python
+motor.clear_error()
+time.sleep(0.1)
+motor.ensure_mode(Mode.MIT, 1000)
+```
+
+#### 解决方案 4：增加超时时间
+
+```python
+motor.ensure_mode(Mode.MIT, timeout_ms=2000)
+```
+
+---
+
+### "Motor not moving"
+
+**原因：** 电机未使能、模式错误或命令未发送。
+
+#### 检查清单
+
+```python
+# 1. 电机是否使能？
+ctrl.enable_all()
+
+# 2. 模式是否正确？
+motor.ensure_mode(Mode.MIT, 1000)
+
+# 3. 命令是否在发送？
+motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
+
+# 4. 检查状态
+motor.request_feedback()
+state = motor.get_state()
+if state:
+    print(f"状态码: 0x{state.status_code:02X}")
+    print(f"位置: {state.pos:.3f}")
+```
+
+---
+
+## 错误码参考
+
+### 达妙状态码
+
+| 代码 | 含义 | 处理方法 |
+|------|------|----------|
+| 0 | 正常 | 无需处理 |
+| 1 | 过压 | 检查电源电压 |
+| 2 | 欠压 | 检查电源电压 |
+| 3 | 过流 | 减小负载 |
+| 4 | MOSFET 过温 | 停止运行，等待冷却 |
+| 5 | 转子过温 | 停止运行，等待冷却 |
+| 6 | 通信超时 | 检查 CAN 接线 |
+
+### 错误处理代码
+
+```python
+def handle_motor_error(motor, status_code):
+    """根据状态码处理电机错误"""
+    if status_code == 0:
+        return True  # 正常
+
+    print(f"电机错误: 0x{status_code:02X}")
+
+    if status_code in (1, 2):  # 电压错误
+        print("检查电源电压")
+        return False
+
+    if status_code in (3, 4, 5):  # 电流/温度
+        print("减小负载并等待冷却")
+        motor.disable()
+        return False
+
+    if status_code == 6:  # 超时
+        print("检查 CAN 接线")
+        motor.clear_error()
+        motor.enable()
+        return True
+
+    return False
+
+# 使用
+motor.request_feedback()
+state = motor.get_state()
+if state and not handle_motor_error(motor, state.status_code):
+    print("需要人工干预")
+```
+
+---
+
+## 导入错误
+
+### "ImportError: cannot import name 'Controller'"
+
+**原因：** 包未安装或 ABI 库缺失。
+
+#### 解决方案
+
+```bash
+# 重新安装
+pip install --upgrade --force-reinstall motorbridge
+
+# 验证安装
+python3 -c "import motorbridge; print('OK')"
+
+# 检查 ABI 库（源码构建需要）
+ls -la /path/to/motorbridge/lib/libmotor_abi.so
+export LD_LIBRARY_PATH=/path/to/lib:$LD_LIBRARY_PATH
+```
+
+---
+
+### "AbiLoadError: Failed to load libmotor_abi"
+
+**原因：** ABI 共享库找不到或不兼容。
+
+#### 解决方案
+
+```bash
+# 查找库
+find /usr -name "libmotor_abi.so" 2>/dev/null
+
+# 设置库路径
+export LD_LIBRARY_PATH=/path/to/lib:$LD_LIBRARY_PATH
+
+# 或从 wheel 安装（包含库）
+pip install motorbridge
+```
+
+---
+
+## 性能问题
+
+### CPU 使用率过高
+
+#### 原因 1：紧凑循环无休眠
+
+```python
+# 不好
+while True:
+    motor.send_mit(...)
+    # 无休眠 - 100% CPU
+
+# 好
+while True:
+    motor.send_mit(...)
+    time.sleep(0.02)  # 50Hz
+```
+
+#### 原因 2：过度轮询
+
+```python
+# 不好（v0.1.7+）
+while True:
+    ctrl.poll_feedback_once()  # 不需要
+
+# 好（v0.1.7+）
+while True:
+    motor.request_feedback()
+    state = motor.get_state()
+```
+
+---
+
+### 定时不稳定
+
+#### 解决方案
+
+```python
+import time
+
+DT_S = 0.02
+next_time = time.time()
+
+for i in range(100):
+    # 工作
+    motor.send_mit(...)
+    motor.request_feedback()
+
+    # 休眠到下一周期
+    next_time += DT_S
+    sleep_time = next_time - time.time()
+    if sleep_time > 0:
+        time.sleep(sleep_time)
+    else:
+        print(f"超时: {-sleep_time*1000:.1f}ms")
+        next_time = time.time()  # 重置定时
+```
+
+---
+
+## 调试技巧
+
+### 启用详细日志
+
+```python
+import logging
+
+# 启用调试日志
+logging.basicConfig(level=logging.DEBUG)
+```
+
+### 检查 CAN 流量
+
+```bash
+# 监控 CAN 总线
+candump can0
+
+# 发送测试帧
+cansend can0 001#0102030405060708
+```
+
+### 使用 CLI 测试
+
+```bash
+# 扫描电机
+motorbridge-cli scan --vendor all --channel can0
+
+# 测试单个电机
+motorbridge-cli run --vendor damiao --motor-id 0x01 --mode enable --loop 1
+
+# 转储寄存器
+motorbridge-cli id-dump --motor-id 0x01 --rids 7,8,9,10
+```
+
+### 隔离问题
+
+```python
+# 最小测试用例
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+
+    # 测试使能
+    try:
+        motor.enable()
+        print("使能: OK")
+    except Exception as e:
+        print(f"使能: 失败 - {e}")
+
+    # 测试反馈
+    motor.request_feedback()
+    state = motor.get_state()
+    print(f"反馈: {'OK' if state else '失败'}")
+
+    # 测试命令
+    try:
+        motor.send_mit(0.0, 0.0, 10.0, 1.0, 0.0)
+        print("命令: OK")
+    except Exception as e:
+        print(f"命令: 失败 - {e}")
+```
+
+---
+
+## 获取帮助
+
+如果问题持续：
+
+### 1. 检查文档
+
+- [教程](tutorials/01-scan-and-identify)
+- [API 参考](api/controller)
+- [最佳实践](best-practices/control-loop-patterns)
+
+### 2. 收集信息
+
+```bash
+# 系统信息
+uname -a
+python3 --version
+pip show motorbridge
+
+# CAN 状态
+ip link show can0
+```
+
+### 3. 报告问题时包含
+
+- 完整错误消息
+- 代码片段
+- 系统信息
+- CAN 配置
+- 电机型号和厂商
+
+---
+
+## 下一步
+
+- [控制循环模式](best-practices/control-loop-patterns) - 可靠模式
+- [CLI 参考](api/cli) - 调试工具
+- [教程 01](tutorials/01-scan-and-identify) - 验证设置

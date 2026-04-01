@@ -1,0 +1,289 @@
+# Tutorial 01: Scan and Identify Motors
+
+<mintly-toc>
+
+Before controlling any motor, you need to discover what motors are connected to your CAN bus. This tutorial covers motor scanning and identification.
+
+</mintly-toc>
+
+## Prerequisites
+
+- motorbridge installed
+- CAN interface configured and up
+- Motors powered on
+
+## Why Scan First?
+
+Scanning is essential because it:
+
+1. **Confirms wiring** - Verifies physical connections are correct
+2. **Validates bitrate** - Ensures CAN baud rate matches motor settings
+3. **Discovers IDs** - Finds motor_id and feedback_id pairs needed for control
+4. **Detects conflicts** - Identifies duplicate IDs that could cause communication issues
+
+## Quick Scan with CLI
+
+The fastest way to discover motors:
+
+```bash
+# Scan all vendors on can0
+motorbridge-cli scan --vendor all --channel can0 --start-id 1 --end-id 255
+```
+
+### Expected Output
+
+```
+command=scan vendor=all transport=auto channel=can0 model=4340 id_range=[0x1,0xFF] timeout_ms=80
+
+[scan:damiao] channel=can0 model=4340 id_range=[0x1,0x20] timeout_ms=80
+[hit] vendor=damiao probe=0x01 esc_id=0x1 mst_id=0x11
+[hit] vendor=damiao probe=0x02 esc_id=0x2 mst_id=0x12
+[.. ] vendor=damiao probe=0x03 no reply
+
+[scan:myactuator] channel=can0 model=X8 id_range=[0x1,0x20] timeout_ms=80
+[hit] probe=0x01 vendor=myactuator feedback_id=0x241 temp=32.5C vel=+0.000rad/s angle=+0.125rad
+
+scan done: 3 motor(s) found
+  probe=0x01 vendor=damiao esc_id=0x1 mst_id=0x11
+  probe=0x02 vendor=damiao esc_id=0x2 mst_id=0x12
+  probe=0x01 vendor=myactuator feedback_id=0x241 temp=32.5C vel=+0.000rad/s angle=+0.125rad
+```
+
+## Vendor-Specific Scanning
+
+### Damiao Motors
+
+```bash
+motorbridge-cli scan \
+    --vendor damiao \
+    --channel can0 \
+    --start-id 0x01 \
+    --end-id 0x20 \
+    --feedback-base 0x10
+```
+
+**How it works:**
+- Probes each motor_id from start to end
+- Calculates feedback_id = feedback_base + (motor_id & 0x0F)
+- Reads ESC_ID (rid=8) and MST_ID (rid=7) to confirm identity
+
+### RobStride Motors
+
+```bash
+motorbridge-cli scan \
+    --vendor robstride \
+    --channel can0 \
+    --start-id 1 \
+    --end-id 127 \
+    --feedback-ids 0xFF,0xFE,0x00,0xAA
+```
+
+**How it works:**
+- RobStride uses different feedback IDs
+- Tries multiple feedback_ids per motor_id
+- Uses ping command and parameter read as probes
+
+### MyActuator Motors
+
+```bash
+motorbridge-cli scan \
+    --vendor myactuator \
+    --channel can0 \
+    --start-id 1 \
+    --end-id 32
+```
+
+**How it works:**
+- MyActuator uses feedback_id = 0x240 + motor_id
+- Requests feedback and waits for response
+- Limited to IDs 1-32
+
+### HighTorque Motors
+
+```bash
+motorbridge-cli scan \
+    --vendor hightorque \
+    --channel can0 \
+    --start-id 1 \
+    --end-id 127
+```
+
+## Scanning via Serial Bridge
+
+For Damiao motors using USB-CAN adapter:
+
+```bash
+motorbridge-cli scan \
+    --vendor damiao \
+    --transport dm-serial \
+    --serial-port /dev/ttyACM0 \
+    --serial-baud 921600 \
+    --start-id 1 \
+    --end-id 32
+```
+
+## Programmatic Scanning
+
+You can also scan from Python:
+
+```python
+import time
+from motorbridge import Controller
+
+def scan_damiao(channel: str, start_id: int, end_id: int) -> list[dict]:
+    """Scan for Damiao motors and return list of discovered motors."""
+    found = []
+
+    for motor_id in range(start_id, end_id + 1):
+        # Calculate expected feedback_id
+        feedback_id = 0x10 + (motor_id & 0x0F)
+
+        ctrl = Controller(channel)
+        try:
+            motor = ctrl.add_damiao_motor(motor_id, feedback_id, "4340P")
+            try:
+                # Try to read ESC_ID register
+                esc_id = motor.get_register_u32(8, timeout_ms=100)
+                mst_id = motor.get_register_u32(7, timeout_ms=100)
+
+                found.append({
+                    "motor_id": motor_id,
+                    "feedback_id": feedback_id,
+                    "esc_id": esc_id,
+                    "mst_id": mst_id
+                })
+                print(f"[hit] motor_id=0x{motor_id:02X} esc=0x{esc_id:X} mst=0x{mst_id:X}")
+
+            except Exception:
+                print(f"[.. ] motor_id=0x{motor_id:02X} no reply")
+            finally:
+                motor.close()
+        except Exception as e:
+            print(f"[err] motor_id=0x{motor_id:02X} {e}")
+        finally:
+            ctrl.close_bus()
+            ctrl.close()
+
+    return found
+
+# Run scan
+motors = scan_damiao("can0", 1, 20)
+print(f"\nFound {len(motors)} motor(s)")
+for m in motors:
+    print(f"  motor_id=0x{m['motor_id']:02X} feedback_id=0x{m['feedback_id']:02X}")
+```
+
+## Understanding Scan Results
+
+### Damiao Format
+
+```
+[hit] vendor=damiao probe=0x01 esc_id=0x1 mst_id=0x11
+```
+
+| Field | Meaning | Use in add_damiao_motor() |
+|-------|---------|---------------------------|
+| probe | CAN ID probed | — |
+| esc_id | Motor ID register value | motor_id parameter |
+| mst_id | Feedback ID register value | feedback_id parameter |
+
+### MyActuator Format
+
+```
+[hit] probe=0x01 vendor=myactuator feedback_id=0x241 temp=32.5C vel=+0.000rad/s angle=+0.125rad
+```
+
+| Field | Meaning |
+|-------|---------|
+| probe | Motor ID (1-32) |
+| feedback_id | Expected feedback CAN ID |
+| temp | MOSFET temperature |
+| vel | Current velocity |
+| angle | Current position |
+
+### RobStride Format
+
+```
+[hit] probe=0x7F vendor=robstride via=ping feedback_id=0xFE device_id=127 responder_id=254
+```
+
+| Field | Meaning |
+|-------|---------|
+| probe | Device ID probed |
+| via | Discovery method (ping or read-param) |
+| feedback_id | Feedback ID that worked |
+| device_id | Device ID from ping response |
+| responder_id | Responder ID from ping response |
+
+## Troubleshooting
+
+### No Motors Found
+
+1. **Check CAN interface**
+   ```bash
+   ip link show can0
+   # Should show "UP" state
+   ```
+
+2. **Check wiring**
+   - CAN_H and CAN_L connected correctly
+   - Termination resistors (120Ω) at bus ends
+   - Motor powered on
+
+3. **Check bitrate**
+   ```bash
+   # Motor and CAN interface must match
+   sudo ip link set can0 type can bitrate 1000000
+   ```
+
+4. **Try wider ID range**
+   ```bash
+   motorbridge-cli scan --vendor all --start-id 0 --end-id 255
+   ```
+
+### Timeout Errors
+
+Increase scan timeout:
+
+```bash
+motorbridge-cli scan --vendor damiao --timeout-ms 200
+```
+
+### Multiple Motors Same ID
+
+If scan shows multiple motors with same ID:
+
+```bash
+# Power on motors one at a time
+# Use id-set to change IDs
+motorbridge-cli id-set --motor-id 0x01 --new-motor-id 0x02 --store 1
+```
+
+## Recording Motor Configuration
+
+After scanning, record the discovered configuration:
+
+```python
+# motors.py - Generated from scan
+MOTOR_CONFIG = {
+    "front_left_hip": {
+        "vendor": "damiao",
+        "model": "4340P",
+        "motor_id": 0x01,
+        "feedback_id": 0x11,
+    },
+    "front_left_knee": {
+        "vendor": "damiao",
+        "model": "4340P",
+        "motor_id": 0x02,
+        "feedback_id": 0x12,
+    },
+    # ... more motors
+}
+```
+
+## Next Steps
+
+- [Tutorial 02: Enable and Status](tutorials/02-enable-and-status) - Enable motors and read feedback
+- [CLI Reference](api/cli) - Full CLI documentation
+- [Controller API](api/controller) - Python API reference

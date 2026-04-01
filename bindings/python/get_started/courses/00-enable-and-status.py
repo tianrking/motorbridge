@@ -60,7 +60,7 @@ def main() -> int:
         state = None
         for _ in range(MAX_STATE_TRIES):
             motor.request_feedback()
-            ctrl.poll_feedback_once()
+            ctrl.poll_feedback_once()  # <= v0.1.6: required. v0.1.7+: optional (background poll is default).
             state = motor.get_state()
             if state is not None:
                 break

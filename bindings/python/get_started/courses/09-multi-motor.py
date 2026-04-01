@@ -47,6 +47,9 @@ ROBSTRIDE_MOTORS = [
 # Query behavior switch:
 # - True: retry request+poll until state is ready (recommended)
 # - False: strict one-shot query
+# Note:
+# - <= v0.1.6: poll_feedback_once() is typically required for fresh state.
+# - v0.1.7+: background polling is default, so manual poll is optional.
 RETRY_ENABLED = True
 MAX_RETRIES = 12
 RETRY_DT_MS = 50
@@ -55,7 +58,7 @@ RETRY_DT_MS = 50
 def query_states_batch_once(ctrl: Controller, motors):
     for m in motors:
         m.request_feedback()
-    ctrl.poll_feedback_once()
+    ctrl.poll_feedback_once()  # <= v0.1.6: required. v0.1.7+: optional.
     return [m.get_state() for m in motors]
 
 

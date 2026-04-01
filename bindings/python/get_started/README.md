@@ -40,11 +40,10 @@ motorbridge-cli run --vendor damiao --channel can0 --model 4340P --motor-id 0x01
   --mode pos-vel --pos 1.0 --vlim 1.0 --loop 60 --dt-ms 20
 ```
 
-## 4) Quick Python Examples in this folder
+## 4) Course scripts in this folder
 
-- `quickstart_01_scan.py`: run scan in pure Python package path (no subprocess)
-- `quickstart_02_single_motor.py`: single motor control via Python SDK (default Damiao)
-- `quickstart_03_quad_vendor.py`: 4-motor mixed-vendor example using separate controllers
+All runnable scripts in `get_started` now live under `courses/`.
+For beginners, this is easier to follow and avoids duplicate entry points.
 
 ### Config constants (simple meaning)
 
@@ -82,12 +81,12 @@ python3 bindings/python/get_started/courses/01-scan.py
 python3 bindings/python/get_started/courses/03-mode-switch-method.py
 ```
 
-## 6) Run Quickstart Examples
+## 6) Run now (courses only)
 
 ```bash
-python3 bindings/python/get_started/quickstart_01_scan.py --channel can0 --vendor all
-python3 bindings/python/get_started/quickstart_02_single_motor.py --channel can0 --loop 80 --dt-ms 20
-python3 bindings/python/get_started/quickstart_03_quad_vendor.py --channel can0 --loop 120 --dt-ms 20
+python3 bindings/python/get_started/courses/00-enable-and-status.py
+python3 bindings/python/get_started/courses/01-scan.py
+python3 bindings/python/get_started/courses/09-multi-motor.py
 ```
 
 ## 7) Common Issues
@@ -96,7 +95,13 @@ python3 bindings/python/get_started/quickstart_03_quad_vendor.py --channel can0 
 - no motor response: verify CAN wiring, bitrate, motor/feedback IDs.
 - `slcan` users: bring up `slcan0` before running examples.
 
-## 8) What to read next
+## 8) `poll_feedback_once()` version note
+
+- `<= v0.1.6`: keep manual `poll_feedback_once()` in status-query scripts.
+- `v0.1.7+`: background polling is enabled by default, so manual poll is usually optional.
+- Course scripts keep `poll_feedback_once()` for backward-compatible teaching style.
+
+## 9) What to read next
 
 - Python API overview: `bindings/python/README.md`
 - Full examples catalog: `bindings/python/examples/README.md`

@@ -50,7 +50,10 @@ python3 bindings/python/get_started/courses/03-mode-switch-method.py
 
 - 同一品牌在同一个 `Controller` 下管理（列表配置）。
 - 不同品牌用不同 `Controller`（可以同一条 `can0` 物理总线）。
-- 状态查询统一调用风格：`request_feedback + poll_feedback_once + get_state`。
+- 状态查询统一调用风格：`request_feedback + poll_feedback_once + get_state`（兼容旧版本）。
+- 版本差异：
+  - `<= v0.1.6`：建议保留 `poll_feedback_once()`。
+  - `v0.1.7+`：默认后台轮询已开启，通常不再需要手动 `poll_feedback_once()`。
 
 推荐先扫再配：
 

@@ -16,9 +16,13 @@ python3 bindings/python/get_started/courses/09-multi-motor.py
 - Damiao 使用 `DAMIAO_MOTORS` 列表配置，可任意增加数量。
 - MyActuator 使用 `USE_MYACTUATOR` + `MYACTUATOR_MOTORS`。
 - RobStride 使用 `USE_ROBSTRIDE` + `ROBSTRIDE_MOTORS`。
-- 当前统一按 `request_feedback() + poll_feedback_once() + get_state()` 调用。
+- 当前统一按 `request_feedback() + poll_feedback_once() + get_state()` 调用（兼容写法）。
 - `RETRY_ENABLED=True`：开启“查询重试”，可显著减少 `None`。
 - `MAX_RETRIES` / `RETRY_DT_MS`：控制重试次数和间隔。
+
+版本说明：
+- `<= v0.1.6`：建议保留 `poll_feedback_once()`。
+- `v0.1.7+`：默认后台轮询已开启，手动 `poll_feedback_once()` 通常可省略。
 
 ## 如何新增更多 Damiao（重点）
 

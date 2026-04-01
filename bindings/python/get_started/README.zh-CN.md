@@ -44,13 +44,10 @@ motorbridge-cli run --vendor damiao --channel can0 --model 4340P --motor-id 0x01
   --mode pos-vel --pos 1.0 --vlim 1.0 --loop 60 --dt-ms 20
 ```
 
-## 4）本目录新示例
+## 4）本目录运行方式
 
-- `quickstart_01_scan.py`：纯 Python 包路径扫描（不走 subprocess）
-- `quickstart_02_single_motor.py`：Python SDK 单电机控制（默认 Damiao）
-- `quickstart_03_quad_vendor.py`：4 电机多厂商示例（分 controller）
-
-这 3 个脚本都是“改顶部常量就能跑”的风格，不需要记很多命令行参数。
+`get_started` 目录下的可运行脚本统一放在 `courses/`。
+这样入口更单一，按课程顺序执行更容易理解。
 
 ### 顶部常量参数含义（小白版）
 
@@ -89,12 +86,12 @@ python3 bindings/python/get_started/courses/01-scan.py
 python3 bindings/python/get_started/courses/03-mode-switch-method.py
 ```
 
-## 6）运行 quickstart 示例
+## 6）现在就运行（courses）
 
 ```bash
-python3 bindings/python/get_started/quickstart_01_scan.py --channel can0 --vendor all
-python3 bindings/python/get_started/quickstart_02_single_motor.py --channel can0 --loop 80 --dt-ms 20
-python3 bindings/python/get_started/quickstart_03_quad_vendor.py --channel can0 --loop 120 --dt-ms 20
+python3 bindings/python/get_started/courses/00-enable-and-status.py
+python3 bindings/python/get_started/courses/01-scan.py
+python3 bindings/python/get_started/courses/09-multi-motor.py
 ```
 
 ## 7）常见问题
@@ -103,7 +100,13 @@ python3 bindings/python/get_started/quickstart_03_quad_vendor.py --channel can0 
 - 电机无响应：先检查布线、波特率、motor/feedback ID。
 - `slcan` 设备：先把 `slcan0` 拉起来再运行示例。
 
-## 8）下一步文档
+## 8）`poll_feedback_once()` 版本说明
+
+- `<= v0.1.6`：状态查询脚本建议保留手动 `poll_feedback_once()`。
+- `v0.1.7+`：默认已启用后台轮询，通常可不再手动调用 `poll_feedback_once()`。
+- 课程脚本保留该调用，是为了兼容旧版本与统一教学调用风格。
+
+## 9）下一步文档
 
 - Python 总览：`bindings/python/README.zh-CN.md`
 - 完整示例目录：`bindings/python/examples/READMEzh_cn.md`

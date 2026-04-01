@@ -251,9 +251,9 @@ motorbridge-cli id-dump \
 
 ## Vendor-Specific Examples
 
-### Damiao
+<CodeGroup>
 
-```python
+```python Damiao
 from motorbridge import Controller, Mode
 
 with Controller("can0") as ctrl:
@@ -263,9 +263,7 @@ with Controller("can0") as ctrl:
     motor.send_mit(0.5, 0.0, 30.0, 1.0, 0.0)
 ```
 
-### RobStride
-
-```python
+```python RobStride
 from motorbridge import Controller, Mode
 
 with Controller("can0") as ctrl:
@@ -276,9 +274,7 @@ with Controller("can0") as ctrl:
     motor.send_mit(0.5, 0.0, 2.0, 0.1, 0.0)
 ```
 
-### MyActuator
-
-```python
+```python MyActuator
 from motorbridge import Controller, Mode
 
 with Controller("can0") as ctrl:
@@ -289,9 +285,7 @@ with Controller("can0") as ctrl:
     motor.send_pos_vel(0.5, 1.0)
 ```
 
-### Hexfellow
-
-```python
+```python Hexfellow
 from motorbridge import Controller, Mode
 
 # Hexfellow requires CAN-FD
@@ -301,6 +295,8 @@ with Controller.from_socketcanfd("can0") as ctrl:
     motor.ensure_mode(Mode.POS_VEL, 1000)
     motor.send_pos_vel(0.5, 1.0)
 ```
+
+</CodeGroup>
 
 ## Next Steps
 

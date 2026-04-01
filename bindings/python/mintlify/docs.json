@@ -133,5 +133,14 @@
   },
   "search": {
     "prompt": "搜索文档..."
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "claude",
+      "chatgpt",
+      "cursor"
+    ]
   }
 }

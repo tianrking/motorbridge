@@ -1,5 +1,11 @@
 # motorbridge
 
+[![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
+[![Python](https://img.shields.io/badge/Python-3.10--3.14-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Platforms](https://img.shields.io/badge/Platforms-Linux%20%7C%20Windows%20%7C%20macOS-6f42c1.svg)](README.md#release-and-installation-overview-full-matrix)
+[![GitHub Release](https://img.shields.io/github/v/release/tianrking/motorbridge)](https://github.com/tianrking/motorbridge/releases)
+
 Unified CAN motor control stack with a vendor-agnostic Rust core, stable C ABI, and Python/C++ bindings.
 
 > Chinese version: [README.zh-CN.md](README.zh-CN.md)
@@ -39,14 +45,22 @@ Current status:
 ```mermaid
 flowchart TB
   APP["User Apps (Rust/C/C++/Python/ROS2/WS)"] --> SURFACE["CLI / ABI / SDK / Integrations"]
-  SURFACE --> CORE["motor_core (controller, bus, model, traits)"]
+  SURFACE --> CORE["motor_core (CoreController / bus / model / traits)"]
+  CORE --> RX["Background RX worker (default)"]
+  CORE --> MANUAL["poll_feedback_once() (manual-compatible)"]
+  RX --> CACHE["Latest state cache per motor"]
+  MANUAL --> CACHE
   CORE --> DAMIAO["motor_vendors/damiao"]
   CORE --> ROBSTRIDE["motor_vendors/robstride"]
   CORE --> MYACT["motor_vendors/myactuator"]
+  CORE --> HIGHTORQUE["motor_vendors/hightorque"]
+  CORE --> HEXFELLOW["motor_vendors/hexfellow"]
   CORE --> TEMPLATE["motor_vendors/template (onboarding scaffold)"]
   DAMIAO --> CAN["CAN bus backend"]
   ROBSTRIDE --> CAN
   MYACT --> CAN
+  HIGHTORQUE --> CAN
+  HEXFELLOW --> CAN
   CAN --> LNX["Linux: SocketCAN"]
   CAN --> WIN["Windows (experimental): PEAK PCAN"]
   CAN --> HW["Physical motors"]
@@ -73,6 +87,21 @@ flowchart LR
   INTS --> WS["ws_gateway"]
   BIND --> PY["python"]
   BIND --> CPP["cpp"]
+```
+
+### Python Binding Surface (v0.1.7+)
+
+```mermaid
+flowchart TB
+  PYAPP["Python App"] --> CTL["Controller(...) / from_dm_serial(...) / from_socketcanfd(...)"]
+  CTL --> ADD["add_damiao / add_robstride / add_myactuator / add_hightorque / add_hexfellow"]
+  ADD --> MOTOR["MotorHandle"]
+  MOTOR --> CTRL1["send_mit / send_pos_vel / send_vel / send_force_pos"]
+  MOTOR --> CTRL2["ensure_mode / enable / disable / set_zero / stop / clear_error"]
+  MOTOR --> FB1["request_feedback()"]
+  CTL --> FB2["poll_feedback_once() (backward-compatible)"]
+  FB1 --> STATE["get_state() latest cached feedback"]
+  FB2 --> STATE
 ```
 
 - [`motor_core`](motor_core): vendor-agnostic controller, routing, CAN bus layer (Linux SocketCAN / Windows experimental PCAN)

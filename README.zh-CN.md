@@ -1,5 +1,11 @@
 # motorbridge
 
+[![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
+[![Python](https://img.shields.io/badge/Python-3.10--3.14-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Platforms](https://img.shields.io/badge/Platforms-Linux%20%7C%20Windows%20%7C%20macOS-6f42c1.svg)](README.zh-CN.md#发布与安装总览完整矩阵)
+[![GitHub Release](https://img.shields.io/github/v/release/tianrking/motorbridge)](https://github.com/tianrking/motorbridge/releases)
+
 这是一个统一的 CAN 电机控制栈，包含 vendor-agnostic Rust core、稳定 C ABI，以及 Python/C++ bindings。
 
 > English version: [README.md](README.md)
@@ -39,14 +45,22 @@
 ```mermaid
 flowchart TB
   APP["上层应用（Rust/C/C++/Python/ROS2/WS）"] --> SURFACE["CLI / ABI / SDK / Integrations"]
-  SURFACE --> CORE["motor_core（controller/bus/model/traits）"]
+  SURFACE --> CORE["motor_core（CoreController / bus / model / traits）"]
+  CORE --> RX["后台接收线程（默认）"]
+  CORE --> MANUAL["poll_feedback_once()（兼容手动调用）"]
+  RX --> CACHE["每电机最新状态缓存"]
+  MANUAL --> CACHE
   CORE --> DAMIAO["motor_vendors/damiao"]
   CORE --> ROBSTRIDE["motor_vendors/robstride"]
   CORE --> MYACT["motor_vendors/myactuator"]
+  CORE --> HIGHTORQUE["motor_vendors/hightorque"]
+  CORE --> HEXFELLOW["motor_vendors/hexfellow"]
   CORE --> TEMPLATE["motor_vendors/template（接入模板）"]
   DAMIAO --> CAN["CAN 总线后端"]
   ROBSTRIDE --> CAN
   MYACT --> CAN
+  HIGHTORQUE --> CAN
+  HEXFELLOW --> CAN
   CAN --> LNX["Linux：SocketCAN"]
   CAN --> WIN["Windows（实验）：PEAK PCAN"]
   CAN --> HW["真实电机硬件"]
@@ -73,6 +87,21 @@ flowchart LR
   INTS --> WS["ws_gateway"]
   BIND --> PY["python"]
   BIND --> CPP["cpp"]
+```
+
+### Python Binding 接口视图（v0.1.7+）
+
+```mermaid
+flowchart TB
+  PYAPP["Python 应用"] --> CTL["Controller(...) / from_dm_serial(...) / from_socketcanfd(...)"]
+  CTL --> ADD["add_damiao / add_robstride / add_myactuator / add_hightorque / add_hexfellow"]
+  ADD --> MOTOR["MotorHandle"]
+  MOTOR --> CTRL1["send_mit / send_pos_vel / send_vel / send_force_pos"]
+  MOTOR --> CTRL2["ensure_mode / enable / disable / set_zero / stop / clear_error"]
+  MOTOR --> FB1["request_feedback()"]
+  CTL --> FB2["poll_feedback_once()（向后兼容）"]
+  FB1 --> STATE["get_state() 读取最新缓存状态"]
+  FB2 --> STATE
 ```
 
 - [`motor_core`](motor_core): 与厂商无关的控制器、路由、CAN 总线层（Linux SocketCAN / Windows 实验性 PCAN）

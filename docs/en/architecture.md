@@ -57,7 +57,7 @@ motorbridge/
 │   ├── ros2_bridge/             # ROS2 bridge
 │   └── ws_gateway/              # Rust WebSocket gateway
 ├── tools/
-│   └── motor_calib/             # ID scan/set-id/verify utility
+│   └── factory_calib_ui/        # Factory web UI (calls motor_cli for scan/set-id/verify)
 ├── bindings/
 │   ├── python/                 # Python SDK package + CLI
 │   └── cpp/                    # C++ RAII wrapper + CMake package

@@ -1,5 +1,7 @@
 use crate::{ServerConfig, Target, Transport, Vendor};
-use motor_vendor_damiao::{ControlMode as DamiaoControlMode, DamiaoController};
+use motor_vendor_damiao::{
+    match_models_by_limits, ControlMode as DamiaoControlMode, DamiaoController,
+};
 use motor_vendor_hexfellow::HexfellowController;
 use motor_vendor_myactuator::MyActuatorController;
 use motor_vendor_robstride::{
@@ -14,6 +16,42 @@ use motor_core::socketcan::SocketCanBus;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+
+const DAMIAO_SCAN_MODEL_HINTS: &[&str] = &[
+    "4340P", "4340", "4310", "4310P", "3507", "6006", "8006", "8009", "10010L", "10010",
+    "H3510", "G6215", "H6220", "JH11", "6248P",
+];
+
+fn build_scan_model_hints(preferred_model: &str) -> Vec<String> {
+    let preferred = preferred_model.trim();
+    // If caller provides an explicit model, scan with that model only.
+    // Use full catalog only for auto/all/*.
+    if !preferred.is_empty()
+        && preferred.to_lowercase() != "auto"
+        && preferred.to_lowercase() != "all"
+        && preferred != "*"
+    {
+        return vec![preferred.to_string()];
+    }
+    let mut out: Vec<String> = Vec::new();
+    for m in DAMIAO_SCAN_MODEL_HINTS {
+        if !out.iter().any(|x| x.eq_ignore_ascii_case(m)) {
+            out.push((*m).to_string());
+        }
+    }
+    out
+}
+
+fn build_scan_feedback_hints(base_feedback_id: u16, motor_id: u16) -> Vec<u16> {
+    let mut out = Vec::new();
+    let inferred = motor_id.saturating_add(0x10);
+    for fid in [inferred, base_feedback_id, 0x0011, 0x0017] {
+        if !out.contains(&fid) {
+            out.push(fid);
+        }
+    }
+    out
+}
 
 fn parse_hex_or_dec(s: &str) -> Result<u16, String> {
     if let Some(hex) = s.strip_prefix("0x") {
@@ -53,7 +91,7 @@ pub(crate) fn parse_args() -> Result<ServerConfig, String> {
     let mut channel = "can0".to_string();
     let mut serial_port = "/dev/ttyACM0".to_string();
     let mut serial_baud = 921600u32;
-    let mut model = "4340P".to_string();
+    let mut model = "auto".to_string();
     let mut motor_id = 0x01u16;
     let mut feedback_id = 0x11u16;
     let mut dt_ms = 20u64;
@@ -65,9 +103,14 @@ pub(crate) fn parse_args() -> Result<ServerConfig, String> {
         if k == "--help" || k == "-h" {
             println!(
                 "ws_gateway\n\
-Usage:\n\
-  cargo run -p ws_gateway --release -- \\\n    --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20\n\
-  cargo run -p ws_gateway --release -- \\\n    --bind 0.0.0.0:9002 --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --dt-ms 20\n"
+Usage (router mode, recommended):\n\
+  cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002\n\
+\n\
+Optional defaults (only used when WS message omits target fields):\n\
+  --vendor damiao|robstride|hexfellow|myactuator|hightorque\n\
+  --transport auto|socketcan|socketcanfd|dm-serial\n\
+  --channel can0 --serial-port /dev/ttyACM0 --serial-baud 921600\n\
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20\n"
             );
             std::process::exit(0);
         }
@@ -233,26 +276,121 @@ fn cmd_scan_damiao(v: &Value, base: &Target) -> Result<Value, String> {
         return Err("end_id must be >= start_id".to_string());
     }
 
+    let model_hints = build_scan_model_hints(&base.model);
+    let controller = open_damiao_controller(base, transport)?;
     let mut hits = Vec::new();
+    let mut fallback_hits = 0usize;
     for mid in start_id..=end_id {
-        let fid = feedback_base + (mid & 0x0F);
-        let ctrl = open_damiao_controller(base, transport)?;
-        let motor = match ctrl.add_motor(mid, fid, &base.model) {
-            Ok(m) => m,
-            Err(_) => {
-                let _ = ctrl.close_bus();
-                continue;
-            }
-        };
-        let esc = motor.get_register_u32(8, Duration::from_millis(timeout_ms));
-        let mst = motor.get_register_u32(7, Duration::from_millis(timeout_ms));
-        if let (Ok(esc_id), Ok(mst_id)) = (esc, mst) {
-            hits.push(
-                json!({"probe": mid, "esc_id": esc_id, "mst_id": mst_id, "probe_feedback_id": fid}),
-            );
+        enum ScanHit {
+            Registers { p: f32, v: f32, t: f32, fid: u16 },
+            Feedback {
+                fid: u16,
+                status: u8,
+                pos: f32,
+                vel: f32,
+                torq: f32,
+            },
         }
-        let _ = ctrl.close_bus();
+        let mut found: Option<ScanHit> = None;
+        let feedback_hints = build_scan_feedback_hints(feedback_base, mid);
+        for fid in &feedback_hints {
+            for mh in &model_hints {
+                let Ok(candidate) = controller.add_motor(mid, *fid, mh) else {
+                    continue;
+                };
+                let pmax = candidate.get_register_f32(21, Duration::from_millis(timeout_ms));
+                let vmax = candidate.get_register_f32(22, Duration::from_millis(timeout_ms));
+                let tmax = candidate.get_register_f32(23, Duration::from_millis(timeout_ms));
+                if let (Ok(p), Ok(vv), Ok(t)) = (pmax, vmax, tmax) {
+                    found = Some(ScanHit::Registers {
+                        p,
+                        v: vv,
+                        t,
+                        fid: *fid,
+                    });
+                    break;
+                }
+            }
+            if found.is_some() {
+                break;
+            }
+        }
+        if found.is_none() {
+            for fid in &feedback_hints {
+                for mh in &model_hints {
+                    let Ok(candidate) = controller.add_motor(mid, *fid, mh) else {
+                        continue;
+                    };
+                    for _ in 0..20 {
+                        let _ = candidate.request_motor_feedback();
+                        let _ = controller.poll_feedback_once();
+                        if let Some(s) = candidate.latest_state() {
+                            found = Some(ScanHit::Feedback {
+                                fid: *fid,
+                                status: s.status_code,
+                                pos: s.pos,
+                                vel: s.vel,
+                                torq: s.torq,
+                            });
+                            break;
+                        }
+                        std::thread::sleep(Duration::from_millis(20));
+                    }
+                    if found.is_some() {
+                        break;
+                    }
+                }
+                if found.is_some() {
+                    break;
+                }
+            }
+        }
+        if let Some(hit) = found {
+            match hit {
+                ScanHit::Registers { p, v: vv, t, fid } => {
+                    let matched = match_models_by_limits(p, vv, t, 0.2);
+                    let model_guess = if matched.is_empty() {
+                        "unknown".to_string()
+                    } else {
+                        matched.join(",")
+                    };
+                    hits.push(json!({
+                        "probe": mid,
+                        "esc_id": mid,
+                        "mst_id": fid,
+                        "probe_feedback_id": fid,
+                        "model_guess": model_guess,
+                        "pmax": p,
+                        "vmax": vv,
+                        "tmax": t,
+                        "detected_by": "registers"
+                    }));
+                }
+                ScanHit::Feedback {
+                    fid,
+                    status,
+                    pos,
+                    vel,
+                    torq,
+                } => {
+                    hits.push(json!({
+                        "probe": mid,
+                        "esc_id": mid,
+                        "mst_id": fid,
+                        "probe_feedback_id": fid,
+                        "status": status,
+                        "pos": pos,
+                        "vel": vel,
+                        "torq": torq,
+                        "detected_by": "feedback"
+                    }));
+                    fallback_hits += 1;
+                }
+            }
+        }
+        std::thread::sleep(Duration::from_millis(2));
     }
+    let _ = controller.close_bus();
 
     Ok(json!({
         "vendor": "damiao",
@@ -260,6 +398,7 @@ fn cmd_scan_damiao(v: &Value, base: &Target) -> Result<Value, String> {
         "count": hits.len(),
         "start_id": start_id,
         "end_id": end_id,
+        "fallback_hits": fallback_hits,
         "hits": hits,
     }))
 }
@@ -539,26 +678,62 @@ pub(crate) fn cmd_verify(v: &Value, base: &Target) -> Result<Value, String> {
 
     match vendor {
         Vendor::Damiao => {
-            let ctrl = open_damiao_controller(base, transport)?;
-            let motor = ctrl
-                .add_motor(mid, fid, &base.model)
-                .map_err(|e| e.to_string())?;
-            let esc = motor
-                .get_register_u32(8, Duration::from_millis(timeout_ms))
-                .map_err(|e| e.to_string())?;
-            let mst = motor
-                .get_register_u32(7, Duration::from_millis(timeout_ms))
-                .map_err(|e| e.to_string())?;
-            let _ = ctrl.close_bus();
-            Ok(json!({
-                "vendor": "damiao",
-                "transport": transport.as_str(),
-                "motor_id": mid,
-                "feedback_id": fid,
-                "esc_id": esc,
-                "mst_id": mst,
-                "ok": esc == mid as u32 && mst == fid as u32,
-            }))
+            let preferred_model = v
+                .get("model")
+                .and_then(Value::as_str)
+                .unwrap_or(&base.model);
+            let model_hints = build_scan_model_hints(preferred_model);
+            let mut last_err: Option<String> = None;
+            let mut out: Option<Value> = None;
+            for model in model_hints {
+                let ctrl = match open_damiao_controller(base, transport) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        last_err = Some(e.to_string());
+                        continue;
+                    }
+                };
+                let motor = match ctrl.add_motor(mid, fid, &model) {
+                    Ok(m) => m,
+                    Err(e) => {
+                        last_err = Some(e.to_string());
+                        let _ = ctrl.close_bus();
+                        continue;
+                    }
+                };
+                let esc = match motor.get_register_u32(8, Duration::from_millis(timeout_ms)) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        last_err = Some(e.to_string());
+                        let _ = ctrl.close_bus();
+                        continue;
+                    }
+                };
+                let mst = match motor.get_register_u32(7, Duration::from_millis(timeout_ms)) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        last_err = Some(e.to_string());
+                        let _ = ctrl.close_bus();
+                        continue;
+                    }
+                };
+                let _ = ctrl.close_bus();
+                out = Some(json!({
+                    "vendor": "damiao",
+                    "transport": transport.as_str(),
+                    "model_used": model,
+                    "motor_id": mid,
+                    "feedback_id": fid,
+                    "esc_id": esc,
+                    "mst_id": mst,
+                    "ok": esc == mid as u32 && mst == fid as u32,
+                }));
+                break;
+            }
+            match out {
+                Some(v) => Ok(v),
+                None => Err(last_err.unwrap_or_else(|| "damiao verify failed".to_string())),
+            }
         }
         Vendor::Robstride => {
             let ctrl = open_robstride_controller(base, transport)?;
@@ -650,9 +825,29 @@ pub(crate) fn cmd_set_id(v: &Value, base: &Target) -> Result<Value, String> {
             let timeout_ms = as_u64(v, "timeout_ms", 1000);
 
             let ctrl = DamiaoController::new_socketcan(&base.channel).map_err(|e| e.to_string())?;
-            let motor = ctrl
-                .add_motor(old_mid, old_fid, &base.model)
-                .map_err(|e| e.to_string())?;
+            let preferred_model = v
+                .get("model")
+                .and_then(Value::as_str)
+                .unwrap_or(&base.model);
+            let model_hints = build_scan_model_hints(preferred_model);
+            let mut model_used: Option<String> = None;
+            let mut last_err: Option<String> = None;
+            let mut motor_opt = None;
+            for model in model_hints {
+                match ctrl.add_motor(old_mid, old_fid, &model) {
+                    Ok(m) => {
+                        model_used = Some(model);
+                        motor_opt = Some(m);
+                        break;
+                    }
+                    Err(e) => {
+                        last_err = Some(e.to_string());
+                    }
+                }
+            }
+            let motor = motor_opt.ok_or_else(|| {
+                last_err.unwrap_or_else(|| "failed to add damiao motor for set_id".to_string())
+            })?;
 
             if new_fid != old_fid {
                 motor
@@ -675,6 +870,7 @@ pub(crate) fn cmd_set_id(v: &Value, base: &Target) -> Result<Value, String> {
                 "old_feedback_id": old_fid,
                 "new_motor_id": new_mid,
                 "new_feedback_id": new_fid,
+                "model_used": model_used,
                 "store": store,
             });
             if verify {

@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Factory Motor Calib Console</title>
+  <style>
+    :root {
+      --line: #2b3a67;
+      --text: #e6ecff;
+      --muted: #9fb0e8;
+      --ok: #34d399;
+      --err: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      background: radial-gradient(circle at top right, #1d2b5a, #0f172a 55%);
+      color: var(--text);
+    }
+    .wrap { max-width: 1380px; margin: 0 auto; padding: 18px; display: grid; gap: 14px; }
+    .title { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .title h1 { margin: 0; font-size: 22px; }
+    .badge { border: 1px solid var(--line); background: #0d1631; border-radius: 999px; padding: 6px 10px; color: var(--muted); font-size: 12px; }
+    .card { border: 1px solid var(--line); background: linear-gradient(180deg, #131f41, #0f1a37); border-radius: 12px; padding: 12px; }
+    .top-grid { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 10px; margin-bottom: 10px; }
+    .vendor-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .vendor-table th, .vendor-table td { border-bottom: 1px solid #26355f; padding: 8px 6px; text-align: left; vertical-align: middle; }
+    .vendor-table th { color: var(--muted); font-weight: 600; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    input {
+      width: 100%; border: 1px solid var(--line); background: #0a132a; color: var(--text);
+      padding: 8px 9px; border-radius: 8px;
+    }
+    .id-pair { display: grid; gap: 6px; }
+    .id-pair input { min-width: 110px; }
+    input[type="checkbox"] { width: auto; }
+    .actions { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; margin-top: 8px; }
+    button {
+      border: 1px solid var(--line); border-radius: 9px; background: #0d1a38;
+      color: var(--text); padding: 8px 12px; cursor: pointer; font-weight: 600;
+    }
+    button.primary { background: linear-gradient(180deg, #0f4a80, #0f3366); border-color: #2f64a5; }
+    button.ok { background: linear-gradient(180deg, #0f5d55, #0f4d47); border-color: #2a7f77; }
+    button.warn { background: linear-gradient(180deg, #765b10, #614709); border-color: #8f6a10; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid #26355f; padding: 8px 6px; text-align: left; vertical-align: middle; }
+    th { color: var(--muted); font-weight: 600; }
+    .log {
+      width: 100%; min-height: 260px; max-height: 350px; overflow: auto; white-space: pre-wrap;
+      border: 1px solid var(--line); border-radius: 9px; background: #091022; padding: 10px;
+      color: #d2ddff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.35;
+    }
+    .tip { color: var(--muted); font-size: 12px; }
+    .vendor-name { font-weight: 600; }
+    @media (max-width: 980px) {
+      .top-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+      table, .vendor-table { font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="title">
+      <h1>Factory Calib Console</h1>
+      <div class="badge" id="health">checking backend...</div>
+    </div>
+
+    <section class="card">
+      <div class="top-grid">
+        <div>
+          <label>CAN Channel</label>
+          <input id="channel" value="can0" />
+        </div>
+      </div>
+
+      <table class="vendor-table">
+        <thead>
+          <tr>
+            <th>Scan</th>
+            <th>Vendor</th>
+            <th>Model</th>
+            <th>Start ID</th>
+            <th>End ID</th>
+            <th>Extra</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input id="enable_damiao" type="checkbox" checked /></td>
+            <td class="vendor-name">damiao</td>
+            <td><input id="model_damiao" value="4310" /></td>
+            <td>
+              <div class="id-pair">
+                <input id="start_id_damiao_hex" value="0x01" />
+                <input id="start_id_damiao_dec" value="1" />
+              </div>
+            </td>
+            <td>
+              <div class="id-pair">
+                <input id="end_id_damiao_hex" value="0x10" />
+                <input id="end_id_damiao_dec" value="16" />
+              </div>
+            </td>
+            <td><input id="feedback_base_damiao" value="0x10" placeholder="feedback base" /></td>
+          </tr>
+          <tr>
+            <td><input id="enable_robstride" type="checkbox" checked /></td>
+            <td class="vendor-name">robstride</td>
+            <td><input id="model_robstride" value="rs-00" /></td>
+            <td>
+              <div class="id-pair">
+                <input id="start_id_robstride_hex" value="0x01" />
+                <input id="start_id_robstride_dec" value="1" />
+              </div>
+            </td>
+            <td>
+              <div class="id-pair">
+                <input id="end_id_robstride_hex" value="0x10" />
+                <input id="end_id_robstride_dec" value="16" />
+              </div>
+            </td>
+            <td><input id="feedback_id_robstride" value="0xFF" placeholder="feedback id" /></td>
+          </tr>
+          <tr>
+            <td><input id="enable_myactuator" type="checkbox" /></td>
+            <td class="vendor-name">myactuator</td>
+            <td><input id="model_myactuator" value="X8" /></td>
+            <td>
+              <div class="id-pair">
+                <input id="start_id_myactuator_hex" value="0x01" />
+                <input id="start_id_myactuator_dec" value="1" />
+              </div>
+            </td>
+            <td>
+              <div class="id-pair">
+                <input id="end_id_myactuator_hex" value="0x10" />
+                <input id="end_id_myactuator_dec" value="16" />
+              </div>
+            </td>
+            <td><span class="tip">-</span></td>
+          </tr>
+          <tr>
+            <td><input id="enable_hightorque" type="checkbox" /></td>
+            <td class="vendor-name">hightorque</td>
+            <td><input id="model_hightorque" value="hightorque" /></td>
+            <td>
+              <div class="id-pair">
+                <input id="start_id_hightorque_hex" value="0x01" />
+                <input id="start_id_hightorque_dec" value="1" />
+              </div>
+            </td>
+            <td>
+              <div class="id-pair">
+                <input id="end_id_hightorque_hex" value="0x10" />
+                <input id="end_id_hightorque_dec" value="16" />
+              </div>
+            </td>
+            <td><span class="tip">-</span></td>
+          </tr>
+          <tr>
+            <td><input id="enable_hexfellow" type="checkbox" /></td>
+            <td class="vendor-name">hexfellow</td>
+            <td><input id="model_hexfellow" value="hexfellow" /></td>
+            <td>
+              <div class="id-pair">
+                <input id="start_id_hexfellow_hex" value="0x01" />
+                <input id="start_id_hexfellow_dec" value="1" />
+              </div>
+            </td>
+            <td>
+              <div class="id-pair">
+                <input id="end_id_hexfellow_hex" value="0x10" />
+                <input id="end_id_hexfellow_dec" value="16" />
+              </div>
+            </td>
+            <td><span class="tip">-</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="actions">
+        <button class="primary" id="scanBtn">Scan</button>
+        <button id="clearBtn">Clear Logs</button>
+        <span class="tip">每个品牌可独立勾选/范围配置；Set ID 目前支持 Damiao / RobStride</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Vendor</th>
+            <th>Probe ID</th>
+            <th>ESC_ID</th>
+            <th>MST_ID</th>
+            <th>New ESC_ID</th>
+            <th>New MST_ID</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <div class="actions" style="margin-top:0;"><strong style="font-size:14px;">Logs</strong></div>
+      <div class="log" id="log"></div>
+    </section>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const state = { hits: [] };
+    const SET_ID_VENDORS = new Set(["damiao", "robstride"]);
+    const VENDOR_ORDER = ["damiao", "robstride", "myactuator", "hightorque", "hexfellow"];
+
+    function now() { return new Date().toLocaleTimeString(); }
+
+    function appendLog(msg, kind = "info") {
+      const color = kind === "err" ? "#fca5a5" : (kind === "ok" ? "#86efac" : "#d2ddff");
+      const line = `[${now()}] ${msg}`;
+      const log = $("log");
+      log.innerHTML += `<span style="color:${color}">${line}</span>\n`;
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function parseNum(v) {
+      const s = String(v).trim();
+      if (!s) return 0;
+      return s.startsWith("0x") || s.startsWith("0X") ? parseInt(s, 16) : parseInt(s, 10);
+    }
+
+    function toHex(v) {
+      return "0x" + Number(v).toString(16).toUpperCase();
+    }
+
+    function bindHexDec(baseId, fallback) {
+      const hexEl = $(baseId + "_hex");
+      const decEl = $(baseId + "_dec");
+      if (!hexEl || !decEl) return;
+
+      let init = parseNum(hexEl.value);
+      if (!Number.isFinite(init) || Number.isNaN(init)) init = fallback;
+      hexEl.value = toHex(init);
+      decEl.value = String(init);
+
+      hexEl.addEventListener("input", () => {
+        const v = parseNum(hexEl.value);
+        if (Number.isFinite(v) && !Number.isNaN(v) && v >= 0) decEl.value = String(v);
+      });
+      decEl.addEventListener("input", () => {
+        const v = parseInt(decEl.value, 10);
+        if (Number.isFinite(v) && !Number.isNaN(v) && v >= 0) hexEl.value = toHex(v);
+      });
+    }
+
+    function readIdValue(baseId, fallback) {
+      const decEl = $(baseId + "_dec");
+      const hexEl = $(baseId + "_hex");
+      if (!decEl || !hexEl) return fallback;
+      const dv = parseInt(decEl.value, 10);
+      if (Number.isFinite(dv) && !Number.isNaN(dv) && dv >= 0) return dv;
+      const hv = parseNum(hexEl.value);
+      if (Number.isFinite(hv) && !Number.isNaN(hv) && hv >= 0) return hv;
+      return fallback;
+    }
+
+    function readVendorConfig(v) {
+      const base = {
+        model: ($("model_" + v)?.value || "").trim(),
+        start_id: readIdValue("start_id_" + v, 1),
+        end_id: readIdValue("end_id_" + v, 16),
+      };
+      if (v === "damiao") {
+        base.feedback_base = parseNum($("feedback_base_damiao").value);
+      }
+      if (v === "robstride") {
+        base.feedback_id = parseNum($("feedback_id_robstride").value);
+      }
+      return base;
+    }
+
+    function selectedVendors() {
+      return VENDOR_ORDER.filter((v) => $("enable_" + v)?.checked);
+    }
+
+    function modelByVendor(v, c) {
+      return (c.vendor_configs?.[v]?.model || "").trim();
+    }
+
+    function cfg() {
+      const vendors = selectedVendors();
+      const vendor_configs = {};
+      for (const v of VENDOR_ORDER) {
+        vendor_configs[v] = readVendorConfig(v);
+      }
+      return {
+        vendors,
+        channel: $("channel").value.trim(),
+        vendor_configs,
+        timeout_ms: 1000,
+      };
+    }
+
+    async function post(path, data) {
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data || {}),
+      });
+      return res.json();
+    }
+
+    function hex(n) {
+      if (n === null || n === undefined || Number.isNaN(n)) return "-";
+      return "0x" + Number(n).toString(16).toUpperCase();
+    }
+
+    function renderRows() {
+      const tbody = $("rows");
+      tbody.innerHTML = "";
+      state.hits.forEach((h, idx) => {
+        const editableMst = h.vendor === "damiao";
+        const canSetId = SET_ID_VENDORS.has(h.vendor);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td>${h.vendor}</td>
+          <td>${hex(h.probe)}</td>
+          <td>${hex(h.esc_id)}</td>
+          <td>${hex(h.mst_id)}</td>
+          <td><input id="new_esc_${idx}" value="${hex(h.esc_id)}" style="max-width:100px;"></td>
+          <td><input id="new_mst_${idx}" value="${hex(h.mst_id)}" ${editableMst ? "" : "readonly"} style="max-width:100px;"></td>
+          <td>
+            <button class="ok" id="set_${idx}" ${canSetId ? "" : "disabled"}>Set ID</button>
+            <button class="warn" id="verify_${idx}">Verify</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+        $("set_" + idx).onclick = () => setIdFor(idx);
+        $("verify_" + idx).onclick = () => verifyFor(idx);
+      });
+    }
+
+    async function scan() {
+      const c = cfg();
+      if (!c.vendors.length) {
+        appendLog("scan aborted: no vendor selected", "err");
+        return;
+      }
+      const parts = c.vendors.map((v) => `${v}:${hex(c.vendor_configs[v].start_id)}..${hex(c.vendor_configs[v].end_id)}`);
+      appendLog(`scan: channel=${c.channel} vendors=${parts.join(" | ")}`);
+      const ret = await post("/api/scan", c);
+      appendLog(`cmd:\n${ret.command || "-"}`);
+      if (!ret.ok) {
+        appendLog(`scan failed: ${ret.error || ret.stderr || ret.stdout || "unknown"}`, "err");
+        if (ret.stdout) appendLog(ret.stdout.trim());
+        if (ret.stderr) appendLog(ret.stderr.trim(), "err");
+        return;
+      }
+      state.hits = ret.hits || [];
+      renderRows();
+      appendLog(`scan done: ${state.hits.length} hit(s)`, "ok");
+      if (ret.stdout) appendLog(ret.stdout.trim());
+    }
+
+    async function verifyFor(idx) {
+      const h = state.hits[idx];
+      if (!h) return;
+      const c = cfg();
+      const ret = await post("/api/verify", {
+        channel: c.channel,
+        vendor: h.vendor,
+        model: h.model || modelByVendor(h.vendor, c),
+        motor_id: h.esc_id,
+        feedback_id: h.mst_id,
+        timeout_ms: c.timeout_ms,
+      });
+      appendLog(`verify ${h.vendor} id=${hex(h.esc_id)} => ${ret.ok ? "ok" : "fail"}`, ret.ok ? "ok" : "err");
+      appendLog(`cmd: ${ret.command || "-"}`);
+      if (ret.stdout) appendLog(ret.stdout.trim());
+      if (ret.stderr) appendLog(ret.stderr.trim(), "err");
+    }
+
+    async function setIdFor(idx) {
+      const h = state.hits[idx];
+      if (!h) return;
+      if (!SET_ID_VENDORS.has(h.vendor)) {
+        appendLog(`set-id skipped: ${h.vendor} not supported in UI yet`, "err");
+        return;
+      }
+      const newEsc = parseNum($("new_esc_" + idx).value);
+      const newMst = parseNum($("new_mst_" + idx).value);
+      const c = cfg();
+
+      appendLog(`set-id ${h.vendor} old(${hex(h.esc_id)},${hex(h.mst_id)}) -> new(${hex(newEsc)},${hex(newMst)})`);
+      const ret = await post("/api/set-id", {
+        channel: c.channel,
+        vendor: h.vendor,
+        model: h.model || modelByVendor(h.vendor, c),
+        motor_id: h.esc_id,
+        feedback_id: h.mst_id,
+        new_motor_id: newEsc,
+        new_feedback_id: newMst,
+        store: true,
+        verify: true,
+        timeout_ms: c.timeout_ms,
+      });
+      appendLog(`cmd: ${ret.command || "-"}`);
+      if (!ret.ok) {
+        appendLog(`set-id failed: ${ret.error || ret.stderr || ret.stdout || "unknown"}`, "err");
+      } else {
+        appendLog("set-id ok", "ok");
+        h.esc_id = newEsc;
+        if (h.vendor === "damiao") h.mst_id = newMst;
+        renderRows();
+      }
+      if (ret.stdout) appendLog(ret.stdout.trim());
+      if (ret.stderr) appendLog(ret.stderr.trim(), "err");
+    }
+
+    async function checkHealth() {
+      try {
+        const res = await fetch("/api/health");
+        const j = await res.json();
+        $("health").textContent = j.ok ? `backend: ${j.backend} (${j.mode})` : "backend: error";
+      } catch {
+        $("health").textContent = "backend offline";
+      }
+    }
+
+    $("scanBtn").onclick = scan;
+    $("clearBtn").onclick = () => { $("log").textContent = ""; };
+    [
+      "start_id_damiao", "end_id_damiao",
+      "start_id_robstride", "end_id_robstride",
+      "start_id_myactuator", "end_id_myactuator",
+      "start_id_hightorque", "end_id_hightorque",
+      "start_id_hexfellow", "end_id_hexfellow",
+    ].forEach((id) => bindHexDec(id, id.startsWith("start_") ? 1 : 16));
+    checkHealth();
+  </script>
+</body>
+</html>

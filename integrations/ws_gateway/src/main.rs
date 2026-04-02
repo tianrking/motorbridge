@@ -280,6 +280,11 @@ fn open_hightorque_bus(target: &Target) -> Result<Box<dyn CanBus>, String> {
 }
 
 impl SessionCtx {
+    fn model_is_auto(model: &str) -> bool {
+        let m = model.trim().to_ascii_lowercase();
+        m.is_empty() || m == "auto" || m == "all" || m == "*"
+    }
+
     fn new(target: Target) -> Self {
         Self {
             target,
@@ -303,15 +308,22 @@ impl SessionCtx {
                     }
                 }
                 .map_err(|e| format!("open bus failed: {e}"))?;
-                let motor = ctrl
-                    .add_motor(
-                        self.target.motor_id,
-                        self.target.feedback_id,
-                        &self.target.model,
-                    )
-                    .map_err(|e| format!("add motor failed: {e}"))?;
                 self.controller = Some(ControllerHandle::Damiao(ctrl));
-                self.motor = Some(MotorHandle::Damiao(motor));
+                if !Self::model_is_auto(&self.target.model) {
+                    let motor = match self.controller.as_ref() {
+                        Some(ControllerHandle::Damiao(c)) => c
+                            .add_motor(
+                                self.target.motor_id,
+                                self.target.feedback_id,
+                                &self.target.model,
+                            )
+                            .map_err(|e| format!("add motor failed: {e}"))?,
+                        _ => return Err("damiao controller not connected".to_string()),
+                    };
+                    self.motor = Some(MotorHandle::Damiao(motor));
+                } else {
+                    self.motor = None;
+                }
             }
             Vendor::Hexfellow => {
                 if !matches!(self.target.transport, Transport::Auto | Transport::SocketCanFd) {
@@ -386,7 +398,7 @@ impl SessionCtx {
     }
 
     fn ensure_connected(&mut self) -> Result<(), String> {
-        if self.controller.is_none() || self.motor.is_none() {
+        if self.controller.is_none() {
             self.connect()?;
         }
         Ok(())
@@ -680,38 +692,35 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
     let ws = accept_async(stream).await.map_err(|e| e.to_string())?;
     let (mut tx, mut rx) = ws.split();
 
+    // Generic WS<->CAN gateway should start in "router standby" mode:
+    // do not bind to a specific motor at handshake time.
+    // Frontend can pick vendor/model/id dynamically via set_target / scan / command ops.
     let mut ctx = SessionCtx::new(cfg.target.clone());
-    if let Err(e) = ctx.connect() {
-        let _ = send_json(
-            &mut tx,
-            json!({"type":"event","event":"connect_failed","error": e}),
-        )
-        .await;
-    } else {
-        let _ = send_json(
-            &mut tx,
-            json!({
-                "type":"event",
-                "event":"connected",
-                "data": {
+    let _ = send_json(
+        &mut tx,
+        json!({
+            "type":"event",
+            "event":"connected",
+            "data": {
+                "peer": peer,
+                "router_mode": "standby",
+                "connected_bus": false,
+                "default_target": {
                     "vendor": ctx.target.vendor.as_str(),
                     "transport": ctx.target.transport.as_str(),
                     "channel": ctx.target.channel,
-                    "serial_port": ctx.target.serial_port,
-                    "serial_baud": ctx.target.serial_baud,
-                    "model": ctx.target.model,
-                    "motor_id": ctx.target.motor_id,
-                    "feedback_id": ctx.target.feedback_id,
-                    "peer": peer,
+                    "model": ctx.target.model
                 }
-            }),
-        )
-        .await;
-    }
+            }
+        }),
+    )
+    .await;
 
     let mut ticker = time::interval(Duration::from_millis(cfg.dt_ms));
     // State polling sends extra CAN traffic (e.g. Damiao request_motor_feedback).
-    // Keep control tick frequency, but decimate periodic state polling per session.
+    // Default to OFF. Client can enable explicitly via {"op":"state_stream","enabled":true}.
+    let mut state_stream_enabled: bool = false;
+    // Keep control tick frequency, and decimate periodic state polling per session when enabled.
     let mut state_tick_counter: u64 = 0;
     let state_tick_div: u64 = 5;
     loop {
@@ -734,7 +743,8 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
                         };
                         let op = v.get("op").and_then(Value::as_str).unwrap_or("").to_lowercase();
 
-                        let result: Result<Value, String> = match op.as_str() {
+                        let result: Result<Value, String> = (|| -> Result<Value, String> {
+                            match op.as_str() {
                             "ping" => {
                                 match ctx.target.vendor {
                                     Vendor::Robstride => {
@@ -791,9 +801,9 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
                                         next.feedback_id = 0x01;
                                     }
                                 }
+                                ctx.disconnect(false);
                                 ctx.target = next;
                                 ctx.active = None;
-                                ctx.connect()?;
                                 Ok(json!({
                                     "vendor": ctx.target.vendor.as_str(),
                                     "transport": ctx.target.transport.as_str(),
@@ -1029,6 +1039,10 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
                             "state_once" => {
                                 ctx.ensure_connected()?;
                                 Ok(json!({"state": ctx.build_state_snapshot()?}))
+                            }
+                            "state_stream" => {
+                                state_stream_enabled = as_bool(&v, "enabled", false);
+                                Ok(json!({"enabled": state_stream_enabled}))
                             }
                             "status" => {
                                 ctx.ensure_connected()?;
@@ -1350,7 +1364,8 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
                             "set_id" => cmd_set_id(&v, &ctx.target),
                             "verify" => cmd_verify(&v, &ctx.target),
                             _ => Err(format!("unsupported op: {op}")),
-                        };
+                            }
+                        })();
 
                         match result {
                             Ok(data) => send_json(&mut tx, json!({"ok": true, "op": op, "data": data})).await?,
@@ -1371,7 +1386,7 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
                         send_json(&mut tx, json!({"ok": false, "op": "active_tick", "error": e})).await?;
                     }
                 }
-                if ctx.motor.is_some() {
+                if state_stream_enabled && ctx.motor.is_some() {
                     state_tick_counter = state_tick_counter.wrapping_add(1);
                     if state_tick_counter % state_tick_div == 0 {
                         match ctx.build_state_snapshot() {
@@ -1394,17 +1409,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = TcpListener::bind(&cfg.bind).await?;
 
     println!(
-        "ws_gateway listening on ws://{} (vendor={}, transport={}, channel={}, serial_port={}, serial_baud={}, model={}, motor_id=0x{:X}, feedback_id=0x{:X}, dt_ms={})",
-        cfg.bind,
-        cfg.target.vendor.as_str(),
-        cfg.target.transport.as_str(),
-        cfg.target.channel,
-        cfg.target.serial_port,
-        cfg.target.serial_baud,
-        cfg.target.model,
-        cfg.target.motor_id,
-        cfg.target.feedback_id,
-        cfg.dt_ms
+        "ws_gateway listening on ws://{} (router_mode=standby, dynamic_target=true, dt_ms={})",
+        cfg.bind, cfg.dt_ms
     );
 
     loop {

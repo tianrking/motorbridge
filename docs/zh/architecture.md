@@ -57,7 +57,7 @@ motorbridge/
 │   ├── ros2_bridge/             # ROS2 桥接
 │   └── ws_gateway/              # Rust WebSocket 网关
 ├── tools/
-│   └── motor_calib/             # 扫描/改ID/回读校验工具
+│   └── factory_calib_ui/        # 工厂网页上位机（调用 motor_cli 做扫描/改ID/校验）
 ├── bindings/
 │   ├── python/                 # Python SDK 包 + CLI
 │   └── cpp/                    # C++ RAII 封装 + CMake 包

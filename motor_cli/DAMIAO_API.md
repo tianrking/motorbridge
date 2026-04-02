@@ -167,7 +167,7 @@ WS gateway command examples:
 
 Tools:
 
-- Rust: `tools/motor_calib` (`scan`, `set-id`, `verify`)
+- Rust CLI: `motor_cli --vendor damiao --mode scan ...` and `--set-motor-id/--set-feedback-id --store --verify-id`
 - Python: `motorbridge-cli scan/id-set/id-dump`
 - WS: `scan`, `set_id`, `verify`
 

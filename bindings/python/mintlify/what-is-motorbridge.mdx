@@ -104,7 +104,7 @@ rust_dm/
 ├── integrations/
 │   └── ws_gateway/      # WebSocket gateway for remote control
 └── tools/
-    └── motor_calib/     # Motor calibration tool
+    └── factory_calib_ui/ # Factory calibration web UI
 ```
 
 ## Why "Python Binding" Not "SDK"?
@@ -313,7 +313,7 @@ cargo run -p ws_gateway
 Tool for motor calibration routines:
 
 ```bash
-cargo run -p motor_calib
+python3 tools/factory_calib_ui/server.py --bind 0.0.0.0 --port 18100
 ```
 
 ## Comparison with Alternatives

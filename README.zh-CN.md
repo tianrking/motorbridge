@@ -74,7 +74,7 @@ flowchart LR
   ROOT --> VENDORS["motor_vendors/*"]
   ROOT --> CLI["motor_cli"]
   ROOT --> ABI["motor_abi"]
-  ROOT --> TOOLS["tools/motor_calib"]
+  ROOT --> TOOLS["tools/factory_calib_ui"]
   ROOT --> INTS["integrations/*"]
   ROOT --> BIND["bindings/*"]
   VENDORS --> VD["damiao"]

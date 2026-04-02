@@ -1,0 +1,211 @@
+.motorLayout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 12px;
+}
+
+.motorCards {
+  display: grid;
+  gap: 8px;
+  height: 520px;
+  max-height: 520px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  align-content: start;
+  grid-auto-rows: max-content;
+  padding-right: 4px;
+}
+
+.motorCard {
+  text-align: left;
+  width: 100%;
+  min-height: 132px;
+  border-radius: 12px;
+  border: 1px solid #d8e1fb;
+  background:
+    radial-gradient(120% 100% at 100% 0%, rgba(87, 126, 255, 0.15) 0%, rgba(87, 126, 255, 0) 55%),
+    linear-gradient(180deg, #ffffff, #f7f9ff);
+  padding: 10px;
+  transition: transform 140ms ease, box-shadow 180ms ease, border-color 160ms ease;
+  cursor: grab;
+}
+
+.motorCard:hover {
+  transform: translateY(-1px);
+  border-color: #8fa8ff;
+  box-shadow: 0 8px 18px rgba(51, 92, 223, 0.16);
+}
+
+.motorCard:active {
+  cursor: grabbing;
+}
+
+.motorCard.active {
+  border-color: #6b8bff;
+  box-shadow:
+    0 0 0 2px rgba(86, 125, 255, 0.2),
+    0 10px 24px rgba(44, 78, 190, 0.24);
+}
+
+.motorCard.new {
+  animation: popIn 0.5s ease, pulseGlow 1.2s ease;
+}
+
+.motorCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
+.motorCardTopNew {
+  margin-bottom: 8px;
+}
+
+.cardActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.iconBtn {
+  min-width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.iconBtn.danger {
+  color: #b02852;
+  border-color: #f0bfd1;
+  background: #fff4f8;
+}
+
+.iconBtn.danger:hover {
+  background: #ffeaf2;
+}
+
+.iconBtn.ping {
+  color: #1f7d53;
+  border-color: #bdebd6;
+  background: #effff7;
+}
+
+.iconBtn.ping:hover {
+  background: #e2fbea;
+}
+
+.iconBtn.ping:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.chipVendor {
+  background: #e7f0ff;
+  color: #2748a0;
+}
+
+.chipId {
+  background: #edf2ff;
+  color: #3b57a8;
+}
+
+.motorSignal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #d6f3e3;
+  background: #f1fff8;
+}
+
+.dotLive {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #12b36f;
+  box-shadow: 0 0 0 6px rgba(18, 179, 111, 0.16);
+}
+
+.dotLive.off {
+  background: #cc3d5f;
+  box-shadow: 0 0 0 6px rgba(204, 61, 95, 0.14);
+}
+
+.signalText {
+  font-size: 11px;
+  color: #198a5a;
+  font-weight: 700;
+}
+
+.motorMeta {
+  color: #5e6c90;
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.motorSummary {
+  color: #3d5fa8;
+}
+
+.motorPanel {
+  border: 1px solid #dbe3fb;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fbfcff;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.metaItem {
+  background: #ffffff;
+  border: 1px solid #e1e7fa;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #34456f;
+}
+
+.metaItem b {
+  color: #5b6c94;
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.ghostBtn {
+  background: #f6f8ff;
+  border-color: #d4dcf8;
+  color: #4560a9;
+}
+
+.ghostBtn:hover {
+  background: #edf2ff;
+}
+
+.small {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+@media (max-width: 1200px) {
+  .motorLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .metaGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

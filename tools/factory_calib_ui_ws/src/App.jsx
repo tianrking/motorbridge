@@ -5,10 +5,14 @@ import { ConnectionPanel } from './components/ConnectionPanel';
 import { ScanWorkspace } from './components/ScanWorkspace';
 import { MotorSection } from './components/MotorSection';
 import { StateLogsPanel } from './components/StateLogsPanel';
+import { RobotArmPage } from './components/RobotArmPage';
 import { useMotorStudio } from './hooks/useMotorStudio';
+import { useI18n } from './i18n';
 
 export default function App() {
+  const { t } = useI18n();
   const studio = useMotorStudio();
+  const [page, setPage] = React.useState('general');
 
   return (
     <div className="app shell">
@@ -29,6 +33,17 @@ export default function App() {
         />
       )}
 
+      <section className="card glass">
+        <div className="row toolbar compactToolbar">
+          <button className={page === 'general' ? 'primary' : ''} onClick={() => setPage('general')}>
+            {t('page_general')}
+          </button>
+          <button className={page === 'robot_arm' ? 'primary' : ''} onClick={() => setPage('robot_arm')}>
+            {t('page_robot_arm')}
+          </button>
+        </div>
+      </section>
+
       <ConnectionPanel
         wsUrl={studio.wsUrl}
         setWsUrl={studio.setWsUrl}
@@ -42,46 +57,64 @@ export default function App() {
         onToggleCollapsed={() => studio.toggleUiPref('sectionConnectionCollapsed')}
       />
 
-      <ScanWorkspace
-        vendors={studio.vendors}
-        setVendors={studio.setVendors}
-        connected={studio.connected}
-        canAction={studio.canAction}
-        scanBusy={studio.scanBusy}
-        scanProgress={studio.scanProgress}
-        scanFoundFx={studio.scanFoundFx}
-        runScan={studio.runScan}
-        clearDevices={studio.clearDevices}
-        manualDraft={studio.manualDraft}
-        setManualDraft={studio.setManualDraft}
-        addManualCard={studio.addManualCard}
-        scanCollapsed={studio.uiPrefs.sectionScanCollapsed}
-        onToggleScanCollapsed={() => studio.toggleUiPref('sectionScanCollapsed')}
-        manualCollapsed={studio.uiPrefs.sectionManualCollapsed}
-        onToggleManualCollapsed={() => studio.toggleUiPref('sectionManualCollapsed')}
-      />
+      {page === 'general' ? (
+        <>
+          <ScanWorkspace
+            vendors={studio.vendors}
+            setVendors={studio.setVendors}
+            connected={studio.connected}
+            canAction={studio.canAction}
+            scanBusy={studio.scanBusy}
+            scanProgress={studio.scanProgress}
+            scanFoundFx={studio.scanFoundFx}
+            runScan={studio.runScan}
+            clearDevices={studio.clearDevices}
+            manualDraft={studio.manualDraft}
+            setManualDraft={studio.setManualDraft}
+            addManualCard={studio.addManualCard}
+            scanCollapsed={studio.uiPrefs.sectionScanCollapsed}
+            onToggleScanCollapsed={() => studio.toggleUiPref('sectionScanCollapsed')}
+            manualCollapsed={studio.uiPrefs.sectionManualCollapsed}
+            onToggleManualCollapsed={() => studio.toggleUiPref('sectionManualCollapsed')}
+          />
 
-      <MotorSection
-        hits={studio.hits}
-        selectedHits={studio.selectedHits}
-        connected={studio.connected}
-        activeMotorKey={studio.activeMotorKey}
-        setActiveMotorKey={studio.setActiveMotorKey}
-        newCardKeys={studio.newCardKeys}
-        cardRefs={studio.cardRefs}
-        removeMotorCard={studio.removeMotorCard}
-        moveMotorCard={studio.moveMotorCard}
-        activeMotor={studio.activeMotor}
-        activeControl={studio.activeControl}
-        patchControl={studio.patchControl}
-        controlMotor={studio.controlMotor}
-        probeMotor={studio.probeMotor}
-        setIdFor={studio.setIdFor}
-        verifyHit={studio.verifyHit}
-        refreshMotorState={studio.refreshMotorState}
-        collapsed={studio.uiPrefs.sectionMotorsCollapsed}
-        onToggleCollapsed={() => studio.toggleUiPref('sectionMotorsCollapsed')}
-      />
+          <MotorSection
+            hits={studio.hits}
+            selectedHits={studio.selectedHits}
+            connected={studio.connected}
+            activeMotorKey={studio.activeMotorKey}
+            setActiveMotorKey={studio.setActiveMotorKey}
+            newCardKeys={studio.newCardKeys}
+            cardRefs={studio.cardRefs}
+            removeMotorCard={studio.removeMotorCard}
+            moveMotorCard={studio.moveMotorCard}
+            activeMotor={studio.activeMotor}
+            activeControl={studio.activeControl}
+            patchControl={studio.patchControl}
+            controlMotor={studio.controlMotor}
+            probeMotor={studio.probeMotor}
+            setIdFor={studio.setIdFor}
+            verifyHit={studio.verifyHit}
+            refreshMotorState={studio.refreshMotorState}
+            collapsed={studio.uiPrefs.sectionMotorsCollapsed}
+            onToggleCollapsed={() => studio.toggleUiPref('sectionMotorsCollapsed')}
+          />
+        </>
+      ) : (
+        <RobotArmPage
+          connected={studio.connected}
+          canAction={studio.canAction}
+          robotArmModel={studio.robotArmModel}
+          setRobotArmModel={studio.setRobotArmModel}
+          robotArmJointRows={studio.robotArmJointRows}
+          ensureRobotArmCards={studio.ensureRobotArmCards}
+          scanRobotArmJoint={studio.scanRobotArmJoint}
+          scanRobotArmAll={studio.scanRobotArmAll}
+          patchControl={studio.patchControl}
+          controlMotor={studio.controlMotor}
+          refreshMotorState={studio.refreshMotorState}
+        />
+      )}
 
       <StateLogsPanel
         stateSnapshot={studio.stateSnapshot}

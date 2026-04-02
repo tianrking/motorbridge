@@ -10,6 +10,7 @@ import {
   verifyHitOp,
 } from '../lib/motorStudioOps';
 import { useGatewayBridge } from './useGatewayBridge';
+import { useRobotArmStudio } from './useRobotArmStudio';
 import { useI18n } from '../i18n';
 
 const LS_HITS_KEY = 'factory_calib_ui_ws_hits_v1';
@@ -294,6 +295,24 @@ export function useMotorStudio() {
   const probeMotor = (h) =>
     probeMotorOp({ h, vendors, setTargetFor, sendCmd, setHits, closeBusQuietly, pushLog });
 
+  const {
+    robotArmModel,
+    setRobotArmModel,
+    robotArmJointRows,
+    ensureRobotArmCards,
+    scanRobotArmJoint,
+    scanRobotArmAll,
+  } = useRobotArmStudio({
+    hits,
+    setHits,
+    controls,
+    setControls,
+    activeMotorKey,
+    setActiveMotorKey,
+    probeMotor,
+    pushLog,
+  });
+
   const selectedHits = useMemo(() => hits.filter((h) => selected.has(motorKey(h))), [hits, selected]);
   const activeMotor = useMemo(() => hits.find((h) => motorKey(h) === activeMotorKey) || null, [hits, activeMotorKey]);
   const activeControl = activeMotor ? controls[motorKey(activeMotor)] || defaultControlsForHit(activeMotor) : null;
@@ -335,6 +354,9 @@ export function useMotorStudio() {
     setUiPref,
     manualDraft,
     setManualDraft,
+    robotArmModel,
+    setRobotArmModel,
+    robotArmJointRows,
     cardRefs,
     connectWs,
     disconnectWs,
@@ -349,5 +371,8 @@ export function useMotorStudio() {
     verifyHit,
     setIdFor,
     refreshMotorState,
+    ensureRobotArmCards,
+    scanRobotArmJoint,
+    scanRobotArmAll,
   };
 }

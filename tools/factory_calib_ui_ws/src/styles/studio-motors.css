@@ -209,3 +209,196 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.armGrid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 12px;
+  max-height: 620px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.armStudio {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 400px minmax(420px, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.armLeftPane,
+.armControlPanel,
+.armSimPanel {
+  border: 1px solid #d9e2fb;
+  border-radius: 14px;
+  padding: 12px;
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(89, 138, 255, 0.12) 0%, rgba(89, 138, 255, 0) 62%),
+    linear-gradient(180deg, #ffffff, #f8faff);
+}
+
+.armLeftPane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.armRightPane {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 12px;
+  min-height: 0;
+}
+
+.armPaneTitle {
+  margin-bottom: 8px;
+}
+
+.armJointList {
+  display: grid;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.armJointCard {
+  border: 1px solid #d9e3fb;
+  border-radius: 12px;
+  padding: 10px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 140ms ease, box-shadow 180ms ease, transform 120ms ease;
+}
+
+.armJointCard:hover {
+  transform: translateY(-1px);
+  border-color: #8fa8ff;
+  box-shadow: 0 6px 14px rgba(51, 92, 223, 0.12);
+}
+
+.armJointCard.active {
+  border-color: #6b8bff;
+  box-shadow: 0 0 0 2px rgba(86, 125, 255, 0.2);
+}
+
+.armCard {
+  border: 1px solid #d9e2fb;
+  border-radius: 14px;
+  padding: 12px;
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(89, 138, 255, 0.16) 0%, rgba(89, 138, 255, 0) 62%),
+    linear-gradient(180deg, #ffffff, #f8faff);
+  min-height: 320px;
+}
+
+.armCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.armMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: #4b5f93;
+  margin-bottom: 6px;
+}
+
+.armFields {
+  margin-top: 10px;
+}
+
+.armSliderWrap {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #dfe7fb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.armSliderMeta {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #4e6297;
+  font-size: 12px;
+}
+
+.armPosInput {
+  width: 120px;
+}
+
+.armUrdfUrlField {
+  flex: 1;
+}
+
+.armUrdfFrame {
+  margin-top: 8px;
+  width: 100%;
+  min-height: 360px;
+  border: 1px solid #d7e0f7;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.armUrdfViewerShell {
+  margin-top: 8px;
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 560px;
+  border: 1px solid #d7e0f7;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f7fbff;
+}
+
+.armSimPanel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.armUrdfViewer {
+  width: 100%;
+  height: 560px;
+}
+
+.armUrdfOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #4d6297;
+  background: rgba(247, 251, 255, 0.66);
+  pointer-events: none;
+}
+
+.chipOk {
+  color: #0f7b57;
+  background: #e9fff6;
+  border-color: #bcefd9;
+}
+
+@media (max-width: 1200px) {
+  .armStudio {
+    grid-template-columns: 1fr;
+  }
+
+  .armGrid {
+    grid-template-columns: 1fr;
+    max-height: none;
+  }
+}

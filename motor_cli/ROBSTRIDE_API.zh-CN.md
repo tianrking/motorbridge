@@ -34,6 +34,7 @@
 - `enable`
 - `disable`
 - `mit`
+- `pos-vel`
 - `vel`
 - `read-param`
 - `write-param`
@@ -51,7 +52,7 @@ motor_cli \
 ```bash
 motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
-  --mode mit --pos 0 --vel 0 --kp 8 --kd 0.2 --tau 0 --loop 40 --dt-ms 50
+  --mode mit --pos 0 --vel 0 --kp 0.5 --kd 0.2 --tau 0 --loop 40 --dt-ms 50
 ```
 
 ### 2.3 速度模式
@@ -61,6 +62,32 @@ motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
   --mode vel --vel 0.3 --loop 40 --dt-ms 50
 ```
+
+### 2.4 位置模式（统一 `pos-vel` 映射）
+
+```bash
+motor_cli \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+  --mode pos-vel --pos 1.0 --vlim 1.5 --loop 1 --dt-ms 20
+```
+
+说明：
+
+- 统一 `pos-vel` 已映射为 RobStride 原生 Position 链路：
+  - `run_mode=1`（Position）
+  - 写 `0x7017`（`limit_spd`）为 `--vlim`
+  - 写 `0x7016`（`loc_ref`）为 `--pos`
+
+### 2.5 两种使用方式（统一封装 / 原生参数）
+
+- 统一封装方式（推荐上层业务使用）：
+  - `--mode mit`
+  - `--mode pos-vel`（已映射到原生 Position）
+  - `--mode vel`
+- 原生方式（调试/协议级验证）：
+  - `--mode read-param --param-id ...`
+  - `--mode write-param --param-id ... --param-value ...`
+  - 典型链路：先写 `run_mode(0x7005)`，再写对应目标参数（如 `loc_ref/spd_ref`）
 
 ## 3）扫描与改 ID
 
@@ -155,7 +182,7 @@ with Controller("can0") as ctrl:
 {"op":"robstride_read_param","param_id":28697,"type":"f32","timeout_ms":200}
 {"op":"robstride_write_param","param_id":28682,"type":"f32","value":0.3,"verify":true}
 {"op":"vel","vel":0.3,"continuous":true}
-{"op":"mit","pos":0.0,"vel":0.0,"kp":8.0,"kd":0.2,"tau":0.0,"continuous":true}
+{"op":"mit","pos":0.0,"vel":0.0,"kp":0.5,"kd":0.2,"tau":0.0,"continuous":true}
 {"op":"scan","vendor":"robstride","start_id":1,"end_id":255,"feedback_ids":"0xFF,0xFE,0x00","timeout_ms":120}
 ```
 

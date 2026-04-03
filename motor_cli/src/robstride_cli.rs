@@ -298,6 +298,7 @@ pub fn run_robstride(
     if ensure_mode {
         match mode.as_str() {
             "mit" => motor.set_mode(RobstrideControlMode::Mit)?,
+            "pos-vel" => motor.set_mode(RobstrideControlMode::Position)?,
             "vel" => motor.set_mode(RobstrideControlMode::Velocity)?,
             _ => {}
         }
@@ -315,6 +316,13 @@ pub fn run_robstride(
                     get_f32(args, "kd", 0.2)?,
                     get_f32(args, "tau", 0.0)?,
                 )?;
+            }
+            "pos-vel" => {
+                let vlim = get_f32(args, "vlim", 1.0)?.abs();
+                if vlim.is_finite() && vlim > 0.0 {
+                    motor.write_parameter(0x7017, ParameterValue::F32(vlim))?;
+                }
+                motor.write_parameter(0x7016, ParameterValue::F32(get_f32(args, "pos", 0.0)?))?;
             }
             "vel" => {
                 motor.set_velocity_target(get_f32(args, "vel", 0.0)?)?;

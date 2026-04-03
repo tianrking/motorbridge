@@ -57,6 +57,15 @@ Notes:
   - Recommended flow: `request_feedback() -> poll_feedback_once() -> get_state()`.
   - RobStride now supports this unified pattern via ABI-level compatibility (while `robstride_ping()` is still available).
 
+## Unified Mode Mapping Summary (Top-Level -> Vendor Native)
+
+| Unified Mode | Damiao | RobStride | Hexfellow | MyActuator | HighTorque |
+| --- | --- | --- | --- | --- | --- |
+| `Mode.MIT` | native MIT | native MIT | native MIT (mode 5) | unsupported | maps to native pos+vel+tqe |
+| `Mode.POS_VEL` | native POS_VEL | maps to native Position (`run_mode=1` + `limit_spd(0x7017)` + `loc_ref(0x7016)`) | native POS_VEL (mode 1) | Position setpoint flow | maps to native pos+vel+tqe |
+| `Mode.VEL` | native VEL | native Velocity | unsupported | native velocity setpoint flow | native velocity command |
+| `Mode.FORCE_POS` | native FORCE_POS | unsupported | unsupported | unsupported | unsupported |
+
 ## Quick Start
 
 ```python

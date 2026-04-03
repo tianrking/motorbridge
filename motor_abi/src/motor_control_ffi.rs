@@ -166,8 +166,23 @@ pub extern "C" fn motor_handle_send_pos_vel(
                 velocity_limit * (180.0 / PI),
             )
             .map_err(|e| e.to_string()),
-        MotorHandleInner::Robstride(_) => {
-            Err("send_pos_vel is not supported for RobStride".to_string())
+        MotorHandleInner::Robstride(m) => {
+            // Map unified POS_VEL -> RobStride native position mode:
+            // run_mode=Position(1), optional limit_spd(0x7017), then loc_ref(0x7016).
+            let mut rc = m
+                .set_mode(RobstrideControlMode::Position)
+                .map_err(|e| e.to_string());
+            let vlim = velocity_limit.abs();
+            if vlim.is_finite() && vlim > 0.0 {
+                rc = rc.and_then(|_| {
+                    m.write_parameter(0x7017, ParameterValue::F32(vlim))
+                        .map_err(|e| e.to_string())
+                });
+            }
+            rc.and_then(|_| {
+                m.write_parameter(0x7016, ParameterValue::F32(target_position))
+                    .map_err(|e| e.to_string())
+            })
         }
         MotorHandleInner::Hightorque(m) => m
             .send_cmd_pos_vel(target_position, velocity_limit)

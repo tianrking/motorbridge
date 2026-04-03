@@ -66,7 +66,7 @@ RobStride low-gain MIT:
 ```bash
 LD_LIBRARY_PATH=target/release ./c_abi_demo \
   --vendor robstride --channel can0 --model rs-00 --motor-id 127 \
-  --mode mit --pos 0 --vel 0 --kp 8 --kd 0.2 --tau 0 --loop 20 --dt-ms 50
+  --mode mit --pos 0 --vel 0 --kp 0.5 --kd 0.2 --tau 0 --loop 20 --dt-ms 50
 ```
 
 Hexfellow (CAN-FD only):

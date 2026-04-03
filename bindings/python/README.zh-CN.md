@@ -57,6 +57,15 @@
   - 推荐统一使用 `request_feedback() -> poll_feedback_once() -> get_state()`。
   - RobStride 路径在 ABI 内部已做兼容处理，可按同一范式调用（`robstride_ping()` 仍保留可用）。
 
+## 统一模式映射摘要（顶层协议 -> 厂商原生）
+
+| 顶层统一模式 | Damiao | RobStride | Hexfellow | MyActuator | HighTorque |
+| --- | --- | --- | --- | --- | --- |
+| `Mode.MIT` | 原生 MIT | 原生 MIT | 原生 MIT（模式 5） | 不支持 | 映射到原生 pos+vel+tqe |
+| `Mode.POS_VEL` | 原生 POS_VEL | 映射到原生 Position（`run_mode=1` + `limit_spd(0x7017)` + `loc_ref(0x7016)`） | 原生 POS_VEL（模式 1） | Position 设定流程 | 映射到原生 pos+vel+tqe |
+| `Mode.VEL` | 原生 VEL | 原生 Velocity | 不支持 | 原生 Velocity 设定流程 | 原生速度命令 |
+| `Mode.FORCE_POS` | 原生 FORCE_POS | 不支持 | 不支持 | 不支持 | 不支持 |
+
 ## 快速开始
 
 ```python

@@ -238,7 +238,12 @@ motor_cli \
 # MIT control
 motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFF \
-  --mode mit --pos 3.14 --vel 0 --kp 8 --kd 0.4 --tau 1.5 --loop 120 --dt-ms 20
+  --mode mit --pos 3.14 --vel 0 --kp 0.5 --kd 0.2 --tau 0 --loop 120 --dt-ms 20
+
+# POS_VEL (mapped to native Position)
+motor_cli \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFF \
+  --mode pos-vel --pos 1.0 --vlim 1.5 --loop 1 --dt-ms 20
 
 # Velocity mode
 motor_cli \

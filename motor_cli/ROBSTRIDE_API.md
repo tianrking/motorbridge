@@ -34,6 +34,7 @@ Supported now:
 - `enable`
 - `disable`
 - `mit`
+- `pos-vel`
 - `vel`
 - `read-param`
 - `write-param`
@@ -51,16 +52,42 @@ motor_cli \
 ```bash
 motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
-  --mode mit --pos 0 --vel 0 --kp 8 --kd 0.2 --tau 0 --loop 40 --dt-ms 50
+  --mode mit --pos 0 --vel 0 --kp 0.5 --kd 0.2 --tau 0 --loop 40 --dt-ms 50
 ```
 
-### 2.3 Velocity
+### 2.3 Position (unified `pos-vel` mapping)
+
+```bash
+motor_cli \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+  --mode pos-vel --pos 1.0 --vlim 1.5 --loop 1 --dt-ms 20
+```
+
+Notes:
+
+- Unified `pos-vel` maps to native RobStride Position path:
+  - `run_mode=1` (Position)
+  - write `0x7017` (`limit_spd`) from `--vlim`
+  - write `0x7016` (`loc_ref`) from `--pos`
+
+### 2.4 Velocity
 
 ```bash
 motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
   --mode vel --vel 0.3 --loop 40 --dt-ms 50
 ```
+
+### 2.5 Two Usage Paths (Unified Wrapper / Native Params)
+
+- Unified wrapper path (recommended for app-layer control):
+  - `--mode mit`
+  - `--mode pos-vel` (already mapped to native Position)
+  - `--mode vel`
+- Native path (debug/protocol-level verification):
+  - `--mode read-param --param-id ...`
+  - `--mode write-param --param-id ... --param-value ...`
+  - Typical sequence: write `run_mode(0x7005)` first, then write target params (`loc_ref/spd_ref`, etc.)
 
 ## 3) Scan and ID Update
 
@@ -142,7 +169,7 @@ Current status: core control is production-usable (`scan/ping/mit/vel/read/write
 
 Main improvement opportunities:
 
-1. Add semantic CLI modes for position/current (today possible via write-param, but less ergonomic).
+1. Add semantic CLI mode for current control (today still done via write-param, less ergonomic).
 2. Add multi feedback-host candidate support in scan CLI.
 3. Expose high-level APIs for `SET_BAUDRATE / ACTIVE_REPORT / SET_PROTOCOL`.
 4. Decode and present `FAULT_REPORT` in dedicated structured output.
@@ -155,7 +182,7 @@ Main improvement opportunities:
 {"op":"robstride_read_param","param_id":28697,"type":"f32","timeout_ms":200}
 {"op":"robstride_write_param","param_id":28682,"type":"f32","value":0.3,"verify":true}
 {"op":"vel","vel":0.3,"continuous":true}
-{"op":"mit","pos":0.0,"vel":0.0,"kp":8.0,"kd":0.2,"tau":0.0,"continuous":true}
+{"op":"mit","pos":0.0,"vel":0.0,"kp":0.5,"kd":0.2,"tau":0.0,"continuous":true}
 {"op":"scan","vendor":"robstride","start_id":1,"end_id":255,"feedback_ids":"0xFF,0xFE,0x00","timeout_ms":120}
 ```
 

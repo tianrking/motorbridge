@@ -115,7 +115,7 @@ Vendors:\n\
 Damiao modes:\n\
   --mode scan | enable | disable | mit | pos-vel | vel | force-pos\n\n\
 RobStride modes:\n\
-  --mode ping | scan | enable | disable | mit | vel | read-param | write-param\n\n\
+  --mode ping | scan | enable | disable | mit | pos-vel | vel | read-param | write-param\n\n\
 HighTorque modes:\n\
   --mode ping | scan | read | mit | pos | vel | tqe | volt | cur | pos-vel-tqe | stop | brake | rezero | conf-write | timed-read\n\n\
 MyActuator modes:\n\

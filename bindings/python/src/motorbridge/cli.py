@@ -257,8 +257,6 @@ def _run_command(args: argparse.Namespace) -> None:
                         raise ValueError("myactuator does not support mit command")
                     motor.send_mit(args.pos, args.vel, args.kp, args.kd, args.tau)
                 elif args.mode == "pos-vel":
-                    if args.vendor == "robstride":
-                        raise ValueError("robstride does not support pos-vel command")
                     motor.send_pos_vel(args.pos, args.vlim)
                 elif args.mode == "vel":
                     if args.vendor == "hexfellow":

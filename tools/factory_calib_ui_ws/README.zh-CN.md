@@ -59,3 +59,6 @@ npm run preview
 
 - Linux SocketCAN 通道建议使用 `can0`（不要写成 `can0@1000000`）。
 - 当前结构已按“工厂可用”组织，后续可继续扩展滑条控制、轨迹控制、多机批量策略等页面能力。
+
+
+通道排障参考：请查看 docs/zh/can_debugging.md（包含 can0 与 slcan0 的配置说明）。

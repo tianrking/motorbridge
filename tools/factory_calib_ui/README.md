@@ -48,3 +48,6 @@ Notes:
 - For safety, calibrate one motor at a time when rewriting IDs.
 - Linux SocketCAN channel should be plain `can0` (not `can0@1000000`).
 - Current UI focuses on factory ID calibration workflows.
+
+
+Channel troubleshooting reference: see docs/en/can_debugging.md (covers can0 and slcan0 setup).

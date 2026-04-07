@@ -59,3 +59,6 @@ python3 tools/factory_calib_ui/server.py --bind 0.0.0.0 --port 18100
 - 页面无响应：先看右上角 backend 状态，再看日志区命令输出。
 - 扫描不到：先检查 `ip -details link show can0`，确认总线和波特率。
 - 改 ID 失败：检查 `model` 是否匹配电机型号（如 `4310/4340/4340P`）。
+
+
+通道排障参考：请查看 docs/zh/can_debugging.md（包含 can0 与 slcan0 的配置说明）。

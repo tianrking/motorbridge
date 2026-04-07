@@ -59,3 +59,6 @@ Open: `http://127.0.0.1:18110/`
 
 - Linux SocketCAN channel format: `can0` (not `can0@1000000`).
 - This UI is designed for factory/operator workflows and future extensibility (slider/trajectory pages can be added on top of current structure).
+
+
+Channel troubleshooting reference: see docs/en/can_debugging.md (covers can0 and slcan0 setup).

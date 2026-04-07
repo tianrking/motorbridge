@@ -70,6 +70,7 @@
 
 - RobStride 统一高层当前覆盖 `MIT` / `POS_VEL` / `VEL`。
 - `TORQUE/CURRENT` 对 RobStride 仍为参数级能力（`robstride_write_param_*`），尚未提供独立统一模式。
+- RobStride 建议默认使用 `feedback-id=0xFD`（运行时可回退探测 `0xFF/0xFE`）。
 
 ## 快速开始
 
@@ -111,7 +112,7 @@ from motorbridge import Controller, Mode
 TARGET_POS = 1.0  # 目标角度(rad)
 
 with Controller("can0") as ctrl:
-    motor = ctrl.add_robstride_motor(127, 0xFF, "rs-00")  # 可替换为你的 id / model
+motor = ctrl.add_robstride_motor(127, 0xFD, "rs-00")  # 可替换为你的 id / model
     ctrl.enable_all()
     motor.ensure_mode(Mode.MIT, 1000)
     motor.send_mit(TARGET_POS, 0.0, 8.0, 0.2, 0.0)
@@ -147,7 +148,7 @@ from motorbridge import Controller, Mode
 TARGET_POS = 1.0  # 目标角度(rad)
 
 with Controller("can0") as ctrl:
-    motor = ctrl.add_robstride_motor(127, 0xFF, "rs-00")
+motor = ctrl.add_robstride_motor(127, 0xFD, "rs-00")
     ctrl.enable_all()
     motor.ensure_mode(Mode.MIT, 1000)
     motor.send_mit(TARGET_POS, 0.0, 8.0, 0.2, 0.0)  # 控制到目标角度
@@ -303,11 +304,11 @@ python3 bindings/python/examples/python_wrapper_demo.py \
 
 # RobStride wrapper 示例：ping
 python3 bindings/python/examples/robstride_wrapper_demo.py \
-  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
+--channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD --mode ping
 
 # RobStride wrapper 示例：速度
 python3 bindings/python/examples/robstride_wrapper_demo.py \
-  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+--channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD \
   --mode vel --vel 0.3 --loop 40 --dt-ms 50
 ```
 

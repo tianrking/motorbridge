@@ -131,10 +131,14 @@ Common args:\n\
   --serial-baud  default 921600 (used when --transport dm-serial)\n\
   --model        default depends on vendor (damiao=4340, robstride=rs-00, hightorque=hightorque[hint only], myactuator=X8)\n\
   --motor-id     default 0x01\n\
-  --feedback-id  default 0x11 for Damiao, 0xFF for RobStride, 0x01 for HighTorque, 0x241 for MyActuator\n\
+  --feedback-id  default 0x11 for Damiao, 0xFD for RobStride, 0x01 for HighTorque, 0x241 for MyActuator\n\
   --loop         send cycles, default 1\n\
   --dt-ms        period ms, default 20\n\
   --ensure-mode  1/0, default 1\n\n\
+ID change support by vendor:\n\
+  Damiao: supported (`--set-motor-id` and optional `--set-feedback-id`)\n\
+  RobStride: supported (`--set-motor-id`)\n\
+  HighTorque / Hexfellow / MyActuator: not supported in unified CLI path\n\n\
 Damiao extras:\n\
   --verify-model 1/0, default 1\n\
   --verify-timeout-ms  default 500\n\

@@ -70,6 +70,7 @@ Note:
 
 - RobStride unified high-level control currently covers `MIT` / `POS_VEL` / `VEL`.
 - Torque/current is parameter-level only for RobStride (`robstride_write_param_*`), not a dedicated unified mode.
+- RobStride feedback/host default should use `0xFD` (runtime can fallback probe `0xFF/0xFE` when needed).
 
 ## Quick Start
 
@@ -104,7 +105,7 @@ RobStride quick use:
 from motorbridge import Controller
 
 with Controller("can0") as ctrl:
-    motor = ctrl.add_robstride_motor(127, 0xFF, "rs-00")
+motor = ctrl.add_robstride_motor(127, 0xFD, "rs-00")
     print(motor.robstride_ping())
     print(motor.robstride_get_param_f32(0x7019))
     motor.close()
@@ -256,11 +257,11 @@ python3 bindings/python/examples/python_wrapper_demo.py \
 
 # RobStride wrapper demo: ping
 python3 bindings/python/examples/robstride_wrapper_demo.py \
-  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
+--channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD --mode ping
 
 # RobStride wrapper demo: velocity
 python3 bindings/python/examples/robstride_wrapper_demo.py \
-  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+--channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD \
   --mode vel --vel 0.3 --loop 40 --dt-ms 50
 ```
 

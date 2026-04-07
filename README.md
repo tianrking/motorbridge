@@ -24,10 +24,11 @@ Current status:
 
 - Damiao:
   - models: `3507`, `4310`, `4310P`, `4340`, `4340P`, `6006`, `8006`, `8009`, `10010L`, `10010`, `H3510`, `G6215`, `H6220`, `JH11`, `6248P`
-  - modes: `scan`, `MIT`, `POS_VEL`, `VEL`, `FORCE_POS`
+  - modes: `scan`, `enable`, `disable`, `MIT`, `POS_VEL`, `VEL`, `FORCE_POS`, `set-id`, `set-zero`
 - RobStride:
   - models: `rs-00`, `rs-01`, `rs-02`, `rs-03`, `rs-04`, `rs-05`, `rs-06`
-  - modes: `scan`, `ping`, `MIT`, `POS_VEL`, `VEL`, parameter read/write
+  - modes: `scan`, `ping`, `enable`, `disable`, `MIT`, `POS_VEL`, `VEL`, parameter read/write, `set-id`, `zero`
+  - host/feedback default: `0xFD` (with `0xFF/0xFE` fallback probing)
   - note: torque/current control is currently parameter-level only (`write-param` on `iq_ref`/limits), not a first-class unified mode
 - MyActuator:
   - models: `X8` (runtime string; protocol is ID-based)
@@ -38,6 +39,13 @@ Current status:
 - Hexfellow:
   - models: `hexfellow` (runtime string; CANopen profile)
   - modes: `scan`, `status`, `enable`, `disable`, `pos-vel`, `mit` (via `socketcanfd`)
+
+## Update (2026-04): Damiao / RobStride Capability Convergence
+
+- Damiao production baseline now covers: `scan / enable / disable / MIT / POS_VEL / VEL / FORCE_POS / set-id / set-zero`.
+- RobStride production baseline now covers: `scan / ping / enable / disable / MIT / POS_VEL / VEL / parameter read-write / set-id / zero`.
+- RobStride default host/feedback path is `0xFD` (with internal fallback probing to `0xFF/0xFE`).
+- In RobStride `pos-vel`, `--vel/--kd/--tau` are intentionally ignored and reported as warnings (no hard error).
 
 ## Architecture
 

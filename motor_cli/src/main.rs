@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let model = get_str(&args, "model", default_model);
     let motor_id = get_u16_hex_or_dec(&args, "motor-id", 0x01)?;
     let feedback_default = if vendor == "robstride" {
-        0x00FF
+        0x00FD
     } else if vendor == "hightorque" {
         0x0001
     } else if vendor == "myactuator" {
@@ -130,7 +130,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &channel,
             &robstride_model,
             motor_id,
-            0x00FF,
+            0x00FD,
             "robstride",
         )?;
         let mut ht_args = args.clone();

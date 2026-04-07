@@ -98,10 +98,14 @@ pub fn run_robstride(
             vendor_name, model, pmax, vmax, tmax
         );
     }
-    if feedback_id != 0x00FF {
+    if feedback_id != 0x00FD {
         println!(
-            "[warn] robstride send-path host_id follows official sample and is fixed to 0xFF; current --feedback-id=0x{:X} only affects receive-side matching",
+            "[info] robstride will probe multiple host_id candidates (including --feedback-id=0x{:X}, 0xFD, 0xFF, 0xFE) for control/read robustness",
             feedback_id
+        );
+    } else {
+        println!(
+            "[info] robstride host_id candidates: 0xFD (primary), then 0xFF/0xFE fallback"
         );
     }
 
@@ -239,6 +243,51 @@ pub fn run_robstride(
     let controller = RobstrideController::new_socketcan(channel)?;
     let motor = controller.add_motor(motor_id, feedback_id, model)?;
 
+    if let Some(new_motor_id) = set_motor_id {
+        if mode != "ping" {
+            println!(
+                "[info] robstride id-set requested; --mode {} is ignored during id-set flow",
+                mode
+            );
+        }
+        motor.set_device_id(new_motor_id as u8)?;
+        println!(
+            "[id-set] {} device id update requested: {} -> {}",
+            vendor_name, motor_id, new_motor_id
+        );
+        if store_after_set {
+            motor.save_parameters()?;
+            println!("[id-set] {} save-parameters sent", vendor_name);
+        }
+        std::thread::sleep(Duration::from_millis(120));
+        let old_ping = motor.ping(Duration::from_millis(140)).ok();
+        if old_ping.is_some() {
+            println!(
+                "[warn] {} old-id ping still responded on id={} (firmware apply may be delayed)",
+                vendor_name, motor_id
+            );
+        }
+        controller.close_bus()?;
+        let verify_ctrl = RobstrideController::new_socketcan(channel)?;
+        let verify_motor = verify_ctrl.add_motor(new_motor_id, feedback_id, model)?;
+        match verify_motor.ping(Duration::from_millis(260)) {
+            Ok(reply) => {
+                println!(
+                    "[id-set] verify ping ok: responder_id={} new_id={}",
+                    reply.responder_id, reply.device_id
+                );
+            }
+            Err(e) => {
+                println!(
+                    "[warn] {} id-set verify ping on new id={} failed: {}",
+                    vendor_name, new_motor_id, e
+                );
+            }
+        }
+        let _ = verify_ctrl.close_bus();
+        return Ok(());
+    }
+
     match mode.as_str() {
         "ping" => {
             if let Ok(reply) = motor.ping(Duration::from_millis(500)) {
@@ -294,20 +343,6 @@ pub fn run_robstride(
             return Ok(());
         }
         _ => {}
-    }
-
-    if let Some(new_motor_id) = set_motor_id {
-        motor.set_device_id(new_motor_id as u8)?;
-        println!(
-            "[id-set] {} device id update requested: {} -> {}",
-            vendor_name, motor_id, new_motor_id
-        );
-        if store_after_set {
-            motor.save_parameters()?;
-            println!("[id-set] {} save-parameters sent", vendor_name);
-        }
-        controller.close_bus()?;
-        return Ok(());
     }
 
     if ensure_mode {
@@ -375,8 +410,30 @@ pub fn run_robstride(
 
     for i in 0..loop_n {
         match mode.as_str() {
-            "enable" => motor.enable()?,
-            "disable" => motor.disable()?,
+            "enable" => {
+                if let Err(e) = motor.enable() {
+                    let msg = e.to_string();
+                    if msg.contains("control ack timeout") {
+                        println!(
+                            "[warn] enable ack timeout; command may still have been applied (no immediate status frame)"
+                        );
+                    } else {
+                        return Err(e.into());
+                    }
+                }
+            }
+            "disable" => {
+                if let Err(e) = motor.disable() {
+                    let msg = e.to_string();
+                    if msg.contains("control ack timeout") {
+                        println!(
+                            "[warn] disable ack timeout; command may still have been applied (no immediate status frame)"
+                        );
+                    } else {
+                        return Err(e.into());
+                    }
+                }
+            }
             "zero" | "set-zero" => {
                 if !zero_exp {
                     println!(
@@ -390,7 +447,16 @@ pub fn run_robstride(
                     // disable -> set-zero -> optional save -> readback hints.
                     let _ = controller.disable_all();
                     std::thread::sleep(Duration::from_millis(80));
-                    motor.set_zero_position()?;
+                    if let Err(e) = motor.set_zero_position() {
+                        let msg = e.to_string();
+                        if msg.contains("control ack timeout") {
+                            println!(
+                                "[warn] zero ack timeout; command may still be applied. continue with parameter verification"
+                            );
+                        } else {
+                            return Err(e.into());
+                        }
+                    }
                     std::thread::sleep(Duration::from_millis(80));
                     if store_after_set {
                         motor.save_parameters()?;
@@ -432,6 +498,11 @@ pub fn run_robstride(
                 }
             }
             "mit" => {
+                if i == 0 {
+                    println!(
+                        "[info] robstride mit mapping: effective args are --pos(rad) --vel(rad/s) --kp --kd --tau(Nm)"
+                    );
+                }
                 let kp = get_f32(args, "kp", 8.0)?;
                 let kd = get_f32(args, "kd", 0.2)?;
                 let tau = get_f32(args, "tau", 0.0)?;
@@ -449,6 +520,12 @@ pub fn run_robstride(
                 )?;
             }
             "pos-vel" => {
+                if args.contains_key("vel") || args.contains_key("kd") || args.contains_key("tau")
+                {
+                    println!(
+                        "[warn] robstride pos-vel maps to native Position mode; --vel/--kd/--tau are ignored"
+                    );
+                }
                 let vlim = get_f32(args, "vlim", 1.0)?.abs();
                 if vlim.is_finite() && vlim > 0.0 {
                     motor.write_parameter(0x7017, ParameterValue::F32(vlim))?;
@@ -456,6 +533,11 @@ pub fn run_robstride(
                 // Position mode may appear "not moving" if internal position gain is too low.
                 // Allow explicit gain mapping via --loc-kp (or reuse --kp for convenience).
                 let loc_kp = if args.contains_key("loc-kp") {
+                    if args.contains_key("kp") {
+                        println!(
+                            "[warn] both --loc-kp and --kp provided; robstride pos-vel uses --loc-kp"
+                        );
+                    }
                     Some(get_f32(args, "loc-kp", 0.0)?)
                 } else if args.contains_key("kp") {
                     Some(get_f32(args, "kp", 0.0)?)

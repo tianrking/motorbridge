@@ -50,7 +50,7 @@ def _vendor_defaults(vendor: str, model: str, feedback_id: str) -> tuple[str, st
         if resolved_model == "4340":
             resolved_model = "rs-00"
         if resolved_feedback == "0x11":
-            resolved_feedback = "0xFF"
+            resolved_feedback = "0xFD"
     elif vendor == "myactuator":
         if resolved_model == "4340":
             resolved_model = "X8"
@@ -151,7 +151,7 @@ def _build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--model", default="4340")
     scan.add_argument("--start-id", default="0x01")
     scan.add_argument("--end-id", default="0x10")
-    scan.add_argument("--feedback-ids", default="0xFF,0xFE,0x00,0xAA")
+    scan.add_argument("--feedback-ids", default="0xFD,0xFF,0xFE,0x00,0xAA")
     scan.add_argument("--feedback-base", default="0x10")
     scan.add_argument("--timeout-ms", type=int, default=80)
     scan.add_argument("--param-id", default="0x7019")
@@ -160,7 +160,7 @@ def _build_parser() -> argparse.ArgumentParser:
     rs_read = sub.add_parser("robstride-read-param", help="read a RobStride parameter")
     _add_common_args(rs_read)
     rs_read.set_defaults(vendor="robstride")
-    rs_read.set_defaults(model="rs-00", feedback_id="0xFF")
+    rs_read.set_defaults(model="rs-00", feedback_id="0xFD")
     rs_read.add_argument("--param-id", required=True)
     rs_read.add_argument("--type", required=True, choices=["i8", "u8", "u16", "u32", "f32"])
     rs_read.add_argument("--timeout-ms", type=int, default=500)
@@ -168,7 +168,7 @@ def _build_parser() -> argparse.ArgumentParser:
     rs_write = sub.add_parser("robstride-write-param", help="write a RobStride parameter")
     _add_common_args(rs_write)
     rs_write.set_defaults(vendor="robstride")
-    rs_write.set_defaults(model="rs-00", feedback_id="0xFF")
+    rs_write.set_defaults(model="rs-00", feedback_id="0xFD")
     rs_write.add_argument("--param-id", required=True)
     rs_write.add_argument("--type", required=True, choices=["i8", "u8", "u16", "u32", "f32"])
     rs_write.add_argument("--value", required=True)

@@ -156,9 +156,10 @@ impl RobstrideMotor {
     }
 
     fn host_id_u16(&self) -> u16 {
-        // Follow official robstride_dynamics sample strictly:
-        // host_id is fixed to 0xFF for command send path.
-        0x00FF
+        match u8::try_from(self.feedback_id) {
+            Ok(v) => u16::from(v),
+            Err(_) => 0x00FD,
+        }
     }
 
     fn host_id_u8(&self) -> u8 {
@@ -166,7 +167,16 @@ impl RobstrideMotor {
     }
 
     fn host_id_candidates(&self) -> Vec<u16> {
-        vec![0x00FF]
+        let mut cands = Vec::new();
+        if let Ok(fid) = u8::try_from(self.feedback_id) {
+            cands.push(u16::from(fid));
+        }
+        cands.push(0x00FD);
+        cands.push(0x00FF);
+        cands.push(0x00FE);
+        cands.sort_unstable();
+        cands.dedup();
+        cands
     }
 
     fn send_ext(&self, comm_type: u32, extra_data: u16, data: [u8; 8], dlc: u8) -> Result<()> {
@@ -187,10 +197,7 @@ impl RobstrideMotor {
         timeout: Duration,
     ) -> Result<()> {
         let cands = self.host_id_candidates();
-        let per_try = {
-            let ms = (timeout.as_millis() as u64).max(60);
-            Duration::from_millis((ms / cands.len().max(1) as u64).max(60))
-        };
+        let per_try = Duration::from_millis((timeout.as_millis() as u64).max(120));
         for host in cands {
             let start_seq = self.status_seq.load(Ordering::Acquire);
             self.send_ext(comm_type, host, data, dlc)?;
@@ -209,10 +216,7 @@ impl RobstrideMotor {
 
     pub fn ping(&self, timeout: Duration) -> Result<PingReply> {
         let cands = self.host_id_candidates();
-        let per_try = {
-            let ms = (timeout.as_millis() as u64).max(60);
-            Duration::from_millis((ms / cands.len().max(1) as u64).max(60))
-        };
+        let per_try = Duration::from_millis((timeout.as_millis() as u64).max(120));
         for host in cands {
             self.ping_reply
                 .lock()
@@ -245,10 +249,12 @@ impl RobstrideMotor {
     }
 
     pub fn set_zero_position(&self) -> Result<()> {
+        let mut payload = [0u8; 8];
+        payload[0] = 0x01;
         self.send_with_status_ack(
             CommunicationType::SET_ZERO_POSITION,
-            [0u8; 8],
-            8,
+            payload,
+            1,
             Duration::from_millis(320),
         )
     }
@@ -263,7 +269,12 @@ impl RobstrideMotor {
     }
 
     pub fn set_device_id(&self, new_id: u8) -> Result<()> {
-        self.send_ext(CommunicationType::SET_DEVICE_ID, new_id as u16, [0u8; 8], 8)
+        let extra = (u16::from(new_id) << 8) | u16::from(self.host_id_u8());
+        let payload = self
+            .ping(Duration::from_millis(140))
+            .map(|r| r.payload)
+            .unwrap_or([0u8; 8]);
+        self.send_ext(CommunicationType::SET_DEVICE_ID, extra, payload, 8)
     }
 
     pub fn enable(&self) -> Result<()> {
@@ -345,10 +356,7 @@ impl RobstrideMotor {
 
     pub fn get_parameter(&self, param_id: u16, timeout: Duration) -> Result<ParameterValue> {
         let cands = self.host_id_candidates();
-        let per_try = {
-            let ms = (timeout.as_millis() as u64).max(90);
-            Duration::from_millis((ms / cands.len().max(1) as u64).max(90))
-        };
+        let per_try = Duration::from_millis((timeout.as_millis() as u64).max(150));
 
         for host in cands {
             self.registers

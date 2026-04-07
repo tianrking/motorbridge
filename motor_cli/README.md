@@ -1,4 +1,4 @@
-# motor_cli (English)
+﻿# motor_cli (English)
 
 Complete parameter reference for the Rust `motor_cli` binary.
 
@@ -25,17 +25,17 @@ motor_cli -h
 ## Additional Damiao Command/Register Reference
 
 - Detailed Damiao command + register tuning doc (English): `DAMIAO_API.md`
-- 中文版（寄存器/指令详表）: `DAMIAO_API.zh-CN.md`
+- ä¸­æ–‡ç‰ˆï¼ˆå¯„å­˜å™¨/æŒ‡ä»¤è¯¦è¡¨ï¼‰: `DAMIAO_API.zh-CN.md`
 
 ## Additional RobStride Command/Parameter Reference
 
 - Detailed RobStride command + parameter guide (English): `ROBSTRIDE_API.md`
-- 中文版（参数/能力边界详表）: `ROBSTRIDE_API.zh-CN.md`
+- ä¸­æ–‡ç‰ˆï¼ˆå‚æ•°/èƒ½åŠ›è¾¹ç•Œè¯¦è¡¨ï¼‰: `ROBSTRIDE_API.zh-CN.md`
 
 ## Additional MyActuator Command/Mode Reference
 
 - Detailed MyActuator command + mode guide (English): `MYACTUATOR_API.md`
-- 中文版（命令/模式详表）: `MYACTUATOR_API.zh-CN.md`
+- ä¸­æ–‡ç‰ˆï¼ˆå‘½ä»¤/æ¨¡å¼è¯¦è¡¨ï¼‰: `MYACTUATOR_API.zh-CN.md`
 
 ## HighTorque Notes
 
@@ -45,7 +45,7 @@ motor_cli -h
 ## CAN Debugging Entry
 
 - Professional Linux `slcan` + Windows `pcan` troubleshooting: `../docs/en/can_debugging.md`
-- 中文调试手册：`../docs/zh/can_debugging.md`
+- ä¸­æ–‡è°ƒè¯•æ‰‹å†Œï¼š`../docs/zh/can_debugging.md`
 
 ## Transport Legend
 
@@ -57,6 +57,25 @@ Current status:
 - Hexfellow: validated on `socketcanfd` with unified `mit` / `pos-vel`.
 - HighTorque: validated on standard CAN with unified `mit` / `vel` (`kp/kd` ignored by protocol).
 - Damiao: baseline implementation for unified `mit` / `pos-vel` / `vel` / `force-pos`.
+
+## Validated Capability Matrix (Damiao + RobStride, 2026-04)
+
+| Capability | Damiao | RobStride |
+|---|---|---|
+| Scan | Yes | Yes |
+| Ping / online probe | Yes (scan/register path) | Yes (`ping`) |
+| Enable / Disable | Yes | Yes |
+| MIT (`pos/vel/kp/kd/tau`) | Yes | Yes |
+| POS_VEL unified mode | Yes | Yes (mapped to native Position path) |
+| VEL unified mode | Yes | Yes |
+| Parameter read/write | Yes | Yes |
+| Set zero | Yes (disable first) | Yes (experimental sequence; firmware-dependent ack behavior) |
+| Set motor ID | Yes (`--set-motor-id`) | Yes (`--set-motor-id`) |
+| Set feedback ID | Yes (`--set-feedback-id`) | No (host id is configured by `--feedback-id`) |
+
+Notes:
+- RobStride default `--feedback-id` is `0xFD` and probes `0xFF/0xFE` as fallback.
+- RobStride `pos-vel` ignores `--vel/--kd/--tau` by design (warning only, no hard error).
 
 ## 1. Argument Parsing Rules
 
@@ -77,7 +96,7 @@ Current status:
 | `--serial-baud` | u64 | `921600` | Used when `--transport dm-serial` |
 | `--model` | string | vendor dependent | `4340` for Damiao, `rs-00` for RobStride, `hightorque` for HighTorque, `X8` for MyActuator |
 | `--motor-id` | u16 (hex/dec) | `0x01` | Motor CAN ID |
-| `--feedback-id` | u16 (hex/dec) | vendor dependent | Damiao `0x11`, RobStride `0xFF`, HighTorque `0x01`, MyActuator `0x241` (for motor-id `1`) |
+| `--feedback-id` | u16 (hex/dec) | vendor dependent | Damiao `0x11`, RobStride `0xFD`, HighTorque `0x01`, MyActuator `0x241` (for motor-id `1`) |
 | `--mode` | string | vendor dependent | Damiao `mit`, RobStride `ping`, HighTorque `read`, MyActuator `status`, `all` -> `scan` |
 | `--loop` | u64 | `1` | Control loop cycles |
 | `--dt-ms` | u64 | `20` | Loop interval in ms |
@@ -224,6 +243,10 @@ Notes:
 
 - RobStride unified control currently supports `MIT` / `POS_VEL` / `VEL`.
 - Torque/current is currently parameter-level only (via `write-param`, for example `iq_ref` and limit registers), not a first-class high-level mode.
+- In RobStride `mit`, all five unified inputs are effective: `--pos`, `--vel`, `--kp`, `--kd`, `--tau`.
+- RobStride `mit` units follow unified semantics: `pos` in `rad`, `vel` in `rad/s`, `tau` in `Nm` (`kp/kd` are MIT loop gains).
+- In RobStride `pos-vel`, only `--pos`, `--vlim`, and optional `--kp`/`--loc-kp` are consumed.
+- In RobStride `pos-vel`, `--vel`, `--kd`, and `--tau` are ignored (CLI prints a warning if provided).
 
 ### 4.4 Scan Behavior Details
 
@@ -236,7 +259,7 @@ Notes:
 ```bash
 # Ping
 motor_cli \
-  --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFF --mode ping
+  --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFD --mode ping
 
 # Scan
 motor_cli \
@@ -244,28 +267,38 @@ motor_cli \
 
 # MIT control
 motor_cli \
-  --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFF \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFD \
   --mode mit --pos 3.14 --vel 0 --kp 0.5 --kd 0.2 --tau 0 --loop 120 --dt-ms 20
 
 # POS_VEL (mapped to native Position)
 motor_cli \
-  --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFF \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFD \
   --mode pos-vel --pos 1.0 --vlim 1.5 --loop 1 --dt-ms 20
 
 # Velocity mode
 motor_cli \
-  --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFF \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFD \
   --mode vel --vel 2.0 --loop 100 --dt-ms 20
 
 # Read parameter
 motor_cli \
-  --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFF \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFD \
   --mode read-param --param-id 0x7005
 
 # Write parameter
 motor_cli \
-  --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFF \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFD \
   --mode write-param --param-id 0x7005 --param-value 2
+
+# Set motor ID (old 1 -> new 11) and persist
+motor_cli \
+  --vendor robstride --channel can0 --model rs-00 --motor-id 1 --feedback-id 0xFD \
+  --set-motor-id 11 --store 1
+
+# Zero (experimental sequence)
+motor_cli \
+  --vendor robstride --channel can0 --model rs-00 --motor-id 11 --feedback-id 0xFD \
+  --mode zero --zero-exp 1 --store 1
 ```
 
 ## 5. Vendor = `all`
@@ -403,3 +436,4 @@ motor_cli \
 - If scan intermittently misses motors, retry after CAN restart.
 - RobStride `send_pos_vel` is not a CLI mode; use `mit` or `vel`.
 - MyActuator low-voltage protection returns error code `0x0004` in status-1 (`0x9A`) and blocks motion.
+

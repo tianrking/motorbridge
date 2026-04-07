@@ -1,4 +1,4 @@
-# RobStride API and Parameter Reference (Complete)
+﻿# RobStride API and Parameter Reference (Complete)
 
 <!-- channel-compat-note -->
 ## Channel Compatibility (PCAN + slcan + Damiao Serial Bridge)
@@ -21,7 +21,7 @@ Practical and complete reference for RobStride control, parameter access, and cu
 | `channel` | CAN interface name | `can0` |
 | `model` | RobStride model string | `rs-00`, `rs-06` |
 | `motor-id` | Device ID | e.g. `127` |
-| `feedback-id` | Host/feedback ID used in command frame | usually `0xFF` |
+| `feedback-id` | Host/feedback ID used in command frame | usually `0xFD` |
 | `loop` | Send cycles for periodic control | `20`~`100` |
 | `dt-ms` | Send interval per cycle | `20`~`50` |
 
@@ -52,7 +52,7 @@ Unified "big-four" mapping status:
 
 ```bash
 motor_cli \
-  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD \
   --mode ping
 ```
 
@@ -60,15 +60,24 @@ motor_cli \
 
 ```bash
 motor_cli \
-  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD \
   --mode mit --pos 0 --vel 0 --kp 0.5 --kd 0.2 --tau 0 --loop 40 --dt-ms 50
 ```
+
+MIT mapping details (unified -> native):
+
+- Effective inputs: `--pos`, `--vel`, `--kp`, `--kd`, `--tau` (all are used).
+- Units:
+  - `--pos`: `rad`
+  - `--vel`: `rad/s`
+  - `--tau`: `Nm`
+  - `--kp`, `--kd`: MIT loop gains
 
 ### 2.3 Position (unified `pos-vel` mapping)
 
 ```bash
 motor_cli \
-  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD \
   --mode pos-vel --pos 1.0 --vlim 1.5 --loop 1 --dt-ms 20
 ```
 
@@ -77,13 +86,15 @@ Notes:
 - Unified `pos-vel` maps to native RobStride Position path:
   - `run_mode=1` (Position)
   - write `0x7017` (`limit_spd`) from `--vlim`
+  - optional write `0x701E` (`loc_kp`) from `--loc-kp` or `--kp`
   - write `0x7016` (`loc_ref`) from `--pos`
+- `--vel`, `--kd`, and `--tau` do not belong to native Position mode and are ignored in `--mode pos-vel`.
 
 ### 2.4 Velocity
 
 ```bash
 motor_cli \
-  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD \
   --mode vel --vel 0.3 --loop 40 --dt-ms 50
 ```
 
@@ -120,8 +131,16 @@ Notes:
 ```bash
 motor_cli \
   --vendor robstride --channel can0 --model rs-06 \
-  --motor-id 127 --feedback-id 0xFF --set-motor-id 126 --store 1
+  --motor-id 127 --feedback-id 0xFD --set-motor-id 126 --store 1
 ```
+
+Raw protocol alignment (with official upper software):
+
+- Set-ID frame uses `comm_type=7`.
+- Extended ID format in this command path is:
+  - `0x07 [new_id] [host_id] [old_id]`
+  - example (`old_id=1`, `new_id=11`, `host_id=0xFD`): `0x070BFD01`
+- Data payload uses the latest ping UUID token when available (fallback to zeros if ping token is unavailable).
 
 ## 4) Frequently Used Parameter IDs
 
@@ -139,7 +158,7 @@ Read parameter:
 
 ```bash
 motor_cli \
-  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD \
   --mode read-param --param-id 0x7019
 ```
 
@@ -147,7 +166,7 @@ Write parameter:
 
 ```bash
 motor_cli \
-  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+  --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD \
   --mode write-param --param-id 0x700A --param-value 0.3
 ```
 
@@ -157,7 +176,7 @@ Python binding sample:
 from motorbridge import Controller
 
 with Controller("can0") as ctrl:
-    m = ctrl.add_robstride_motor(127, 0xFF, "rs-06")
+    m = ctrl.add_robstride_motor(127, 0xFD, "rs-06")
     print(m.robstride_ping())
     print(m.robstride_get_param_f32(0x7019, 500))
     m.robstride_write_param_f32(0x700A, 0.3)
@@ -201,7 +220,7 @@ Main improvement opportunities:
 {"op":"robstride_write_param","param_id":28682,"type":"f32","value":0.3,"verify":true}
 {"op":"vel","vel":0.3,"continuous":true}
 {"op":"mit","pos":0.0,"vel":0.0,"kp":0.5,"kd":0.2,"tau":0.0,"continuous":true}
-{"op":"scan","vendor":"robstride","start_id":1,"end_id":255,"feedback_ids":"0xFF,0xFE,0x00","timeout_ms":120}
+{"op":"scan","vendor":"robstride","start_id":1,"end_id":255,"feedback_ids":"0xFD,0xFF,0xFE","timeout_ms":120}
 ```
 
 ## 9) Safety Notes
@@ -210,3 +229,5 @@ Main improvement opportunities:
 - Confirm CAN wiring/termination and interface state before stress tests.
 - Prefer ping/read-param verification before long periodic control.
 - Keep emergency stop path available.
+
+

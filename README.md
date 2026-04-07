@@ -27,7 +27,8 @@ Current status:
   - modes: `scan`, `MIT`, `POS_VEL`, `VEL`, `FORCE_POS`
 - RobStride:
   - models: `rs-00`, `rs-01`, `rs-02`, `rs-03`, `rs-04`, `rs-05`, `rs-06`
-  - modes: `scan`, `ping`, `MIT`, `VEL`, parameter read/write
+  - modes: `scan`, `ping`, `MIT`, `POS_VEL`, `VEL`, parameter read/write
+  - note: torque/current control is currently parameter-level only (`write-param` on `iq_ref`/limits), not a first-class unified mode
 - MyActuator:
   - models: `X8` (runtime string; protocol is ID-based)
   - modes: `scan`, `enable`, `disable`, `stop`, `set-zero`, `status`, `current`, `vel`, `pos`, `version`, `mode-query`

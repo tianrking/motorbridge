@@ -58,7 +58,7 @@ Common control/state APIs:
 | Unified mode | Damiao native | Hexfellow native | RobStride native | MyActuator native | HighTorque native |
 |---|---|---|---|---|---|
 | `MIT` | `Mit` | mode `5` | `Mit` | not available | mapped to native pos+vel+tqe |
-| `POS_VEL` | `PosVel` | mode `1` | not available | `Position` setpoint flow | mapped to native pos+vel+tqe |
+| `POS_VEL` | `PosVel` | mode `1` | mapped to `Position` (`run_mode=1`, `limit_spd=0x7017`, `loc_ref=0x7016`) | `Position` setpoint flow | mapped to native pos+vel+tqe |
 | `VEL` | `Vel` | not available | `Velocity` | `Velocity` setpoint flow | mapped to native velocity command |
 | `FORCE_POS` | `ForcePos` | not available | not available | not available | not available |
 
@@ -68,6 +68,7 @@ Behavior rule:
 - Signatures stay stable even when a vendor ignores part of a signature.
 - Example: HighTorque accepts `send_mit(pos, vel, kp, kd, tau)` for interface consistency, but native protocol does not use `kp/kd`.
 - Hexfellow ABI path supports MIT and POS_VEL, and reports `VEL` / `FORCE_POS` as unsupported.
+- RobStride supports MIT / POS_VEL / VEL on unified APIs; torque/current remains parameter-level (`robstride_write_param_*`), not a unified mode.
 - Damiao set-zero sequence rule: call `motor_handle_disable` before `motor_handle_set_zero_position`; otherwise set-zero is rejected by core guard.
 - Damiao set-zero settle rule: core applies an internal fixed settle (`~20ms`) after successful `set_zero_position` (no extra ABI parameter).
 

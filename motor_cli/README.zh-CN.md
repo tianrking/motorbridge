@@ -283,6 +283,7 @@ motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 \
 - `enable`
 - `disable`
 - `mit`
+- `pos-vel`
 - `vel`
 - `read-param`
 - `write-param`
@@ -306,8 +307,14 @@ motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 \
 | 模式 | 参数 | 默认值 |
 |---|---|---|
 | `mit` | `--pos --vel --kp --kd --tau` | `0 0 8 0.2 0` |
+| `pos-vel` | `--pos --vlim [--kp]` | `0 1.0 [无]` |
 | `vel` | `--vel` | `0` |
 | `enable` / `disable` | 无额外参数 | n/a |
+
+说明：
+
+- RobStride 统一高层当前支持 `MIT` / `POS_VEL` / `VEL`。
+- `TORQUE/CURRENT` 目前仍是参数级能力（通过 `write-param` 写 `iq_ref` 与限幅参数），尚未开放统一模式。
 
 ### 4.4 扫描行为细节
 

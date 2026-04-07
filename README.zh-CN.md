@@ -27,7 +27,8 @@
   - 模式: `scan`, `MIT`, `POS_VEL`, `VEL`, `FORCE_POS`
 - RobStride:
   - 型号: `rs-00`, `rs-01`, `rs-02`, `rs-03`, `rs-04`, `rs-05`, `rs-06`
-  - 模式: `scan`, `ping`, `MIT`, `VEL`, 参数读写
+  - 模式: `scan`, `ping`, `MIT`, `POS_VEL`, `VEL`, 参数读写
+  - 说明: 力矩/电流当前仅支持参数级写入（如 `iq_ref`/限幅参数），尚未开放为统一高层模式
 - MyActuator:
   - 型号: `X8`（运行时字符串，协议按 ID 通信）
   - 模式: `scan`, `enable`, `disable`, `stop`, `set-zero`, `status`, `current`, `vel`, `pos`, `version`, `mode-query`

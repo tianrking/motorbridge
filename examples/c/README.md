@@ -24,7 +24,8 @@ Direct C demos for `motor_abi`.
 Vendor coverage:
 
 - Damiao: `enable`, `disable`, `mit`, `pos-vel`, `vel`, `force-pos`
-- RobStride: `ping`, `enable`, `disable`, `mit`, `vel`, `read-param`, `write-param`
+- RobStride: `ping`, `enable`, `disable`, `mit`, `pos-vel`, `vel`, `read-param`, `write-param`
+  - note: torque/current is parameter-level only (`write-param` on `iq_ref`/limits), not a unified high-level mode
 - Hexfellow (CAN-FD only): `mit`, `pos-vel`
 
 ## Build

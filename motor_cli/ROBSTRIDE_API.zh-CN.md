@@ -39,6 +39,15 @@
 - `read-param`
 - `write-param`
 
+大一统“四协议”映射状态：
+
+| 大一统能力 | RobStride 状态 | 说明 |
+|---|---|---|
+| `MIT` | 已支持 | 原生 operation-control 帧 |
+| `POS_VEL` | 已支持 | 映射到 `run_mode=1` + `0x7017/0x7016` |
+| `VEL` | 已支持 | 映射到 `run_mode=2` + `0x700A` |
+| `TORQUE/CURRENT` | 仅参数级 | 尚无统一高层模式；通过 `write-param` 写 `iq_ref`/限幅参数 |
+
 ### 2.1 Ping
 
 ```bash
@@ -165,11 +174,20 @@ with Controller("can0") as ctrl:
 
 ## 7）完善空间（差距总结）
 
-当前状态：核心闭环已可用（`scan/ping/mit/vel/读写参数/改ID/设零/存参`）。
+当前状态：核心闭环已可用（`scan/ping/mit/pos-vel/vel/读写参数/改ID/设零/存参`）。
+
+当前已知问题（实测）：
+
+1. `pos-vel` 参数生效性在部分固件上不稳定：
+   - `--vlim`（`0x7017`）和 `--kp`/`loc_kp`（`0x701E`）可能回读正常，但体感效果弱或不明显。
+   - 当前 `MIT` 路径相对更稳定。
+2. RobStride 零点校准仍未稳定：
+   - 实验性 `zero` 时序可能发送/ACK 正常，但设备侧 `zero_sta`/`mechPos` 校验仍可能失败。
+   - 在完成固件级时序完全对齐前，零点校准视为未彻底解决。
 
 可优先增强：
 
-1. CLI 增加更语义化的 `position/current` 快捷命令（当前可用写参数实现，但不直观）。
+1. CLI 增加更语义化的 `current/torque` 快捷命令（当前可用写参数实现，但不直观）。
 2. CLI 扫描支持多 feedback-host 候选。
 3. 暴露 `SET_BAUDRATE / ACTIVE_REPORT / SET_PROTOCOL` 的高层 API。
 4. `FAULT_REPORT` 独立结构化解码输出。

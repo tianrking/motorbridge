@@ -69,6 +69,7 @@ ABI 对外保持一套统一控制接口。
 - 例如：HighTorque 支持 `send_mit(pos, vel, kp, kd, tau)` 统一签名，但原生协议不使用 `kp/kd`。
 - Hexfellow 的 ABI 路径支持 `MIT` 和 `POS_VEL`，`VEL` / `FORCE_POS` 会返回不支持。
 - RobStride 的 ABI 路径支持 `POS_VEL`，语义映射为原生 Position：先设置 `run_mode=1`，再写 `limit_spd` 与 `loc_ref`。
+- RobStride 的统一高层目前支持 `MIT/POS_VEL/VEL`；`TORQUE/CURRENT` 仍是参数级能力（通过 `robstride_write_param_*`），尚未开放统一模式。
 - Damiao 置零顺序规则：先调用 `motor_handle_disable`，再调用 `motor_handle_set_zero_position`；否则会被核心防护拒绝。
 - Damiao 置零稳定规则：`set_zero_position` 成功后，核心层内置固定稳定等待（约 `20ms`），ABI 不额外暴露等待参数。
 

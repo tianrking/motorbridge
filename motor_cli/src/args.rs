@@ -115,7 +115,7 @@ Vendors:\n\
 Damiao modes:\n\
   --mode scan | enable | disable | mit | pos-vel | vel | force-pos\n\n\
 RobStride modes:\n\
-  --mode ping | scan | enable | disable | mit | pos-vel | vel | read-param | write-param\n\n\
+  --mode ping | scan | enable | disable | zero | set-zero | save | zero-by-offset | mit | pos-vel | vel | read-param | write-param\n\n\
 HighTorque modes:\n\
   --mode ping | scan | read | mit | pos | vel | tqe | volt | cur | pos-vel-tqe | stop | brake | rezero | conf-write | timed-read\n\n\
 MyActuator modes:\n\
@@ -143,6 +143,9 @@ Damiao extras:\n\
 RobStride extras:\n\
   --param-id <hex|dec>      for read-param / write-param\n\
   --param-value <number>    for write-param\n\
+  --zero-exp 1/0            for zero/set-zero, default 0 (run experimental sequence: disable -> set-zero -> optional save)\n\
+  --offset-negate 1/0       for zero-by-offset, default 0 (write +mechPos to 0x2005)\n\
+  --store 1/0               for zero-by-offset and zero-exp, default 1 (send save-parameters)\n\
   --start-id <hex|dec>      for scan, default 1\n\
   --end-id <hex|dec>        for scan, default 255\n\
   (scan auto-fallbacks to blind pulse probing if no ping replies)\n\

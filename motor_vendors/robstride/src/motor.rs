@@ -9,6 +9,7 @@ use motor_core::device::MotorDevice;
 use motor_core::error::{MotorError, Result};
 use motor_core::model::{ModelCatalog, MotorModelSpec, PvTLimits, StaticModelCatalog};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -116,6 +117,7 @@ pub struct RobstrideMotor {
     kp_max: f32,
     kd_max: f32,
     state: Mutex<Option<MotorFeedbackState>>,
+    status_seq: AtomicU64,
     registers: Mutex<HashMap<u16, ParameterValue>>,
     ping_reply: Mutex<Option<PingReply>>,
     pending_param: Mutex<Option<u16>>,
@@ -140,6 +142,7 @@ impl RobstrideMotor {
             kp_max,
             kd_max,
             state: Mutex::new(None),
+            status_seq: AtomicU64::new(0),
             registers: Mutex::new(HashMap::new()),
             ping_reply: Mutex::new(None),
             pending_param: Mutex::new(None),
@@ -153,10 +156,9 @@ impl RobstrideMotor {
     }
 
     fn host_id_u16(&self) -> u16 {
-        match self.feedback_id {
-            1..=0xFF => self.feedback_id,
-            _ => 0x00FF,
-        }
+        // Follow official robstride_dynamics sample strictly:
+        // host_id is fixed to 0xFF for command send path.
+        0x00FF
     }
 
     fn host_id_u8(&self) -> u8 {
@@ -164,16 +166,7 @@ impl RobstrideMotor {
     }
 
     fn host_id_candidates(&self) -> Vec<u16> {
-        let mut cands = Vec::with_capacity(3);
-        let push_unique = |v: u16, out: &mut Vec<u16>| {
-            if (1..=0xFF).contains(&v) && !out.contains(&v) {
-                out.push(v);
-            }
-        };
-        push_unique(self.host_id_u16(), &mut cands);
-        push_unique(0x00FF, &mut cands);
-        push_unique(0x00FE, &mut cands);
-        cands
+        vec![0x00FF]
     }
 
     fn send_ext(&self, comm_type: u32, extra_data: u16, data: [u8; 8], dlc: u8) -> Result<()> {
@@ -184,6 +177,34 @@ impl RobstrideMotor {
             is_extended: true,
             is_rx: false,
         })
+    }
+
+    fn send_with_status_ack(
+        &self,
+        comm_type: u32,
+        data: [u8; 8],
+        dlc: u8,
+        timeout: Duration,
+    ) -> Result<()> {
+        let cands = self.host_id_candidates();
+        let per_try = {
+            let ms = (timeout.as_millis() as u64).max(60);
+            Duration::from_millis((ms / cands.len().max(1) as u64).max(60))
+        };
+        for host in cands {
+            let start_seq = self.status_seq.load(Ordering::Acquire);
+            self.send_ext(comm_type, host, data, dlc)?;
+            let deadline = Instant::now() + per_try;
+            while Instant::now() < deadline {
+                if self.status_seq.load(Ordering::Acquire) > start_seq {
+                    return Ok(());
+                }
+                std::thread::sleep(Duration::from_millis(4));
+            }
+        }
+        Err(MotorError::Timeout(format!(
+            "control ack timeout: comm_type={comm_type}"
+        )))
     }
 
     pub fn ping(&self, timeout: Duration) -> Result<PingReply> {
@@ -224,11 +245,11 @@ impl RobstrideMotor {
     }
 
     pub fn set_zero_position(&self) -> Result<()> {
-        self.send_ext(
+        self.send_with_status_ack(
             CommunicationType::SET_ZERO_POSITION,
-            self.host_id_u16(),
             [0u8; 8],
             8,
+            Duration::from_millis(320),
         )
     }
 
@@ -246,11 +267,21 @@ impl RobstrideMotor {
     }
 
     pub fn enable(&self) -> Result<()> {
-        self.send_ext(CommunicationType::ENABLE, self.host_id_u16(), [0u8; 8], 8)
+        self.send_with_status_ack(
+            CommunicationType::ENABLE,
+            [0u8; 8],
+            8,
+            Duration::from_millis(240),
+        )
     }
 
     pub fn disable(&self) -> Result<()> {
-        self.send_ext(CommunicationType::DISABLE, self.host_id_u16(), [0u8; 8], 8)
+        self.send_with_status_ack(
+            CommunicationType::DISABLE,
+            [0u8; 8],
+            8,
+            Duration::from_millis(240),
+        )
     }
 
     pub fn send_cmd_mit(
@@ -286,11 +317,11 @@ impl RobstrideMotor {
     pub fn write_parameter(&self, param_id: u16, value: ParameterValue) -> Result<()> {
         let raw = encode_parameter_value(param_id, value)?;
         let data = encode_parameter_write(param_id, raw);
-        self.send_ext(
+        self.send_with_status_ack(
             CommunicationType::WRITE_PARAMETER,
-            self.host_id_u16(),
             data,
             8,
+            Duration::from_millis(260),
         )
     }
 
@@ -438,6 +469,7 @@ impl RobstrideMotor {
                         overcurrent: status.flags.overcurrent,
                         undervoltage: status.flags.undervoltage,
                     });
+                self.status_seq.fetch_add(1, Ordering::Release);
                 Ok(())
             }
             _ => Ok(()),

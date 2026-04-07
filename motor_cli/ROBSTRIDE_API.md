@@ -39,6 +39,15 @@ Supported now:
 - `read-param`
 - `write-param`
 
+Unified "big-four" mapping status:
+
+| Unified capability | RobStride status | Notes |
+|---|---|---|
+| `MIT` | supported | native operation-control frame |
+| `POS_VEL` | supported | mapped to `run_mode=1` + `0x7017/0x7016` |
+| `VEL` | supported | mapped to `run_mode=2` + `0x700A` |
+| `TORQUE/CURRENT` | parameter-level only | no first-class high-level mode yet; use `write-param` (`iq_ref`, limits) |
+
 ### 2.1 Ping
 
 ```bash
@@ -165,11 +174,20 @@ with Controller("can0") as ctrl:
 
 ## 7) Gap Summary and Next Improvements
 
-Current status: core control is production-usable (`scan/ping/mit/vel/read/write/set-id/set-zero/store`).
+Current status: core control is production-usable (`scan/ping/mit/pos-vel/vel/read/write/set-id/set-zero/store`).
+
+Known issues (observed in field tests):
+
+1. `pos-vel` parameter effectiveness can be inconsistent on some firmware:
+   - `--vlim` (`0x7017`) and `--kp`/`loc_kp` (`0x701E`) may read back as written but show weak/no visible effect.
+   - `MIT` path is currently more reliable.
+2. RobStride zero calibration is still inconsistent:
+   - experimental `zero` sequence may complete transport-level send/ack but device-side `zero_sta`/`mechPos` verification can fail.
+   - treat zero calibration as unresolved until firmware-specific sequence is fully matched.
 
 Main improvement opportunities:
 
-1. Add semantic CLI mode for current control (today still done via write-param, less ergonomic).
+1. Add semantic CLI mode for current/torque control (today still done via write-param, less ergonomic).
 2. Add multi feedback-host candidate support in scan CLI.
 3. Expose high-level APIs for `SET_BAUDRATE / ACTIVE_REPORT / SET_PROTOCOL`.
 4. Decode and present `FAULT_REPORT` in dedicated structured output.

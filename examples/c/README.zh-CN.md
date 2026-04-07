@@ -24,7 +24,8 @@
 覆盖范围:
 
 - Damiao: `enable`、`disable`、`mit`、`pos-vel`、`vel`、`force-pos`
-- RobStride: `ping`、`enable`、`disable`、`mit`、`vel`、`read-param`、`write-param`
+- RobStride: `ping`、`enable`、`disable`、`mit`、`pos-vel`、`vel`、`read-param`、`write-param`
+  - 说明：力矩/电流仅参数级可用（通过 `write-param` 写 `iq_ref`/限幅参数），不是统一高层模式
 - Hexfellow（仅 CAN-FD）: `mit`、`pos-vel`
 
 ## 构建

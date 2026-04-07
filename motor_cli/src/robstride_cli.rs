@@ -88,14 +88,20 @@ pub fn run_robstride(
     let loop_n = get_u64(args, "loop", 1)?;
     let dt_ms = get_u64(args, "dt-ms", 20)?;
     let ensure_mode = get_u64(args, "ensure-mode", 1)? != 0;
+    let zero_exp = get_u64(args, "zero-exp", 0)? != 0;
     let set_motor_id = get_opt_u16_hex_or_dec(args, "set-motor-id")?;
     let store_after_set = get_u64(args, "store", 1)? != 0;
-    let controller = RobstrideController::new_socketcan(channel)?;
 
     if let Some((pmax, vmax, tmax)) = robstride_model_limits(model) {
         println!(
             "[info] {}(robstride-compatible) model {} limits pmax={:.3} vmax={:.3} tmax={:.3}",
             vendor_name, model, pmax, vmax, tmax
+        );
+    }
+    if feedback_id != 0x00FF {
+        println!(
+            "[warn] robstride send-path host_id follows official sample and is fixed to 0xFF; current --feedback-id=0x{:X} only affects receive-side matching",
+            feedback_id
         );
     }
 
@@ -172,7 +178,6 @@ pub fn run_robstride(
             std::thread::sleep(Duration::from_millis(2));
         }
         if hits == 0 {
-            controller.close_bus()?;
             let fallback = RobstrideController::new_socketcan(channel)?;
             let manual_vel = get_f32(args, "manual-vel", 0.2)?;
             let manual_ms = get_u64(args, "manual-ms", 200)?;
@@ -229,9 +234,9 @@ pub fn run_robstride(
             return Ok(());
         }
         println!("[scan] done vendor={} hits={hits}", vendor_name);
-        controller.close_bus()?;
         return Ok(());
     }
+    let controller = RobstrideController::new_socketcan(channel)?;
     let motor = controller.add_motor(motor_id, feedback_id, model)?;
 
     match mode.as_str() {
@@ -273,6 +278,21 @@ pub fn run_robstride(
             controller.close_bus()?;
             return Ok(());
         }
+        "save" => {
+            motor.save_parameters()?;
+            println!("[ok] save-parameters requested");
+            controller.close_bus()?;
+            return Ok(());
+        }
+        "zero-by-offset" => {
+            let _ = get_u64(args, "offset-negate", 0)?;
+            let _ = get_u64(args, "store", 1)?;
+            println!(
+                "[warn] robstride zero-by-offset is temporarily disabled due to firmware inconsistency; no calibration CAN frames sent"
+            );
+            controller.close_bus()?;
+            return Ok(());
+        }
         _ => {}
     }
 
@@ -290,37 +310,162 @@ pub fn run_robstride(
         return Ok(());
     }
 
-    if mode != "disable" {
-        controller.enable_all()?;
-        std::thread::sleep(Duration::from_millis(100));
-    }
-
     if ensure_mode {
+        // Some RobStride firmware variants apply mode/register changes more
+        // reliably while torque is disabled.
+        if matches!(mode.as_str(), "mit" | "pos-vel" | "vel") {
+            let _ = controller.disable_all();
+            std::thread::sleep(Duration::from_millis(60));
+        }
         match mode.as_str() {
             "mit" => motor.set_mode(RobstrideControlMode::Mit)?,
             "pos-vel" => motor.set_mode(RobstrideControlMode::Position)?,
             "vel" => motor.set_mode(RobstrideControlMode::Velocity)?,
             _ => {}
         }
+        // Align with official sequence: mode write first, then allow a brief settle window
+        // before sending target parameters/operation frames.
+        std::thread::sleep(Duration::from_millis(30));
+        if matches!(mode.as_str(), "mit" | "pos-vel" | "vel") {
+            let expect = match mode.as_str() {
+                "mit" => 0i8,
+                "pos-vel" => 1i8,
+                "vel" => 2i8,
+                _ => -1i8,
+            };
+            if expect >= 0 {
+                let mut actual = None;
+                for _ in 0..3 {
+                    if let Ok(ParameterValue::I8(v)) =
+                        motor.get_parameter(0x7005, Duration::from_millis(120))
+                    {
+                        actual = Some(v);
+                        if v == expect {
+                            break;
+                        }
+                    }
+                    match mode.as_str() {
+                        "mit" => motor.set_mode(RobstrideControlMode::Mit)?,
+                        "pos-vel" => motor.set_mode(RobstrideControlMode::Position)?,
+                        "vel" => motor.set_mode(RobstrideControlMode::Velocity)?,
+                        _ => {}
+                    }
+                    std::thread::sleep(Duration::from_millis(30));
+                }
+                if actual != Some(expect) {
+                    return Err(format!(
+                        "run_mode set failed: expect={} actual={:?}. motor likely ignored control mode switch",
+                        expect, actual
+                    )
+                    .into());
+                }
+            }
+        }
+    }
+
+    if mode != "disable"
+        && mode != "zero"
+        && mode != "set-zero"
+        && mode != "save"
+        && mode != "zero-by-offset"
+    {
+        controller.enable_all()?;
+        std::thread::sleep(Duration::from_millis(100));
     }
 
     for i in 0..loop_n {
         match mode.as_str() {
             "enable" => motor.enable()?,
             "disable" => motor.disable()?,
+            "zero" | "set-zero" => {
+                if !zero_exp {
+                    println!(
+                        "[warn] robstride set-zero requires experimental sequence; no CAN frame sent. Re-run with --zero-exp 1"
+                    );
+                } else {
+                    let pre_mech = motor
+                        .get_parameter(0x7019, Duration::from_millis(200))
+                        .ok();
+                    // Experimental calibration sequence:
+                    // disable -> set-zero -> optional save -> readback hints.
+                    let _ = controller.disable_all();
+                    std::thread::sleep(Duration::from_millis(80));
+                    motor.set_zero_position()?;
+                    std::thread::sleep(Duration::from_millis(80));
+                    if store_after_set {
+                        motor.save_parameters()?;
+                        std::thread::sleep(Duration::from_millis(80));
+                    }
+                    let zero_sta = motor.get_parameter(0x7029, Duration::from_millis(200)).ok();
+                    if let Some(v) = zero_sta {
+                        print_robstride_param_value(0x7029, v);
+                    }
+                    let post_mech = motor.get_parameter(0x7019, Duration::from_millis(200)).ok();
+                    if let Some(v) = post_mech {
+                        print_robstride_param_value(0x7019, v);
+                    }
+                    let pre_mech_f32 = match pre_mech {
+                        Some(ParameterValue::F32(v)) => Some(v),
+                        _ => None,
+                    };
+                    let post_mech_f32 = match post_mech {
+                        Some(ParameterValue::F32(v)) => Some(v),
+                        _ => None,
+                    };
+                    let zero_sta_u8 = match zero_sta {
+                        Some(ParameterValue::U8(v)) => Some(v),
+                        _ => None,
+                    };
+                    let pos_zero_ok = post_mech_f32.map(|v| v.abs() < 0.05).unwrap_or(false);
+                    let zero_flag_ok = zero_sta_u8.map(|v| v != 0).unwrap_or(false);
+                    if !(pos_zero_ok || zero_flag_ok) {
+                        return Err(format!(
+                            "robstride set-zero verify failed: pre_mechPos={:?}, post_mechPos={:?}, zero_sta={:?}. firmware likely ignored zero command in current state",
+                            pre_mech_f32, post_mech_f32, zero_sta_u8
+                        )
+                        .into());
+                    }
+                    println!(
+                        "[ok] robstride set-zero experimental sequence finished (store={})",
+                        if store_after_set { 1 } else { 0 }
+                    );
+                }
+            }
             "mit" => {
+                let kp = get_f32(args, "kp", 8.0)?;
+                let kd = get_f32(args, "kd", 0.2)?;
+                let tau = get_f32(args, "tau", 0.0)?;
+                if kp == 0.0 && kd == 0.0 && tau != 0.0 {
+                    println!(
+                        "[warn] mit with kp=0,kd=0,tau!=0 behaves as near open-loop torque drive and can keep accelerating under low load"
+                    );
+                }
                 motor.send_cmd_mit(
                     get_f32(args, "pos", 0.0)?,
                     get_f32(args, "vel", 0.0)?,
-                    get_f32(args, "kp", 8.0)?,
-                    get_f32(args, "kd", 0.2)?,
-                    get_f32(args, "tau", 0.0)?,
+                    kp,
+                    kd,
+                    tau,
                 )?;
             }
             "pos-vel" => {
                 let vlim = get_f32(args, "vlim", 1.0)?.abs();
                 if vlim.is_finite() && vlim > 0.0 {
                     motor.write_parameter(0x7017, ParameterValue::F32(vlim))?;
+                }
+                // Position mode may appear "not moving" if internal position gain is too low.
+                // Allow explicit gain mapping via --loc-kp (or reuse --kp for convenience).
+                let loc_kp = if args.contains_key("loc-kp") {
+                    Some(get_f32(args, "loc-kp", 0.0)?)
+                } else if args.contains_key("kp") {
+                    Some(get_f32(args, "kp", 0.0)?)
+                } else {
+                    None
+                };
+                if let Some(kp) = loc_kp {
+                    if kp.is_finite() && kp >= 0.0 {
+                        motor.write_parameter(0x701E, ParameterValue::F32(kp))?;
+                    }
                 }
                 motor.write_parameter(0x7016, ParameterValue::F32(get_f32(args, "pos", 0.0)?))?;
             }
@@ -348,7 +493,13 @@ pub fn run_robstride(
         std::thread::sleep(Duration::from_millis(dt_ms));
     }
 
-    if mode == "enable" || mode == "disable" {
+    if mode == "enable"
+        || mode == "disable"
+        || mode == "zero"
+        || mode == "set-zero"
+        || mode == "save"
+        || mode == "zero-by-offset"
+    {
         controller.close_bus()?;
     } else {
         controller.shutdown()?;

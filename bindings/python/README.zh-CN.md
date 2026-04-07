@@ -66,6 +66,11 @@
 | `Mode.VEL` | 原生 VEL | 原生 Velocity | 不支持 | 原生 Velocity 设定流程 | 原生速度命令 |
 | `Mode.FORCE_POS` | 原生 FORCE_POS | 不支持 | 不支持 | 不支持 | 不支持 |
 
+说明：
+
+- RobStride 统一高层当前覆盖 `MIT` / `POS_VEL` / `VEL`。
+- `TORQUE/CURRENT` 对 RobStride 仍为参数级能力（`robstride_write_param_*`），尚未提供独立统一模式。
+
 ## 快速开始
 
 ```python

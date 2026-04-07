@@ -66,6 +66,11 @@ Notes:
 | `Mode.VEL` | native VEL | native Velocity | unsupported | native velocity setpoint flow | native velocity command |
 | `Mode.FORCE_POS` | native FORCE_POS | unsupported | unsupported | unsupported | unsupported |
 
+Note:
+
+- RobStride unified high-level control currently covers `MIT` / `POS_VEL` / `VEL`.
+- Torque/current is parameter-level only for RobStride (`robstride_write_param_*`), not a dedicated unified mode.
+
 ## Quick Start
 
 ```python

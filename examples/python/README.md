@@ -23,7 +23,8 @@ Python demos that call the Rust ABI directly through `ctypes`.
 Vendor coverage:
 
 - Damiao: `enable`, `disable`, `mit`, `pos-vel`, `vel`, `force-pos`
-- RobStride: `ping`, `enable`, `disable`, `mit`, `vel`, `read-param`, `write-param`
+- RobStride: `ping`, `enable`, `disable`, `mit`, `pos-vel`, `vel`, `read-param`, `write-param`
+  - note: torque/current is parameter-level only (`write-param` on `iq_ref`/limits), not a unified high-level mode
 
 ## Build and Run
 

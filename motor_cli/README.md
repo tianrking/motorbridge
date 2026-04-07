@@ -192,6 +192,7 @@ motor_cli \
 - `enable`
 - `disable`
 - `mit`
+- `pos-vel`
 - `vel`
 - `read-param`
 - `write-param`
@@ -215,8 +216,14 @@ motor_cli \
 | Mode | Arguments | Defaults |
 |---|---|---|
 | `mit` | `--pos --vel --kp --kd --tau` | `0 0 8 0.2 0` |
+| `pos-vel` | `--pos --vlim [--kp]` | `0 1.0 [none]` |
 | `vel` | `--vel` | `0` |
 | `enable`/`disable` | no extra required | n/a |
+
+Notes:
+
+- RobStride unified control currently supports `MIT` / `POS_VEL` / `VEL`.
+- Torque/current is currently parameter-level only (via `write-param`, for example `iq_ref` and limit registers), not a first-class high-level mode.
 
 ### 4.4 Scan Behavior Details
 

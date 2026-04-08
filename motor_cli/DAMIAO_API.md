@@ -177,3 +177,13 @@ Tools:
 - Use small steps, verify each change.
 - Keep safe mechanical load and emergency stop ready.
 - For protection thresholds (`0/2/3/29`), avoid aggressive changes without hardware margin analysis.
+
+## 8) Gripper Motor Calibration
+
+Damiao motors use a single-turn encoder (position range approx. ±PMAX rad). **Zero position is NOT retained across power cycles.** When a motor is used as a gripper, calibrate the zero position after each power-on:
+
+1. Use MIT mode with low `kp` and `tau=0` to move toward the mechanical limit — the motor stops softly on contact.
+2. Wait until feedback shows `vel ≈ 0` and `pos` is stable, then run `--mode set-zero`.
+3. After calibration, use MIT mode for closing (force-limited, safe) and pos-vel mode for opening (fast, precise).
+
+For full command examples, see the [Operation Manual](../docs/zh/operation_manual.md) Section 9.

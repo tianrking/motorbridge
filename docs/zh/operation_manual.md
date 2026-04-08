@@ -123,7 +123,37 @@ cargo run -p motor_cli --release -- --vendor damiao \
   - 作为备用链路启用
   - 在文档与命令中显式加 `--transport dm-serial`
 
-## 9. 相关文档
+## 9. 夹爪电机校准提示
+
+Damiao 电机使用单圈编码器，位置范围为约 ±2 圈（±PMAX rad），**断电后零点会丢失**。当电机应用于夹爪时，每次上电需要执行校准流程以确定零位：
+
+1. 用 MIT 模式低力矩推向机械限位（碰到即停，不会硬撞）：
+   ```bash
+   # Linux
+   motor_cli --vendor damiao --channel can0 --model 4310 \
+     --motor-id 0x07 --feedback-id 0x17 \
+     --mode mit --pos -5 --vel 0 --kp 5 --kd 0.5 --tau 0 --loop 100 --dt-ms 20
+
+   # Windows
+   motor_cli --vendor damiao --channel can0@1000000 --model 4310 \
+     --motor-id 0x07 --feedback-id 0x17 \
+     --mode mit --pos -5 --vel 0 --kp 5 --kd 0.5 --tau 0 --loop 100 --dt-ms 20
+   ```
+2. 等反馈中 `vel ≈ 0` 且 `pos` 稳定后，设置当前为零点：
+   ```bash
+   # Linux
+   motor_cli --vendor damiao --channel can0 --model 4310 \
+     --motor-id 0x07 --feedback-id 0x17 --mode set-zero
+
+   # Windows
+   motor_cli --vendor damiao --channel can0@1000000 --model 4310 \
+     --motor-id 0x07 --feedback-id 0x17 --mode set-zero
+   ```
+3. 校准后用 MIT 模式夹取（力控安全）或 pos-vel 模式张开（快速精确）。
+
+> **注意：** MIT 模式是夹爪的推荐控制模式——`kp` 控制夹持刚度，`tau` 限制最大力矩，不会夹坏物体。
+
+## 10. 相关文档
 
 - CLI 参考：[cli.md](cli.md)
 - ABI 参考：[abi.md](abi.md)

@@ -250,9 +250,27 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --mod
 
 - 已连接并被 macOS 识别的 PEAK 兼容 USB-CAN 设备。
 - 已在 macOS 上拉取并编译 `motorbridge`。
-- 已下载 MacCAN PCBUSB 安装包（例如 `macOS_Library_for_PCANUSB_v0.13.tar.gz`）。
+- 仓库内置安装包：`third_party/pcan/macos/macOS_Library_for_PCANUSB_v0.13.tar.gz`。
 
-### 2. 安装 PCBUSB（系统级）
+### 2. 使用仓库内置包一键安装（推荐）
+
+在仓库根目录执行：
+
+```bash
+# 用户目录安装（无需 sudo，推荐）
+./scripts/setup_pcbusb_macos.sh --user-local
+
+# 系统安装（调用安装包 install.sh，需要 sudo）
+./scripts/setup_pcbusb_macos.sh --system
+```
+
+若使用 `--user-local`，运行 `motor_cli` 时加：
+
+```bash
+DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli ...
+```
+
+### 3. 手动安装 PCBUSB（系统级）
 
 ```bash
 cd /path/to/package
@@ -266,7 +284,7 @@ sudo ./install.sh
 - `/usr/local/lib/libPCBUSB.dylib`
 - `/usr/local/include/PCBUSB.h`
 
-### 3. 无 sudo 的用户目录安装（可选）
+### 4. 无 sudo 的用户目录安装（可选）
 
 如果当前用户无法写入 `/usr/local`，可先使用用户目录安装：
 
@@ -283,7 +301,7 @@ cp PCBUSB/PCBUSB.h ~/.local/include/
 DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli ...
 ```
 
-### 4. 验证运行时可加载
+### 5. 验证运行时可加载
 
 ```bash
 python3 - <<'PY'
@@ -303,19 +321,19 @@ print("PCBUSB load OK")
 PY
 ```
 
-### 5. 编译 motorbridge CLI
+### 6. 编译 motorbridge CLI
 
 ```bash
 cargo build -p motor_cli --release
 ```
 
-### 6. macOS 下通道映射（PCAN 后端）
+### 7. macOS 下通道映射（PCAN 后端）
 
 - `can0` 对应 `PCAN_USBBUS1`
 - `can1` 对应 `PCAN_USBBUS2`
 - 支持可选波特率后缀（例如 `can0@1000000`）
 
-### 7. 扫描电机（Damiao）
+### 8. 扫描电机（Damiao）
 
 ```bash
 ./target/release/motor_cli \
@@ -329,7 +347,7 @@ DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli \
   --vendor damiao --channel can0 --mode scan --start-id 1 --end-id 16
 ```
 
-### 8. 控制示例（Damiao MIT）
+### 9. 控制示例（Damiao MIT）
 
 将 `motor-id` 和 `feedback-id` 替换为扫描命中的值。
 
@@ -341,7 +359,7 @@ DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli \
   --loop 50 --dt-ms 20
 ```
 
-### 9. 常见问题
+### 10. 常见问题
 
 - `load PCBUSB failed ...`：
   - 先执行 `install.sh`，或使用用户目录安装并设置 `DYLD_LIBRARY_PATH`。

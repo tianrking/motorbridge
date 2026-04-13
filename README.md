@@ -251,9 +251,27 @@ On macOS, `PCANBasic.dll` is not used.
 
 - A PEAK-compatible USB-CAN adapter recognized by macOS.
 - `motorbridge` source built on macOS.
-- MacCAN PCBUSB package (example: `macOS_Library_for_PCANUSB_v0.13.tar.gz`).
+- Bundled archive in this repo: `third_party/pcan/macos/macOS_Library_for_PCANUSB_v0.13.tar.gz`.
 
-### 2. Install PCBUSB (system-wide)
+### 2. Quick install from bundled archive (recommended)
+
+Use the helper script from repo root:
+
+```bash
+# user-local install (no sudo, recommended)
+./scripts/setup_pcbusb_macos.sh --user-local
+
+# system install (uses package install.sh, requires sudo)
+./scripts/setup_pcbusb_macos.sh --system
+```
+
+If you use `--user-local`, run `motor_cli` with:
+
+```bash
+DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli ...
+```
+
+### 3. Manual install PCBUSB (system-wide)
 
 ```bash
 cd /path/to/package
@@ -267,7 +285,7 @@ The installer places:
 - `libPCBUSB.dylib` into `/usr/local/lib`
 - `PCBUSB.h` into `/usr/local/include`
 
-### 3. Optional user-local install (no sudo)
+### 4. Optional user-local install (no sudo)
 
 If your user cannot write to `/usr/local`, use a local runtime path:
 
@@ -284,7 +302,7 @@ Then run `motor_cli` with:
 DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli ...
 ```
 
-### 4. Verify runtime loading
+### 5. Verify runtime loading
 
 ```bash
 python3 - <<'PY'
@@ -304,19 +322,19 @@ print("PCBUSB load OK")
 PY
 ```
 
-### 5. Build motorbridge CLI
+### 6. Build motorbridge CLI
 
 ```bash
 cargo build -p motor_cli --release
 ```
 
-### 6. Channel mapping on macOS (PCAN backend)
+### 7. Channel mapping on macOS (PCAN backend)
 
 - `can0` maps to `PCAN_USBBUS1`
 - `can1` maps to `PCAN_USBBUS2`
 - Optional bitrate suffix is supported (example: `can0@1000000`)
 
-### 7. Scan motors (Damiao)
+### 8. Scan motors (Damiao)
 
 ```bash
 ./target/release/motor_cli \
@@ -330,7 +348,7 @@ DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli \
   --vendor damiao --channel can0 --mode scan --start-id 1 --end-id 16
 ```
 
-### 8. Control example (Damiao MIT)
+### 9. Control example (Damiao MIT)
 
 Replace `motor-id` and `feedback-id` with your scan hits.
 
@@ -342,7 +360,7 @@ Replace `motor-id` and `feedback-id` with your scan hits.
   --loop 50 --dt-ms 20
 ```
 
-### 9. Troubleshooting
+### 10. Troubleshooting
 
 - `load PCBUSB failed ...`:
   - Install PCBUSB with `install.sh`, or export `DYLD_LIBRARY_PATH` for local install.

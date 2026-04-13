@@ -1,4 +1,4 @@
-use crate::hightorque::open_hightorque_bus;
+use crate::vendors::hightorque_ws::open_hightorque_bus;
 use crate::model::{ControllerHandle, MotorHandle, Transport, Vendor};
 use motor_vendor_damiao::DamiaoController;
 use motor_vendor_hexfellow::HexfellowController;

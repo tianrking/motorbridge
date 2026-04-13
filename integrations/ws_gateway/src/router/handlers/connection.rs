@@ -1,5 +1,5 @@
 use crate::model::{ControllerHandle, MotorHandle, Vendor};
-use crate::ops::{as_bool, as_u16, as_u64, parse_transport_in_msg, parse_vendor_in_msg};
+use crate::commands::{as_bool, as_u16, as_u64, parse_transport_in_msg, parse_vendor_in_msg};
 use crate::session::SessionCtx;
 use serde_json::{json, Value};
 
@@ -163,7 +163,7 @@ fn handle_stop(ctx: &mut SessionCtx) -> Result<Value, String> {
                 .map_err(|e| e.to_string())?,
             MotorHandle::Hightorque(mid) => {
                 if let Some(ControllerHandle::Hightorque(bus)) = ctx.controller.as_ref() {
-                    crate::hightorque::send_hightorque_ext(bus.as_ref(), *mid, &[0x01, 0x00, 0x00])?;
+                    crate::vendors::hightorque_ws::send_hightorque_ext(bus.as_ref(), *mid, &[0x01, 0x00, 0x00])?;
                 }
             }
             MotorHandle::Myactuator(mm) => mm.stop_motor().map_err(|e| e.to_string())?,

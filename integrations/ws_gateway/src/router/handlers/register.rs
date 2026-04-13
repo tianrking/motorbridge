@@ -1,6 +1,6 @@
-use crate::hightorque::send_hightorque_ext;
+use crate::vendors::hightorque_ws::send_hightorque_ext;
 use crate::model::{ControllerHandle, MotorHandle};
-use crate::ops::{
+use crate::commands::{
     as_u16, as_u64, handle_robstride_read_param, handle_robstride_write_param, parse_damiao_mode,
     parse_robstride_mode,
 };

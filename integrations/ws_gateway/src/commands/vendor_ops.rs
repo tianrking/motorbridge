@@ -4,13 +4,14 @@ use motor_vendor_robstride::RobstrideController;
 use serde_json::{json, Value};
 use std::time::Duration;
 
-use super::common::{as_bool, as_u16, as_u64, build_scan_model_hints};
-use super::controllers::{
+use crate::vendors::hightorque_ws::{send_hightorque_ext, wait_hightorque_status_for_motor};
+use crate::vendors::transport_ws::{
     myactuator_feedback_default, open_damiao_controller, open_hexfellow_controller,
     open_hightorque_bus, open_myactuator_controller, open_robstride_controller,
 };
-use super::parse::{parse_transport_in_msg, parse_vendor_in_msg};
-use super::hightorque_io::{send_hightorque_ext, wait_hightorque_status_for_motor};
+use super::{
+    as_bool, as_u16, as_u64, build_scan_model_hints, parse_transport_in_msg, parse_vendor_in_msg,
+};
 
 pub(crate) fn cmd_verify(v: &Value, base: &Target) -> Result<Value, String> {
     let vendor = parse_vendor_in_msg(v, base.vendor)?;

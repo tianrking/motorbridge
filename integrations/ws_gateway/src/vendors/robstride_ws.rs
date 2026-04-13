@@ -3,7 +3,7 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::common::{as_bool, as_u16, as_u64, parse_u32_hex_or_dec};
+use crate::commands::{as_bool, as_u16, as_u64, parse_u32_hex_or_dec};
 
 fn parse_param_type(v: &Value) -> String {
     v.get("type")

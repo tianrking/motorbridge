@@ -1,4 +1,4 @@
-use crate::hightorque::{
+use crate::vendors::hightorque_ws::{
     pos_raw_from_rad, send_hightorque_ext, tqe_raw_from_tau, vel_raw_from_rad_s,
     wait_hightorque_status_for_motor, TWO_PI,
 };

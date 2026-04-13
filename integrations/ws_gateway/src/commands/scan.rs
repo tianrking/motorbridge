@@ -2,14 +2,16 @@ use crate::model::{Target, Vendor};
 use serde_json::{json, Value};
 use std::time::Duration;
 
-use super::common::{as_u16, as_u64, parse_hex_or_dec, parse_id_list_csv};
-use super::controllers::{
+use crate::vendors::damiao_ws::cmd_scan_damiao;
+use crate::vendors::hightorque_ws::{send_hightorque_ext, wait_hightorque_status_for_motor};
+use crate::vendors::transport_ws::{
     myactuator_feedback_default, open_hexfellow_controller, open_hightorque_bus,
     open_myactuator_controller, open_robstride_controller,
 };
-use super::hightorque_io::{send_hightorque_ext, wait_hightorque_status_for_motor};
-use super::parse::{parse_transport_in_msg, parse_vendor_in_msg};
-use super::scan_damiao::cmd_scan_damiao;
+use super::{
+    as_u16, as_u64, parse_hex_or_dec, parse_id_list_csv, parse_transport_in_msg,
+    parse_vendor_in_msg,
+};
 
 fn cmd_scan_robstride(v: &Value, base: &Target) -> Result<Value, String> {
     let transport = parse_transport_in_msg(v, base.transport)?;

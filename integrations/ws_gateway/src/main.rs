@@ -1,12 +1,12 @@
 use tokio::net::TcpListener;
 
-mod hightorque;
 mod model;
-mod ops;
+mod commands;
 mod router;
 mod session;
+mod vendors;
 
-use ops::parse_args;
+use commands::parse_args;
 use router::handle_socket;
 
 #[tokio::main(flavor = "multi_thread")]

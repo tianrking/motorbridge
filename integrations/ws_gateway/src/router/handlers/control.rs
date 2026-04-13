@@ -1,8 +1,8 @@
-use crate::hightorque::{
+use crate::vendors::hightorque_ws::{
     pos_raw_from_rad, send_hightorque_ext, tqe_raw_from_tau, vel_raw_from_rad_s, TWO_PI,
 };
 use crate::model::{ActiveCommand, ControllerHandle, MotorHandle};
-use crate::ops::{as_bool, as_f32, as_u64};
+use crate::commands::{as_bool, as_f32, as_u64};
 use crate::session::SessionCtx;
 use motor_vendor_damiao::ControlMode as DamiaoControlMode;
 use motor_vendor_hexfellow::{

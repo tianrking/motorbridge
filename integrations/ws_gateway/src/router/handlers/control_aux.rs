@@ -1,6 +1,6 @@
-use crate::hightorque::{send_hightorque_ext, wait_hightorque_status_for_motor};
+use crate::vendors::hightorque_ws::{send_hightorque_ext, wait_hightorque_status_for_motor};
 use crate::model::{ControllerHandle, MotorHandle};
-use crate::ops::{as_f32, as_u64};
+use crate::commands::{as_f32, as_u64};
 use crate::session::SessionCtx;
 use serde_json::{json, Value};
 use std::time::Duration;

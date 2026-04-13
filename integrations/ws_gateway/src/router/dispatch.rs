@@ -1,4 +1,4 @@
-use crate::ops::{cmd_scan, cmd_set_id, cmd_verify};
+use crate::commands::{cmd_scan, cmd_set_id, cmd_verify};
 use crate::session::SessionCtx;
 use serde_json::Value;
 

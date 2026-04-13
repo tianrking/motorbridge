@@ -3,9 +3,10 @@ use motor_vendor_damiao::match_models_by_limits;
 use serde_json::{json, Value};
 use std::time::Duration;
 
-use super::common::{as_u16, as_u64, build_scan_feedback_hints, build_scan_model_hints};
-use super::controllers::open_damiao_controller;
-use super::parse::parse_transport_in_msg;
+use crate::commands::{
+    as_u16, as_u64, build_scan_feedback_hints, build_scan_model_hints, parse_transport_in_msg,
+};
+use crate::vendors::transport_ws::open_damiao_controller;
 
 pub(crate) fn cmd_scan_damiao(v: &Value, base: &Target) -> Result<Value, String> {
     let transport = parse_transport_in_msg(v, base.transport)?;

@@ -3,41 +3,41 @@
 [![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org/)
 [![Python](https://img.shields.io/badge/Python-3.10--3.14-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Platforms](https://img.shields.io/badge/Platforms-Linux%20%7C%20Windows%20%7C%20macOS-6f42c1.svg)](README.zh-CN.md#å‘å¸ƒä¸Žå®‰è£…æ€»è§ˆå®Œæ•´çŸ©é˜µ)
+[![Platforms](https://img.shields.io/badge/Platforms-Linux%20%7C%20Windows%20%7C%20macOS-6f42c1.svg)](README.zh-CN.md#发布与安装总览完整矩阵)
 [![GitHub Release](https://img.shields.io/github/v/release/tianrking/motorbridge)](https://github.com/tianrking/motorbridge/releases)
 
-è¿™æ˜¯ä¸€ä¸ªç»Ÿä¸€çš„ CAN ç”µæœºæŽ§åˆ¶æ ˆï¼ŒåŒ…å« vendor-agnostic Rust coreã€ç¨³å®š C ABIï¼Œä»¥åŠ Python/C++ bindingsã€‚
+这是一个统一的 CAN 电机控制栈，包含 vendor-agnostic Rust core、稳定 C ABI，以及 Python/C++ bindings。
 
 > English version: [README.md](README.md)
 
-## ä¼ è¾“é“¾è·¯æ ‡è¯†
+## 传输链路标识
 
-- `[STD-CAN]`ï¼šæ ‡å‡† CAN è·¯å¾„ï¼ˆ`socketcan` / `pcan`ï¼‰
-- `[CAN-FD]`ï¼šç‹¬ç«‹ CAN-FD è·¯å¾„ï¼ˆ`socketcanfd`ï¼‰
-- `[DM-SERIAL]`ï¼šDamiao ä¸²å£æ¡¥è·¯å¾„ï¼ˆ`dm-serial`ï¼‰
+- `[STD-CAN]`：标准 CAN 路径（`socketcan` / `pcan`）
+- `[CAN-FD]`：独立 CAN-FD 路径（`socketcanfd`）
+- `[DM-SERIAL]`：Damiao 串口桥路径（`dm-serial`）
 
-å½“å‰çŠ¶æ€ï¼š
-- `[CAN-FD]` å·²å®Œæˆç‹¬ç«‹é“¾è·¯æŽ¥å…¥ã€‚
-- ä»“åº“å†…å°šæœªå£°æ˜Žâ€œæŸä¸ªç”µæœºåž‹å·å·²å®Œæˆ CAN-FD é‡äº§çº§éªŒè¯çŸ©é˜µâ€ã€‚
+当前状态：
+- `[CAN-FD]` 已完成独立链路接入。
+- 仓库内尚未声明“某个电机型号已完成 CAN-FD 量产级验证矩阵”。
 
-## å½“å‰æ”¯æŒçš„åŽ‚å•†
+## 当前支持的厂商
 
 - Damiao:
-  - åž‹å·: `3507`, `4310`, `4310P`, `4340`, `4340P`, `6006`, `8006`, `8009`, `10010L`, `10010`, `H3510`, `G6215`, `H6220`, `JH11`, `6248P`
-  - æ¨¡å¼: `scan`, `MIT`, `POS_VEL`, `VEL`, `FORCE_POS`
+  - 型号: `3507`, `4310`, `4310P`, `4340`, `4340P`, `6006`, `8006`, `8009`, `10010L`, `10010`, `H3510`, `G6215`, `H6220`, `JH11`, `6248P`
+  - 模式: `scan`, `MIT`, `POS_VEL`, `VEL`, `FORCE_POS`
 - RobStride:
-  - åž‹å·: `rs-00`, `rs-01`, `rs-02`, `rs-03`, `rs-04`, `rs-05`, `rs-06`
-  - æ¨¡å¼: `scan`, `ping`, `MIT`, `POS_VEL`, `VEL`, å‚æ•°è¯»å†™
-  - è¯´æ˜Ž: åŠ›çŸ©/ç”µæµå½“å‰ä»…æ”¯æŒå‚æ•°çº§å†™å…¥ï¼ˆå¦‚ `iq_ref`/é™å¹…å‚æ•°ï¼‰ï¼Œå°šæœªå¼€æ”¾ä¸ºç»Ÿä¸€é«˜å±‚æ¨¡å¼
+  - 型号: `rs-00`, `rs-01`, `rs-02`, `rs-03`, `rs-04`, `rs-05`, `rs-06`
+  - 模式: `scan`, `ping`, `MIT`, `POS_VEL`, `VEL`, 参数读写
+  - 说明: 力矩/电流当前仅支持参数级写入（如 `iq_ref`/限幅参数），尚未开放为统一高层模式
 - MyActuator:
-  - åž‹å·: `X8`ï¼ˆè¿è¡Œæ—¶å­—ç¬¦ä¸²ï¼Œåè®®æŒ‰ ID é€šä¿¡ï¼‰
-  - æ¨¡å¼: `scan`, `enable`, `disable`, `stop`, `set-zero`, `status`, `current`, `vel`, `pos`, `version`, `mode-query`
+  - 型号: `X8`（运行时字符串，协议按 ID 通信）
+  - 模式: `scan`, `enable`, `disable`, `stop`, `set-zero`, `status`, `current`, `vel`, `pos`, `version`, `mode-query`
 - HighTorque:
-  - åž‹å·: `hightorque`ï¼ˆè¿è¡Œæ—¶å­—ç¬¦ä¸²ï¼ŒåŽŸç”Ÿ `ht_can v1.5.5`ï¼‰
-  - æ¨¡å¼: `scan`, `read`, `mit`, `pos-vel`, `vel`, `stop`, `brake`, `rezero`
+  - 型号: `hightorque`（运行时字符串，原生 `ht_can v1.5.5`）
+  - 模式: `scan`, `read`, `mit`, `pos-vel`, `vel`, `stop`, `brake`, `rezero`
 - Hexfellow:
-  - åž‹å·: `hexfellow`ï¼ˆè¿è¡Œæ—¶å­—ç¬¦ä¸²ï¼ŒCANopen é…ç½®ï¼‰
-  - æ¨¡å¼: `scan`, `status`, `enable`, `disable`, `pos-vel`, `mit`ï¼ˆé€šè¿‡ `socketcanfd`ï¼‰
+  - 型号: `hexfellow`（运行时字符串，CANopen 配置）
+  - 模式: `scan`, `status`, `enable`, `disable`, `pos-vel`, `mit`（通过 `socketcanfd`）
 
 ## 更新说明（2026-04）：Damiao / RobStride 能力收敛
 
@@ -46,35 +46,35 @@
 - RobStride 默认 host/feedback 路径为 `0xFD`（内部回退探测 `0xFF/0xFE`）。
 - RobStride `pos-vel` 的 `--vel/--kd/--tau` 属于无效参数：CLI 仅 warning，不会中断。
 
-## æž¶æž„
+## 架构
 
-### åˆ†å±‚è¿è¡Œæ—¶è§†å›¾
+### 分层运行时视图
 
 ```mermaid
 flowchart TB
-  APP["ä¸Šå±‚åº”ç”¨ï¼ˆRust/C/C++/Python/ROS2/WSï¼‰"] --> SURFACE["CLI / ABI / SDK / Integrations"]
-  SURFACE --> CORE["motor_coreï¼ˆCoreController / bus / model / traitsï¼‰"]
-  CORE --> RX["åŽå°æŽ¥æ”¶çº¿ç¨‹ï¼ˆé»˜è®¤ï¼‰"]
-  CORE --> MANUAL["poll_feedback_once()ï¼ˆå…¼å®¹æ‰‹åŠ¨è°ƒç”¨ï¼‰"]
-  RX --> CACHE["æ¯ç”µæœºæœ€æ–°çŠ¶æ€ç¼“å­˜"]
+  APP["上层应用（Rust/C/C++/Python/ROS2/WS）"] --> SURFACE["CLI / ABI / SDK / Integrations"]
+  SURFACE --> CORE["motor_core（CoreController / bus / model / traits）"]
+  CORE --> RX["后台接收线程（默认）"]
+  CORE --> MANUAL["poll_feedback_once()（兼容手动调用）"]
+  RX --> CACHE["每电机最新状态缓存"]
   MANUAL --> CACHE
   CORE --> DAMIAO["motor_vendors/damiao"]
   CORE --> ROBSTRIDE["motor_vendors/robstride"]
   CORE --> MYACT["motor_vendors/myactuator"]
   CORE --> HIGHTORQUE["motor_vendors/hightorque"]
   CORE --> HEXFELLOW["motor_vendors/hexfellow"]
-  CORE --> TEMPLATE["motor_vendors/templateï¼ˆæŽ¥å…¥æ¨¡æ¿ï¼‰"]
-  DAMIAO --> CAN["CAN æ€»çº¿åŽç«¯"]
+  CORE --> TEMPLATE["motor_vendors/template（接入模板）"]
+  DAMIAO --> CAN["CAN 总线后端"]
   ROBSTRIDE --> CAN
   MYACT --> CAN
   HIGHTORQUE --> CAN
   HEXFELLOW --> CAN
-  CAN --> LNX["Linuxï¼šSocketCAN"]
-  CAN --> WIN["Windowsï¼ˆå®žéªŒï¼‰ï¼šPEAK PCAN"]
-  CAN --> HW["çœŸå®žç”µæœºç¡¬ä»¶"]
+  CAN --> LNX["Linux：SocketCAN"]
+  CAN --> WIN["Windows（实验）：PEAK PCAN"]
+  CAN --> HW["真实电机硬件"]
 ```
 
-### å·¥ä½œåŒºæ‹“æ‰‘ï¼ˆæœ€æ–°ç‰ˆï¼‰
+### 工作区拓扑（最新版）
 
 ```mermaid
 flowchart LR
@@ -97,46 +97,46 @@ flowchart LR
   BIND --> CPP["cpp"]
 ```
 
-### Python Binding æŽ¥å£è§†å›¾ï¼ˆv0.1.7+ï¼‰
+### Python Binding 接口视图（v0.1.7+）
 
 ```mermaid
 flowchart TB
-  PYAPP["Python åº”ç”¨"] --> CTL["Controller(...) / from_dm_serial(...) / from_socketcanfd(...)"]
+  PYAPP["Python 应用"] --> CTL["Controller(...) / from_dm_serial(...) / from_socketcanfd(...)"]
   CTL --> ADD["add_damiao / add_robstride / add_myactuator / add_hightorque / add_hexfellow"]
   ADD --> MOTOR["MotorHandle"]
   MOTOR --> CTRL1["send_mit / send_pos_vel / send_vel / send_force_pos"]
   MOTOR --> CTRL2["ensure_mode / enable / disable / set_zero / stop / clear_error"]
   MOTOR --> FB1["request_feedback()"]
-  CTL --> FB2["poll_feedback_once()ï¼ˆå‘åŽå…¼å®¹ï¼‰"]
-  FB1 --> STATE["get_state() è¯»å–æœ€æ–°ç¼“å­˜çŠ¶æ€"]
+  CTL --> FB2["poll_feedback_once()（向后兼容）"]
+  FB1 --> STATE["get_state() 读取最新缓存状态"]
   FB2 --> STATE
 ```
 
-- [`motor_core`](motor_core): ä¸ŽåŽ‚å•†æ— å…³çš„æŽ§åˆ¶å™¨ã€è·¯ç”±ã€CAN æ€»çº¿å±‚ï¼ˆLinux SocketCAN / Windows å®žéªŒæ€§ PCANï¼‰
-- [`motor_vendors/damiao`](motor_vendors/damiao): Damiao åè®® / åž‹å· / å¯„å­˜å™¨
-- [`motor_vendors/hexfellow`](motor_vendors/hexfellow): Hexfellow CANopen-over-CAN-FD å®žçŽ°
-- [`motor_vendors/hightorque`](motor_vendors/hightorque): HighTorque åŽŸç”Ÿ ht_can åè®®å®žçŽ°
-- [`motor_vendors/robstride`](motor_vendors/robstride): RobStride æ‰©å±• CAN åè®® / åž‹å· / å‚æ•°
-- [`motor_vendors/myactuator`](motor_vendors/myactuator): MyActuator CAN åè®®å®žçŽ°
-- [`motor_cli`](motor_cli): ç»Ÿä¸€ Rust CLI
-  - å…¨å‚æ•°è‹±æ–‡æ–‡æ¡£: [`motor_cli/README.md`](motor_cli/README.md)
-  - å…¨å‚æ•°ä¸­æ–‡æ–‡æ¡£: [`motor_cli/README.zh-CN.md`](motor_cli/README.zh-CN.md)
-  - Damiao æŒ‡ä»¤/å¯„å­˜å™¨æ–‡æ¡£: [`motor_cli/DAMIAO_API.md`](motor_cli/DAMIAO_API.md), [`motor_cli/DAMIAO_API.zh-CN.md`](motor_cli/DAMIAO_API.zh-CN.md)
-  - RobStride æŒ‡ä»¤/å‚æ•°æ–‡æ¡£: [`motor_cli/ROBSTRIDE_API.md`](motor_cli/ROBSTRIDE_API.md), [`motor_cli/ROBSTRIDE_API.zh-CN.md`](motor_cli/ROBSTRIDE_API.zh-CN.md)
-  - MyActuator æŒ‡ä»¤/æ¨¡å¼æ–‡æ¡£: [`motor_cli/MYACTUATOR_API.md`](motor_cli/MYACTUATOR_API.md), [`motor_cli/MYACTUATOR_API.zh-CN.md`](motor_cli/MYACTUATOR_API.zh-CN.md)
-- [`motor_abi`](motor_abi): ç¨³å®š C ABI
+- [`motor_core`](motor_core): 与厂商无关的控制器、路由、CAN 总线层（Linux SocketCAN / Windows 实验性 PCAN）
+- [`motor_vendors/damiao`](motor_vendors/damiao): Damiao 协议 / 型号 / 寄存器
+- [`motor_vendors/hexfellow`](motor_vendors/hexfellow): Hexfellow CANopen-over-CAN-FD 实现
+- [`motor_vendors/hightorque`](motor_vendors/hightorque): HighTorque 原生 ht_can 协议实现
+- [`motor_vendors/robstride`](motor_vendors/robstride): RobStride 扩展 CAN 协议 / 型号 / 参数
+- [`motor_vendors/myactuator`](motor_vendors/myactuator): MyActuator CAN 协议实现
+- [`motor_cli`](motor_cli): 统一 Rust CLI
+  - 全参数英文文档: [`motor_cli/README.md`](motor_cli/README.md)
+  - 全参数中文文档: [`motor_cli/README.zh-CN.md`](motor_cli/README.zh-CN.md)
+  - Damiao 指令/寄存器文档: [`motor_cli/DAMIAO_API.md`](motor_cli/DAMIAO_API.md), [`motor_cli/DAMIAO_API.zh-CN.md`](motor_cli/DAMIAO_API.zh-CN.md)
+  - RobStride 指令/参数文档: [`motor_cli/ROBSTRIDE_API.md`](motor_cli/ROBSTRIDE_API.md), [`motor_cli/ROBSTRIDE_API.zh-CN.md`](motor_cli/ROBSTRIDE_API.zh-CN.md)
+  - MyActuator 指令/模式文档: [`motor_cli/MYACTUATOR_API.md`](motor_cli/MYACTUATOR_API.md), [`motor_cli/MYACTUATOR_API.zh-CN.md`](motor_cli/MYACTUATOR_API.zh-CN.md)
+- [`motor_abi`](motor_abi): 稳定 C ABI
 - [`bindings/python`](bindings/python): Python SDK + `motorbridge-cli`
 - [`bindings/cpp`](bindings/cpp): C++ RAII wrapper
 
-## å¿«é€Ÿå¼€å§‹
+## 快速开始
 
-æž„å»º:
+构建:
 
 ```bash
 cargo build
 ```
 
-æ‹‰èµ· CAN:
+拉起 CAN:
 
 ```bash
 sudo ip link set can0 down 2>/dev/null || true
@@ -145,10 +145,10 @@ sudo ip link set can0 up
 ip -details link show can0
 ```
 
-Linux ä¸‹å¿«é€Ÿé‡å¯ CANï¼š
+Linux 下快速重启 CAN：
 
 ```bash
-# é»˜è®¤ï¼šcan0 / 1Mbps / restart-ms=100 / loopback å…³é—­
+# 默认：can0 / 1Mbps / restart-ms=100 / loopback 关闭
 IF=can0; BITRATE=1000000; RESTART_MS=100; LOOPBACK=off
 sudo ip link set "$IF" down 2>/dev/null || true
 if [ "$LOOPBACK" = "on" ]; then
@@ -169,7 +169,7 @@ cargo run -p motor_cli --release -- \
 ```
 `[STD-CAN]`
 
-Hexfellow CLIï¼š
+Hexfellow CLI：
 
 ```bash
 cargo run -p motor_cli --release -- \
@@ -187,7 +187,7 @@ cargo run -p motor_cli --release -- \
   --mode vel --vel 0.3 --loop 40 --dt-ms 50
 ```
 
-RobStride CLI è¯»å‚æ•°:
+RobStride CLI 读参数:
 
 ```bash
 cargo run -p motor_cli --release -- \
@@ -195,7 +195,7 @@ cargo run -p motor_cli --release -- \
   --mode read-param --param-id 0x7019
 ```
 
-HighTorque CLIï¼ˆåŽŸç”Ÿ ht_can v1.5.5ï¼‰:
+HighTorque CLI（原生 ht_can v1.5.5）:
 
 ```bash
 cargo run -p motor_cli --release -- \
@@ -211,33 +211,33 @@ cargo run -p motor_cli --release -- \
   --mode status --loop 20 --dt-ms 50
 ```
 
-ç»Ÿä¸€å…¨å“ç‰Œæ‰«æ:
+统一全品牌扫描:
 
 ```bash
 cargo run -p motor_cli --release -- \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```
 
-## Windows å®žéªŒæ”¯æŒï¼ˆPCAN-USBï¼‰
+## Windows 实验支持（PCAN-USB）
 
-é¡¹ç›®ä¸»çº¿ä»ä»¥ Linux ä¸ºä¸»ã€‚Windows æ”¯æŒä¸ºå®žéªŒæ€§èƒ½åŠ›ï¼Œå½“å‰é€šè¿‡ PEAK PCAN åŽç«¯å®žçŽ°ã€‚
+项目主线仍以 Linux 为主。Windows 支持为实验性能力，当前通过 PEAK PCAN 后端实现。
 
-- åœ¨ Windows å®‰è£… PEAK é©±åŠ¨ä¸Ž PCAN-Basic è¿è¡Œæ—¶ï¼ˆ`PCANBasic.dll`ï¼‰ã€‚
-- é€šé“æ˜ å°„ï¼š
+- 在 Windows 安装 PEAK 驱动与 PCAN-Basic 运行时（`PCANBasic.dll`）。
+- 通道映射：
   - `can0` -> `PCAN_USBBUS1`
   - `can1` -> `PCAN_USBBUS2`
-- å¯é€‰æ³¢ç‰¹çŽ‡åŽç¼€ï¼š`@<bitrate>`ï¼Œä¾‹å¦‚ `can0@1000000`ã€‚
+- 可选波特率后缀：`@<bitrate>`，例如 `can0@1000000`。
 
-Windows éªŒè¯å‘½ä»¤ï¼š
+Windows 验证命令：
 
 ```bash
-# æ‰«æ Damiao ç”µæœº ID
+# 扫描 Damiao 电机 ID
 cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode scan --start-id 1 --end-id 16
 
-# 1 å·ç”µæœºï¼ˆ4340Pï¼‰è½¬åˆ° +pi å¼§åº¦ï¼ˆçº¦ 180 åº¦ï¼‰
+# 1 号电机（4340P）转到 +pi 弧度（约 180 度）
 cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
 
-# 7 å·ç”µæœºï¼ˆ4310ï¼‰è½¬åˆ° +pi å¼§åº¦ï¼ˆçº¦ 180 åº¦ï¼‰
+# 7 号电机（4310）转到 +pi 弧度（约 180 度）
 cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4310 --motor-id 0x07 --feedback-id 0x17 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
 ```
 
@@ -251,6 +251,8 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --mod
 - 已连接并被 macOS 识别的 PEAK 兼容 USB-CAN 设备。
 - 已在 macOS 上拉取并编译 `motorbridge`。
 - 仓库内置安装包：`third_party/pcan/macos/macOS_Library_for_PCANUSB_v0.13.tar.gz`。
+- 或直接从 GitHub 下载：
+  - <https://github.com/tianrking/motorbridge/blob/main/third_party/pcan/macos/macOS_Library_for_PCANUSB_v0.13.tar.gz>
 
 ### 2. 使用仓库内置包一键安装（推荐）
 
@@ -272,8 +274,17 @@ DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli ...
 
 ### 3. 手动安装 PCBUSB（系统级）
 
+如果你希望先手动下载：
+
 ```bash
-cd /path/to/package
+mkdir -p /tmp/motorbridge-pcan && cd /tmp/motorbridge-pcan
+curl -L -o macOS_Library_for_PCANUSB_v0.13.tar.gz \
+  https://raw.githubusercontent.com/tianrking/motorbridge/main/third_party/pcan/macos/macOS_Library_for_PCANUSB_v0.13.tar.gz
+```
+
+然后安装：
+
+```bash
 tar -xzf macOS_Library_for_PCANUSB_v0.13.tar.gz
 cd PCBUSB
 sudo ./install.sh
@@ -369,12 +380,12 @@ DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli \
   - 检查接线、电源、终端电阻和 CAN 波特率。
 
 
-## Linux USB-CANï¼ˆ`slcan`ï¼‰é€ŸæŸ¥
+## Linux USB-CAN（`slcan`）速查
 
-Linux ä¸‹ç›´æŽ¥ä½¿ç”¨ SocketCAN ç½‘å¡åï¼ˆä¾‹å¦‚ `can0`ã€`slcan0`ï¼‰ã€‚
-ä¸è¦åœ¨ Linux çš„é€šé“åé‡ŒåŠ æ³¢ç‰¹çŽ‡åŽç¼€ï¼ˆä¾‹å¦‚ `can0@1000000` åœ¨ Linux SocketCAN ä¸‹æ— æ•ˆï¼‰ã€‚
+Linux 下直接使用 SocketCAN 网卡名（例如 `can0`、`slcan0`）。
+不要在 Linux 的通道名里加波特率后缀（例如 `can0@1000000` 在 Linux SocketCAN 下无效）。
 
-æŠŠ `slcan` é€‚é…å™¨æŒ‚æˆ `slcan0`ï¼š
+把 `slcan` 适配器挂成 `slcan0`：
 
 ```bash
 sudo slcand -o -c -s8 /dev/ttyUSB0 slcan0
@@ -382,40 +393,40 @@ sudo ip link set slcan0 up
 ip -details link show slcan0
 ```
 
-ä¹‹åŽåœ¨ CLI é‡Œç›´æŽ¥ä½¿ç”¨ `slcan0`ï¼š
+之后在 CLI 里直接使用 `slcan0`：
 
 ```bash
 cargo run -p motor_cli --release -- --vendor damiao --channel slcan0 --mode scan --start-id 1 --end-id 255
 ```
 
-## Damiao ç‹¬ç«‹ CAN-FD ä¼ è¾“ï¼ˆ`socketcanfd`ï¼‰
+## Damiao 独立 CAN-FD 传输（`socketcanfd`）
 
-å½“ä½ å¸Œæœ›å¢žåŠ ä¸€æ¡ä¸Žç»å…¸ CANã€`dm-serial` å¹¶å­˜çš„ Linux CAN-FD é“¾è·¯æ—¶ï¼Œå¯ä½¿ç”¨è¯¥ transportã€‚
+当你希望增加一条与经典 CAN、`dm-serial` 并存的 Linux CAN-FD 链路时，可使用该 transport。
 
 ```bash
-# å…ˆæŠŠ can0 é…æˆ FD æ¨¡å¼
+# 先把 can0 配成 FD 模式
 scripts/canfd_restart.sh can0
 
-# Damiao èµ°ç‹¬ç«‹ socketcanfd é“¾è·¯
+# Damiao 走独立 socketcanfd 链路
 cargo run -p motor_cli --release -- --vendor damiao \
   --transport socketcanfd --channel can0 \
   --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode mit --verify-model 0 --ensure-mode 0 \
   --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 80 --dt-ms 20
 ```
-`[CAN-FD]`ï¼ˆå·²æŽ¥å…¥é“¾è·¯ï¼Œç”µæœºéªŒè¯çŸ©é˜µå¾…è¡¥ï¼‰
+`[CAN-FD]`（已接入链路，电机验证矩阵待补）
 
-## Damiao ä¸²å£æ¡¥é€ŸæŸ¥ï¼ˆ`dm-serial`ï¼‰
+## Damiao 串口桥速查（`dm-serial`）
 
-å½“ä½ çš„ Damiao è½¬æŽ¥æ¿æä¾›ä¸²å£æ¡¥ï¼ˆä¾‹å¦‚ `/dev/ttyACM1`ï¼‰ä¸”å¸Œæœ›èµ°è¿™æ¡ç§æœ‰é“¾è·¯æ—¶ï¼Œå¯ä½¿ç”¨ï¼š
+当你的 Damiao 转接板提供串口桥（例如 `/dev/ttyACM1`）且希望走这条私有链路时，可使用：
 
 ```bash
-# Damiao ä¸²å£æ¡¥æ‰«æ
+# Damiao 串口桥扫描
 cargo run -p motor_cli --release -- --vendor damiao \
   --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 \
   --model 4310 --mode scan --start-id 1 --end-id 16
 
-# Damiao ä¸²å£æ¡¥ MIT æŽ§åˆ¶
+# Damiao 串口桥 MIT 控制
 cargo run -p motor_cli --release -- --vendor damiao \
   --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 \
   --model 4310 --motor-id 0x04 --feedback-id 0x14 \
@@ -424,38 +435,38 @@ cargo run -p motor_cli --release -- --vendor damiao \
 ```
 `[DM-SERIAL]`
 
-## CAN ä¸“ä¸šè°ƒè¯•æ‰‹å†Œ
+## CAN 专业调试手册
 
-å¦‚éœ€ç³»ç»ŸåŒ–æŽ’æŸ¥ Linux `slcan` ä¸Ž Windows `pcan`ï¼Œè¯·ç›´æŽ¥ä½¿ç”¨ï¼š
+如需系统化排查 Linux `slcan` 与 Windows `pcan`，请直接使用：
 
 - [`docs/zh/can_debugging.md`](docs/zh/can_debugging.md)
 - [`docs/en/can_debugging.md`](docs/en/can_debugging.md)
 
-æœ€ç»ˆç”¨æˆ·å®Œæ•´é“¾è·¯æ“ä½œï¼ˆé»˜è®¤ PCAN/SocketCANï¼ŒDamiao ä¸²å£æ¡¥å¤‡ç”¨ï¼‰è¯·çœ‹ï¼š
+最终用户完整链路操作（默认 PCAN/SocketCAN，Damiao 串口桥备用）请看：
 
 - [`docs/zh/operation_manual.md`](docs/zh/operation_manual.md)
 
-ç»“æžœè§£è¯»ï¼š
+结果解读：
 
-- `vendor=damiao id=<n>`ï¼šå‘çŽ°ä¸€ä¸ª Damiao ç”µæœºï¼Œç”µæœº ID ä¸º `<n>`ã€‚
-- `vendor=robstride id=<n> responder_id=<m>`ï¼šå‘çŽ°ä¸€ä¸ª RobStride ç”µæœºå¹¶è¿”å›žå“åº” IDã€‚
-- `vendor=hightorque ... [hit] id=<n> ...`ï¼šé€šè¿‡åŽŸç”Ÿ ht_can v1.5.5 å‘çŽ°ä¸€ä¸ª HighTorque ç”µæœºã€‚
-- `vendor=myactuator id=<n>`ï¼šå‘çŽ°ä¸€ä¸ª MyActuator ç”µæœºå¹¶è¿”å›žç‰ˆæœ¬å“åº”ã€‚
-- æ¯æ®µæ‰«æç»“å°¾çš„ `hits=<k>` è¡¨ç¤ºè¯¥åŽ‚å•†å‘½ä¸­çš„åœ¨çº¿è®¾å¤‡æ•°é‡ã€‚
+- `vendor=damiao id=<n>`：发现一个 Damiao 电机，电机 ID 为 `<n>`。
+- `vendor=robstride id=<n> responder_id=<m>`：发现一个 RobStride 电机并返回响应 ID。
+- `vendor=hightorque ... [hit] id=<n> ...`：通过原生 ht_can v1.5.5 发现一个 HighTorque 电机。
+- `vendor=myactuator id=<n>`：发现一个 MyActuator 电机并返回版本响应。
+- 每段扫描结尾的 `hits=<k>` 表示该厂商命中的在线设备数量。
 
-## ABI ä¸Žç»‘å®š
+## ABI 与绑定
 
 - C ABI:
   - `motor_controller_new_socketcan(channel)`
-  - `motor_controller_new_dm_serial(serial_port, baud)`ï¼ˆä»… Damiao ä¸²å£æ¡¥ï¼›è·¨å¹³å°ï¼Œå¯ç”¨ `/dev/ttyACM0` æˆ– `COM3`ï¼‰
+  - `motor_controller_new_dm_serial(serial_port, baud)`（仅 Damiao 串口桥；跨平台，可用 `/dev/ttyACM0` 或 `COM3`）
   - Damiao: `motor_controller_add_damiao_motor(...)`
-  - Hexfellow: `motor_controller_add_hexfellow_motor(...)`ï¼ˆé€šè¿‡ `socketcanfd` èµ° CAN-FDï¼‰
+  - Hexfellow: `motor_controller_add_hexfellow_motor(...)`（通过 `socketcanfd` 走 CAN-FD）
   - RobStride: `motor_controller_add_robstride_motor(...)`
   - MyActuator: `motor_controller_add_myactuator_motor(...)`
   - HighTorque: `motor_controller_add_hightorque_motor(...)`
 - Python:
   - `Controller(channel="can0")`
-  - `Controller.from_dm_serial("/dev/ttyACM0", 921600)`ï¼ˆä»… Damiaoï¼‰
+  - `Controller.from_dm_serial("/dev/ttyACM0", 921600)`（仅 Damiao）
   - `Controller.add_damiao_motor(...)`
   - `Controller.add_hexfellow_motor(...)`
   - `Controller.add_robstride_motor(...)`
@@ -463,94 +474,94 @@ cargo run -p motor_cli --release -- --vendor damiao \
   - `Controller.add_hightorque_motor(...)`
 - C++:
   - `Controller("can0")`
-  - `Controller::from_dm_serial("/dev/ttyACM0", 921600)`ï¼ˆä»… Damiaoï¼‰
+  - `Controller::from_dm_serial("/dev/ttyACM0", 921600)`（仅 Damiao）
   - `Controller::add_damiao_motor(...)`
   - `Controller::add_hexfellow_motor(...)`
   - `Controller::add_robstride_motor(...)`
   - `Controller::add_myactuator_motor(...)`
   - `Controller::add_hightorque_motor(...)`
 
-ABI/ç»‘å®šä¸­çš„ç»Ÿä¸€æ¨¡å¼ IDï¼ˆ`ensure_mode`ï¼‰ï¼š
+ABI/绑定中的统一模式 ID（`ensure_mode`）：
 
 - `1 = MIT`
 - `2 = POS_VEL`
 - `3 = VEL`
 - `4 = FORCE_POS`
 
-ç»Ÿä¸€æŽ§åˆ¶å•ä½ï¼š
+统一控制单位：
 
-- ä½ç½®ï¼š`rad`
-- é€Ÿåº¦ï¼š`rad/s`
-- åŠ›çŸ©ï¼š`Nm`
+- 位置：`rad`
+- 速度：`rad/s`
+- 力矩：`Nm`
 
-å„åŽ‚å•†åè®®åŽŸç”Ÿæ¨¡å¼åæ˜ å°„ä¸Žä¸æ”¯æŒé¡¹è¯¦è§ï¼š
+各厂商协议原生模式名映射与不支持项详见：
 
 - [`docs/en/abi.md`](docs/en/abi.md)
 - [`docs/zh/abi.md`](docs/zh/abi.md)
 
-RobStride ä¸“å±ž ABI / binding èƒ½åŠ›åŒ…æ‹¬:
+RobStride 专属 ABI / binding 能力包括:
 
 - `robstride_ping`
 - `robstride_get_param_*`
 - `robstride_write_param_*`
 
-## ç¤ºä¾‹å…¥å£
+## 示例入口
 
-- è·¨è¯­è¨€ç´¢å¼•: `examples/README.md`
-- C ABI ç¤ºä¾‹: `examples/c/c_abi_demo.c`
-- C++ ABI ç¤ºä¾‹: `examples/cpp/cpp_abi_demo.cpp`
-- Python ctypes ç¤ºä¾‹: `examples/python/python_ctypes_demo.py`
-- Python SDK æ–‡æ¡£: `bindings/python/README.md`
-- C++ binding æ–‡æ¡£: `bindings/cpp/README.md`
+- 跨语言索引: `examples/README.md`
+- C ABI 示例: `examples/c/c_abi_demo.c`
+- C++ ABI 示例: `examples/cpp/cpp_abi_demo.cpp`
+- Python ctypes 示例: `examples/python/python_ctypes_demo.py`
+- Python SDK 文档: `bindings/python/README.md`
+- C++ binding 文档: `bindings/cpp/README.md`
 
-## å‘å¸ƒä¸Žå®‰è£…æ€»è§ˆï¼ˆå®Œæ•´çŸ©é˜µï¼‰
+## 发布与安装总览（完整矩阵）
 
-### A) GitHub Releasesï¼ˆäºŒè¿›åˆ¶èµ„äº§ï¼‰
+### A) GitHub Releases（二进制资产）
 
-| èµ„äº§ | å®‰è£… / ä½¿ç”¨æ–¹å¼ | å¹³å° | é€‚ç”¨äººç¾¤ | åŒ…å«èƒ½åŠ› |
+| 资产 | 安装 / 使用方式 | 平台 | 适用人群 | 包含能力 |
 |---|---|---|---|---|
-| `motorbridge-abi-<tag>-linux-x86_64.deb` | `sudo apt install ./motorbridge-abi-<tag>-linux-x86_64.deb` | Linux x86_64 | C/C++ ç”¨æˆ·ï¼ˆUbuntu/Debianï¼‰ | `libmotor_abi` + å¤´æ–‡ä»¶ + CMake é…ç½® |
-| `motorbridge-abi-<tag>-linux-*.tar.gz` | è§£åŽ‹åŽæ‰‹åŠ¨é“¾æŽ¥ | Linux x86_64/aarch64 | C/C++ ç”¨æˆ·ï¼ˆéž deb çŽ¯å¢ƒï¼‰ | ä¸Ž `.deb` åŒç­‰ ABI å†…å®¹ |
-| `motorbridge-abi-<tag>-windows-x86_64.zip` | è§£åŽ‹åŽé“¾æŽ¥/åŠ è½½ | Windows x86_64 | C/C++ ç”¨æˆ· | `motor_abi.dll/.lib` + å¤´æ–‡ä»¶ + CMake é…ç½® |
-| `motor-cli-<tag>-<platform>.tar.gz/.zip` | ç›´æŽ¥è¿è¡Œ `bin/motor_cli` | Linux/Windows | çŽ°åœºè°ƒè¯•/å·¥åŽ‚å·¥å…· | ç»Ÿä¸€ CLI èƒ½åŠ›ï¼ˆæ‰«æã€æŽ§åˆ¶ã€æ”¹ ID ç­‰ï¼‰ |
-| `motorbridge-*.whl`, `motorbridge-*.tar.gz` | `pip install ./...` | å–å†³äºŽ wheel tag | ç¦»çº¿ Python å®‰è£… | Python SDK + `motorbridge-cli` |
+| `motorbridge-abi-<tag>-linux-x86_64.deb` | `sudo apt install ./motorbridge-abi-<tag>-linux-x86_64.deb` | Linux x86_64 | C/C++ 用户（Ubuntu/Debian） | `libmotor_abi` + 头文件 + CMake 配置 |
+| `motorbridge-abi-<tag>-linux-*.tar.gz` | 解压后手动链接 | Linux x86_64/aarch64 | C/C++ 用户（非 deb 环境） | 与 `.deb` 同等 ABI 内容 |
+| `motorbridge-abi-<tag>-windows-x86_64.zip` | 解压后链接/加载 | Windows x86_64 | C/C++ 用户 | `motor_abi.dll/.lib` + 头文件 + CMake 配置 |
+| `motor-cli-<tag>-<platform>.tar.gz/.zip` | 直接运行 `bin/motor_cli` | Linux/Windows | 现场调试/工厂工具 | 统一 CLI 能力（扫描、控制、改 ID 等） |
+| `motorbridge-*.whl`, `motorbridge-*.tar.gz` | `pip install ./...` | 取决于 wheel tag | 离线 Python 安装 | Python SDK + `motorbridge-cli` |
 
-### B) PyPI / TestPyPIï¼ˆPython åŒ…åˆ†å‘ï¼‰
+### B) PyPI / TestPyPI（Python 包分发）
 
-| é€šé“ | å‘å¸ƒè§¦å‘æ–¹å¼ | Python ç‰ˆæœ¬ | å¹³å°çŸ©é˜µ | åŒ…ç±»åž‹ |
+| 通道 | 发布触发方式 | Python 版本 | 平台矩阵 | 包类型 |
 |---|---|---|---|---|
-| TestPyPI | `Actions -> Python Publish -> repository=testpypi` | 3.10 / 3.11 / 3.12 / 3.13 / 3.14 | Linuxï¼ˆx86_64ã€aarch64ï¼‰ã€Windowsï¼ˆx86_64ï¼‰ã€macOSï¼ˆarm64ï¼‰ | wheel + sdist |
-| PyPI | æŽ¨ `vX.Y.Z` æ ‡ç­¾æˆ–æ‰‹åŠ¨ `repository=pypi` | 3.10 / 3.11 / 3.12 / 3.13 / 3.14 | Linuxï¼ˆx86_64ã€aarch64ï¼‰ã€Windowsï¼ˆx86_64ï¼‰ã€macOSï¼ˆarm64ï¼‰ | wheel + sdist |
+| TestPyPI | `Actions -> Python Publish -> repository=testpypi` | 3.10 / 3.11 / 3.12 / 3.13 / 3.14 | Linux（x86_64、aarch64）、Windows（x86_64）、macOS（arm64） | wheel + sdist |
+| PyPI | 推 `vX.Y.Z` 标签或手动 `repository=pypi` | 3.10 / 3.11 / 3.12 / 3.13 / 3.14 | Linux（x86_64、aarch64）、Windows（x86_64）、macOS（arm64） | wheel + sdist |
 
-ä»Ž PyPI å®‰è£…ï¼š
+从 PyPI 安装：
 
 ```bash
 pip install motorbridge
 ```
 
-æºç å…œåº•å®‰è£…ï¼š
+源码兜底安装：
 
 ```bash
 pip install --no-binary motorbridge motorbridge
 ```
 
-### C) æŒ‰åˆ†å‘ç±»åž‹çœ‹åŠŸèƒ½è¾¹ç•Œ
+### C) 按分发类型看功能边界
 
-| åˆ†å‘ç±»åž‹ | å…¸åž‹åœºæ™¯ | ä½ èƒ½åšä»€ä¹ˆ |
+| 分发类型 | 典型场景 | 你能做什么 |
 |---|---|---|
-| ABI åŒ…ï¼ˆ`.deb/.tar.gz/.zip`ï¼‰ | C/C++ é›†æˆ | è°ƒç”¨ç¨³å®š C ABIã€ä½¿ç”¨ C++ RAII wrapperã€åµŒå…¥åŽŸç”Ÿæœºå™¨äººç³»ç»Ÿ |
-| Python åŒ…ï¼ˆwheel/sdistï¼‰ | Python åº”ç”¨/å·¥å…· | ä½¿ç”¨ `Controller/Motor/Mode` API å’Œ `motorbridge-cli` |
-| `motor_cli` äºŒè¿›åˆ¶åŒ… | è¿ç»´/å·¥åŽ‚/è”è°ƒ | ä¸ä¾èµ– Python ç›´æŽ¥åš CAN æ‰«æå’ŒæŽ§åˆ¶ |
+| ABI 包（`.deb/.tar.gz/.zip`） | C/C++ 集成 | 调用稳定 C ABI、使用 C++ RAII wrapper、嵌入原生机器人系统 |
+| Python 包（wheel/sdist） | Python 应用/工具 | 使用 `Controller/Motor/Mode` API 和 `motorbridge-cli` |
+| `motor_cli` 二进制包 | 运维/工厂/联调 | 不依赖 Python 直接做 CAN 扫描和控制 |
 
-### D) é¢å¤–è‡ªåŠ¨åŒ–åˆ†å‘æ¸ é“ï¼ˆå½“å‰å¯ç”¨ï¼‰
+### D) 额外自动化分发渠道（当前启用）
 
-| æ¸ é“ | CI Workflow | è¾“å‡º |
+| 渠道 | CI Workflow | 输出 |
 |---|---|---|
-| APT ä»“åº“ï¼ˆGitHub Pagesï¼‰ | `.github/workflows/apt-repo-publish.yml` | `https://<owner>.github.io/<repo>/apt` |
+| APT 仓库（GitHub Pages） | `.github/workflows/apt-repo-publish.yml` | `https://<owner>.github.io/<repo>/apt` |
 
-è¯´æ˜Žï¼š
-- `.deb` å½“å‰é¢å‘ Linux x86_64ï¼›å…¶ä»– Linux ç›®æ ‡å»ºè®®ä½¿ç”¨ ABI `.tar.gz`ã€‚
-- å½“å‰å‘å¸ƒçŸ©é˜µæ•…æ„ä¸äº§å‡º macOS x86_64 wheelã€‚
-- è®¾å¤‡çŸ©é˜µå‚è€ƒï¼š`docs/zh/devices.md`ã€‚
-- åˆ†å‘è‡ªåŠ¨åŒ–æ–‡æ¡£ï¼š`docs/zh/distribution_channels.md`ã€‚
+说明：
+- `.deb` 当前面向 Linux x86_64；其他 Linux 目标建议使用 ABI `.tar.gz`。
+- 当前发布矩阵故意不产出 macOS x86_64 wheel。
+- 设备矩阵参考：`docs/zh/devices.md`。
+- 分发自动化文档：`docs/zh/distribution_channels.md`。
 

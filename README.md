@@ -252,6 +252,8 @@ On macOS, `PCANBasic.dll` is not used.
 - A PEAK-compatible USB-CAN adapter recognized by macOS.
 - `motorbridge` source built on macOS.
 - Bundled archive in this repo: `third_party/pcan/macos/macOS_Library_for_PCANUSB_v0.13.tar.gz`.
+- Or download directly from GitHub:
+  - <https://github.com/tianrking/motorbridge/blob/main/third_party/pcan/macos/macOS_Library_for_PCANUSB_v0.13.tar.gz>
 
 ### 2. Quick install from bundled archive (recommended)
 
@@ -273,8 +275,17 @@ DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli ...
 
 ### 3. Manual install PCBUSB (system-wide)
 
+If you want to download manually first:
+
 ```bash
-cd /path/to/package
+mkdir -p /tmp/motorbridge-pcan && cd /tmp/motorbridge-pcan
+curl -L -o macOS_Library_for_PCANUSB_v0.13.tar.gz \
+  https://raw.githubusercontent.com/tianrking/motorbridge/main/third_party/pcan/macos/macOS_Library_for_PCANUSB_v0.13.tar.gz
+```
+
+Then install:
+
+```bash
 tar -xzf macOS_Library_for_PCANUSB_v0.13.tar.gz
 cd PCBUSB
 sudo ./install.sh

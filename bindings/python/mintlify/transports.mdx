@@ -18,7 +18,8 @@ The SDK exposes three transport constructors:
 
 ## SocketCAN (Standard CAN)
 
-The default transport for most motor vendors. Uses the Linux SocketCAN subsystem.
+The default transport for most motor vendors.
+Linux uses SocketCAN directly, and Windows/macOS use the PCAN backend with `canX` channel aliases.
 
 ### Usage
 
@@ -38,7 +39,9 @@ with Controller("can0") as ctrl:
 - MyActuator
 - HighTorque
 
-### System Setup
+### System Setup (3 Platforms)
+
+Linux (SocketCAN):
 
 ```bash
 # Configure CAN interface at 1M bitrate
@@ -47,6 +50,26 @@ sudo ip link set can0 up
 
 # Increase TX queue to prevent buffer overflow
 sudo ifconfig can0 txqueuelen 1000
+```
+
+macOS (PCAN via PCBUSB):
+
+```bash
+# Verify PCBUSB runtime is available
+python3 -c "import ctypes; ctypes.CDLL('libPCBUSB.dylib'); print('PCBUSB load OK')"
+
+# Run a scan check on can0
+motorbridge-cli scan --vendor damiao --transport auto --channel can0 --start-id 1 --end-id 16
+```
+
+Windows (PCAN):
+
+```powershell
+# Verify PCAN runtime is available
+python -c "import ctypes; ctypes.CDLL('PCANBasic.dll'); print('PCANBasic load OK')"
+
+# can0@1000000 maps to PCAN_USBBUS1
+motorbridge-cli scan --vendor damiao --transport auto --channel can0@1000000 --start-id 1 --end-id 16
 ```
 
 ### Multiple CAN Interfaces
@@ -89,7 +112,7 @@ sudo ip link set can0 up
 ```
 
 <Note>
-Hexfellow motors require CAN-FD transport. Using standard SocketCAN will fail.
+CAN-FD examples above are Linux-first. On Windows/macOS, prefer standard CAN (`Controller(channel)`) unless your adapter stack explicitly supports FD.
 </Note>
 
 ## DM Serial Bridge
@@ -118,7 +141,9 @@ with Controller.from_dm_serial("/dev/ttyACM0", baud=921600) as ctrl:
 
 - Damiao only
 
-### Serial Port Setup
+### Serial Port Setup (3 Platforms)
+
+Linux:
 
 ```bash
 # Check available serial ports
@@ -127,6 +152,20 @@ ls -la /dev/ttyACM* /dev/ttyUSB*
 # Add user to dialout group for permission
 sudo usermod -a -G dialout $USER
 # Log out and back in
+```
+
+macOS:
+
+```bash
+# Typical serial devices
+ls -la /dev/cu.usbmodem* /dev/cu.usbserial*
+```
+
+Windows (PowerShell):
+
+```powershell
+# List COM ports
+[System.IO.Ports.SerialPort]::GetPortNames()
 ```
 
 ### Common Serial Devices

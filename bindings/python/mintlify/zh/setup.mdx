@@ -168,7 +168,10 @@ DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" --bind 0.0.0.0:900
 测试正式发布前的最新功能：
 
 ```bash
-# 从 TestPyPI 安装
+# 从 TestPyPI 安装最新预发布版本（不指定版本号）
+python3 -m pip install --pre -i https://test.pypi.org/simple/ motorbridge
+
+# 或安装指定预发布版本
 python3 -m pip install -i https://test.pypi.org/simple/ motorbridge==0.1.9a1
 ```
 
@@ -273,6 +276,30 @@ python3 -c "import ctypes; ctypes.CDLL('libPCBUSB.dylib'); print('PCBUSB load OK
 
 # 运行一次扫描验证（CAN 路径）
 motorbridge-cli scan --vendor damiao --transport auto --channel can0 --start-id 1 --end-id 16
+```
+
+### macOS（PCBUSB）驱动/运行时安装（缺失时）
+
+如果提示 `libPCBUSB.dylib` 无法加载，请先安装 PCBUSB。
+
+系统级安装：
+
+```bash
+curl -L -o macOS_Library_for_PCANUSB_v0.13.tar.gz \
+  https://raw.githubusercontent.com/tianrking/motorbridge/main/third_party/pcan/macos/macOS_Library_for_PCANUSB_v0.13.tar.gz
+tar -xzf macOS_Library_for_PCANUSB_v0.13.tar.gz
+cd PCBUSB
+sudo ./install.sh
+```
+
+用户目录兜底安装：
+
+```bash
+mkdir -p ~/.local/lib ~/.local/include
+cp PCBUSB/libPCBUSB.0.13.dylib ~/.local/lib/
+ln -sf ~/.local/lib/libPCBUSB.0.13.dylib ~/.local/lib/libPCBUSB.dylib
+cp PCBUSB/PCBUSB.h ~/.local/include/
+export DYLD_LIBRARY_PATH="$HOME/.local/lib:${DYLD_LIBRARY_PATH:-}"
 ```
 
 ### 串口权限（Linux，dm-serial）

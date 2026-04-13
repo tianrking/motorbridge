@@ -1,5 +1,5 @@
 export const en = {
-  app_title: 'Factory Motor Studio',
+  app_title: 'MotorBridge Assistant',
   app_subtitle: 'Rust WS Gateway Driven Control Console',
   quick_menu: 'Quick Menu',
   language: 'Language',

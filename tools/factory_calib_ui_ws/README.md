@@ -1,4 +1,4 @@
-# factory_calib_ui_ws (React)
+# MotorBridge Assistant (factory_calib_ui_ws, React)
 
 WebSocket-based factory control UI (frontend only).
 

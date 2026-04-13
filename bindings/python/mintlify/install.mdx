@@ -164,7 +164,10 @@ DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" --bind 0.0.0.0:900
 For testing bleeding-edge features before official release:
 
 ```bash
-# Install from TestPyPI
+# Install latest pre-release from TestPyPI (no version pin)
+python3 -m pip install --pre -i https://test.pypi.org/simple/ motorbridge
+
+# Or install a specific pre-release version
 python3 -m pip install -i https://test.pypi.org/simple/ motorbridge==0.1.9a1
 ```
 
@@ -269,6 +272,30 @@ python3 -c "import ctypes; ctypes.CDLL('libPCBUSB.dylib'); print('PCBUSB load OK
 
 # Run a scan check (CAN path)
 motorbridge-cli scan --vendor damiao --transport auto --channel can0 --start-id 1 --end-id 16
+```
+
+### macOS (PCBUSB) driver/runtime install (if missing)
+
+If `libPCBUSB.dylib` cannot be loaded, install PCBUSB first.
+
+System-wide install:
+
+```bash
+curl -L -o macOS_Library_for_PCANUSB_v0.13.tar.gz \
+  https://raw.githubusercontent.com/tianrking/motorbridge/main/third_party/pcan/macos/macOS_Library_for_PCANUSB_v0.13.tar.gz
+tar -xzf macOS_Library_for_PCANUSB_v0.13.tar.gz
+cd PCBUSB
+sudo ./install.sh
+```
+
+User-local fallback:
+
+```bash
+mkdir -p ~/.local/lib ~/.local/include
+cp PCBUSB/libPCBUSB.0.13.dylib ~/.local/lib/
+ln -sf ~/.local/lib/libPCBUSB.0.13.dylib ~/.local/lib/libPCBUSB.dylib
+cp PCBUSB/PCBUSB.h ~/.local/include/
+export DYLD_LIBRARY_PATH="$HOME/.local/lib:${DYLD_LIBRARY_PATH:-}"
 ```
 
 ### Serial Port Permissions (Linux, dm-serial)

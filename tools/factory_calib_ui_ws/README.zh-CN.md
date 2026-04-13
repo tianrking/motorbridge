@@ -1,4 +1,4 @@
-# factory_calib_ui_ws（React 版）
+# MotorBridge Assistant（factory_calib_ui_ws，React 版）
 
 基于 WebSocket 的工厂上位机（纯前端）。
 

@@ -22,7 +22,7 @@ SDK 提供三种传输构造函数：
 
 ## SocketCAN（标准 CAN）
 
-大多数电机厂商的默认传输方式。使用 Linux SocketCAN 子系统。
+大多数电机厂商的默认传输方式。Linux 直接使用 SocketCAN；Windows/macOS 使用 PCAN 后端并通过 `canX` 通道别名访问。
 
 ### 使用方法
 
@@ -42,7 +42,9 @@ with Controller("can0") as ctrl:
 - MyActuator
 - HighTorque
 
-### 系统配置
+### 系统配置（三平台）
+
+Linux（SocketCAN）：
 
 ```bash
 # 以 1M 波特率配置 CAN 接口
@@ -51,6 +53,26 @@ sudo ip link set can0 up
 
 # 增加 TX 队列以防止缓冲区溢出
 sudo ifconfig can0 txqueuelen 1000
+```
+
+macOS（PCAN + PCBUSB）：
+
+```bash
+# 检查 PCBUSB 运行时是否可用
+python3 -c "import ctypes; ctypes.CDLL('libPCBUSB.dylib'); print('PCBUSB load OK')"
+
+# 在 can0 上做一次扫描验证
+motorbridge-cli scan --vendor damiao --transport auto --channel can0 --start-id 1 --end-id 16
+```
+
+Windows（PCAN）：
+
+```powershell
+# 检查 PCAN 运行时是否可用
+python -c "import ctypes; ctypes.CDLL('PCANBasic.dll'); print('PCANBasic load OK')"
+
+# can0@1000000 对应 PCAN_USBBUS1
+motorbridge-cli scan --vendor damiao --transport auto --channel can0@1000000 --start-id 1 --end-id 16
 ```
 
 ### 多个 CAN 接口
@@ -93,7 +115,7 @@ sudo ip link set can0 up
 ```
 
 <Note>
-Hexfellow 电机需要 CAN-FD 传输。使用标准 SocketCAN 会失败。
+上面的 CAN-FD 配置以 Linux 为主。Windows/macOS 若未明确支持 FD，请优先使用标准 CAN（`Controller(channel)`）。
 </Note>
 
 ## DM 串口桥
@@ -122,7 +144,9 @@ with Controller.from_dm_serial("/dev/ttyACM0", baud=921600) as ctrl:
 
 - 仅达妙
 
-### 串口配置
+### 串口配置（三平台）
+
+Linux：
 
 ```bash
 # 检查可用串口
@@ -131,6 +155,20 @@ ls -la /dev/ttyACM* /dev/ttyUSB*
 # 添加用户到 dialout 组以获取权限
 sudo usermod -a -G dialout $USER
 # 注销并重新登录
+```
+
+macOS：
+
+```bash
+# 常见串口设备名
+ls -la /dev/cu.usbmodem* /dev/cu.usbserial*
+```
+
+Windows（PowerShell）：
+
+```powershell
+# 列出 COM 端口
+[System.IO.Ports.SerialPort]::GetPortNames()
 ```
 
 ### 常见串口设备

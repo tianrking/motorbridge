@@ -1,4 +1,4 @@
-#![cfg(target_os = "windows")]
+#![cfg(any(target_os = "windows", target_os = "macos"))]
 
 use crate::bus::{CanBus, CanFrame};
 use crate::error::{MotorError, Result};
@@ -35,11 +35,25 @@ struct TPCANTimestamp {
     micros: u16,
 }
 
+#[cfg(target_os = "windows")]
 type CanInitializeFn = unsafe extern "system" fn(TPCANHandle, u16, u8, u32, u16) -> TPCANStatus;
+#[cfg(target_os = "windows")]
 type CanUninitializeFn = unsafe extern "system" fn(TPCANHandle) -> TPCANStatus;
+#[cfg(target_os = "windows")]
 type CanReadFn =
     unsafe extern "system" fn(TPCANHandle, *mut TPCANMsg, *mut TPCANTimestamp) -> TPCANStatus;
+#[cfg(target_os = "windows")]
 type CanWriteFn = unsafe extern "system" fn(TPCANHandle, *const TPCANMsg) -> TPCANStatus;
+
+#[cfg(target_os = "macos")]
+type CanInitializeFn = unsafe extern "C" fn(TPCANHandle, u16, u8, u32, u16) -> TPCANStatus;
+#[cfg(target_os = "macos")]
+type CanUninitializeFn = unsafe extern "C" fn(TPCANHandle) -> TPCANStatus;
+#[cfg(target_os = "macos")]
+type CanReadFn =
+    unsafe extern "C" fn(TPCANHandle, *mut TPCANMsg, *mut TPCANTimestamp) -> TPCANStatus;
+#[cfg(target_os = "macos")]
+type CanWriteFn = unsafe extern "C" fn(TPCANHandle, *const TPCANMsg) -> TPCANStatus;
 
 struct PcanApi {
     _lib: Library,
@@ -51,10 +65,36 @@ struct PcanApi {
 
 impl PcanApi {
     fn load() -> Result<Self> {
-        let lib = unsafe { Library::new("PCANBasic.dll") }.map_err(|e| {
-            MotorError::Unsupported(format!(
-                "load PCANBasic.dll failed: {e}. Install PEAK PCAN-Basic runtime."
-            ))
+        let lib_candidates: &[&str] = if cfg!(target_os = "macos") {
+            &["libPCBUSB.dylib", "PCBUSB"]
+        } else {
+            &["PCANBasic.dll"]
+        };
+
+        let mut last_err: Option<String> = None;
+        let mut loaded: Option<Library> = None;
+        for name in lib_candidates {
+            match unsafe { Library::new(name) } {
+                Ok(lib) => {
+                    loaded = Some(lib);
+                    break;
+                }
+                Err(e) => last_err = Some(format!("{name}: {e}")),
+            }
+        }
+
+        let lib = loaded.ok_or_else(|| {
+            if cfg!(target_os = "macos") {
+                MotorError::Unsupported(format!(
+                    "load PCBUSB failed (tried: {}). Install MacCAN PCBUSB runtime (libPCBUSB.dylib).",
+                    last_err.unwrap_or_else(|| "unknown".to_string())
+                ))
+            } else {
+                MotorError::Unsupported(format!(
+                    "load PCANBasic.dll failed: {}. Install PEAK PCAN-Basic runtime.",
+                    last_err.unwrap_or_else(|| "unknown".to_string())
+                ))
+            }
         })?;
 
         let can_initialize = unsafe {

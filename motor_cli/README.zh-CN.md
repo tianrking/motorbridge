@@ -116,7 +116,7 @@ motor_cli \
 | `--help` | flag | å…³é—­ | è¾“å‡ºå¸®åŠ©å¹¶é€€å‡º |
 | `--vendor` | string | `damiao` | `damiao` / `robstride` / `hightorque` / `myactuator` / `hexfellow` / `all` |
 | `--transport` | string | `auto` | `auto` / `socketcan` / `socketcanfd` / `dm-serial`ï¼ˆ`socketcanfd` ä¸º Hexfellow å¿…éœ€ï¼›`dm-serial` ä»… Damiaoï¼‰ |
-| `--channel` | string | `can0` | Linuxï¼šSocketCAN ç½‘å¡åï¼ˆ`can0`/`slcan0`ï¼‰ï¼›Windowsï¼ˆPCAN åŽç«¯ï¼‰ï¼š`can0`/`can1`ï¼Œå¯åŠ  `@bitrate`ï¼ˆå¦‚ `can0@1000000`ï¼‰ |
+| `--channel` | string | `can0` | Linux：SocketCAN 网卡名（`can0`/`slcan0`）；Windows（PCAN 后端）：`can0`/`can1`，可加 `@bitrate`（如 `can0@1000000`）；macOS（PCBUSB 后端）：`can0`/`can1` |
 | `--serial-port` | string | `/dev/ttyACM0` | `--transport dm-serial` æ—¶ä½¿ç”¨ |
 | `--serial-baud` | u64 | `921600` | `--transport dm-serial` æ—¶ä½¿ç”¨ |
 | `--model` | string | æŒ‰ vendor å†³å®š | Damiao é»˜è®¤ `4340`ï¼›RobStride é»˜è®¤ `rs-00`ï¼›HighTorque é»˜è®¤ `hightorque`ï¼›MyActuator é»˜è®¤ `X8` |
@@ -136,6 +136,10 @@ motor_cli \
 - Windows PCANï¼š
   - `can0` æ˜ å°„ `PCAN_USBBUS1`ï¼Œ`can1` æ˜ å°„ `PCAN_USBBUS2`ã€‚
   - æ”¯æŒå¯é€‰æ³¢ç‰¹çŽ‡åŽç¼€ï¼š`can0@1000000`ã€‚
+- macOS PCBUSB（PCAN 后端）：
+  - `can0` 映射 `PCAN_USBBUS1`，`can1` 映射 `PCAN_USBBUS2`。
+  - 需先安装 `libPCBUSB.dylib`（见仓库根目录 `README.zh-CN.md` 的 macOS 章节）。
+
 
 ### 2.2 Damiao ä¸²å£æ¡¥é€ŸæŸ¥ï¼ˆ`--transport dm-serial`ï¼‰
 

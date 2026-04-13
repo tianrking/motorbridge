@@ -1,5 +1,5 @@
 use crate::args::{get_f32, get_i16, get_str, get_u16_hex_or_dec, get_u64};
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 use motor_core::pcan::PcanBus;
 #[cfg(target_os = "linux")]
 use motor_core::socketcan::SocketCanBus;
@@ -159,11 +159,11 @@ fn open_can_bus(channel: &str) -> Result<Box<dyn CanBus>, Box<dyn std::error::Er
     {
         return Ok(Box::new(SocketCanBus::open(channel)?));
     }
-    #[cfg(target_os = "windows")]
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     {
         return Ok(Box::new(PcanBus::open(channel)?));
     }
-    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
     {
         let _ = channel;
         Err(Box::new(motor_core::error::MotorError::InvalidArgument(

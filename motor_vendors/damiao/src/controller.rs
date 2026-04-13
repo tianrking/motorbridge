@@ -3,7 +3,7 @@ use motor_core::bus::CanBus;
 use motor_core::controller::CoreController;
 use motor_core::dm_serial::DmSerialBus;
 use motor_core::error::{MotorError, Result};
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 use motor_core::pcan::PcanBus;
 #[cfg(target_os = "linux")]
 use motor_core::socketcan::SocketCanBus;
@@ -31,12 +31,12 @@ impl DamiaoController {
             let bus: Arc<dyn CanBus> = Arc::new(SocketCanBus::open(channel)?);
             return Ok(Self::new(bus));
         }
-        #[cfg(target_os = "windows")]
+        #[cfg(any(target_os = "windows", target_os = "macos"))]
         {
             let bus: Arc<dyn CanBus> = Arc::new(PcanBus::open(channel)?);
             return Ok(Self::new(bus));
         }
-        #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+        #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
         {
             let _ = channel;
             Err(MotorError::InvalidArgument(

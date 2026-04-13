@@ -241,6 +241,116 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --mod
 cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4310 --motor-id 0x07 --feedback-id 0x17 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
 ```
 
+## macOS PCAN 运行时（PCBUSB）
+
+本项目在 macOS 下通过 MacCAN 的 `PCBUSB` 运行时支持 PCAN。
+在 macOS 下不使用 `PCANBasic.dll`。
+
+### 1. 前置条件
+
+- 已连接并被 macOS 识别的 PEAK 兼容 USB-CAN 设备。
+- 已在 macOS 上拉取并编译 `motorbridge`。
+- 已下载 MacCAN PCBUSB 安装包（例如 `macOS_Library_for_PCANUSB_v0.13.tar.gz`）。
+
+### 2. 安装 PCBUSB（系统级）
+
+```bash
+cd /path/to/package
+tar -xzf macOS_Library_for_PCANUSB_v0.13.tar.gz
+cd PCBUSB
+sudo ./install.sh
+```
+
+安装后通常会放置：
+
+- `/usr/local/lib/libPCBUSB.dylib`
+- `/usr/local/include/PCBUSB.h`
+
+### 3. 无 sudo 的用户目录安装（可选）
+
+如果当前用户无法写入 `/usr/local`，可先使用用户目录安装：
+
+```bash
+mkdir -p ~/.local/lib ~/.local/include
+cp PCBUSB/libPCBUSB.0.13.dylib ~/.local/lib/
+ln -sf ~/.local/lib/libPCBUSB.0.13.dylib ~/.local/lib/libPCBUSB.dylib
+cp PCBUSB/PCBUSB.h ~/.local/include/
+```
+
+随后运行 `motor_cli` 时加：
+
+```bash
+DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli ...
+```
+
+### 4. 验证运行时可加载
+
+```bash
+python3 - <<'PY'
+from can.interfaces.pcan.basic import PCANBasic
+PCANBasic()
+print("PCBUSB load OK")
+PY
+```
+
+若使用用户目录安装：
+
+```bash
+DYLD_LIBRARY_PATH=$HOME/.local/lib python3 - <<'PY'
+from can.interfaces.pcan.basic import PCANBasic
+PCANBasic()
+print("PCBUSB load OK")
+PY
+```
+
+### 5. 编译 motorbridge CLI
+
+```bash
+cargo build -p motor_cli --release
+```
+
+### 6. macOS 下通道映射（PCAN 后端）
+
+- `can0` 对应 `PCAN_USBBUS1`
+- `can1` 对应 `PCAN_USBBUS2`
+- 支持可选波特率后缀（例如 `can0@1000000`）
+
+### 7. 扫描电机（Damiao）
+
+```bash
+./target/release/motor_cli \
+  --vendor damiao --channel can0 --mode scan --start-id 1 --end-id 16
+```
+
+如果使用用户目录 `PCBUSB`：
+
+```bash
+DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli \
+  --vendor damiao --channel can0 --mode scan --start-id 1 --end-id 16
+```
+
+### 8. 控制示例（Damiao MIT）
+
+将 `motor-id` 和 `feedback-id` 替换为扫描命中的值。
+
+```bash
+./target/release/motor_cli \
+  --vendor damiao --channel can0 --model 4310 \
+  --motor-id 0x02 --feedback-id 0x12 \
+  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 \
+  --loop 50 --dt-ms 20
+```
+
+### 9. 常见问题
+
+- `load PCBUSB failed ...`：
+  - 先执行 `install.sh`，或使用用户目录安装并设置 `DYLD_LIBRARY_PATH`。
+- `No CAN backend for current platform`：
+  - 请使用包含 macOS PCAN 后端的构建版本。
+- 扫描 `hits=0`：
+  - 检查接线、电源、终端电阻和 CAN 波特率。
+
+
 ## Linux USB-CANï¼ˆ`slcan`ï¼‰é€ŸæŸ¥
 
 Linux ä¸‹ç›´æŽ¥ä½¿ç”¨ SocketCAN ç½‘å¡åï¼ˆä¾‹å¦‚ `can0`ã€`slcan0`ï¼‰ã€‚

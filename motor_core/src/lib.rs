@@ -4,7 +4,7 @@ pub mod device;
 pub mod dm_serial;
 pub mod error;
 pub mod model;
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 pub mod pcan;
 pub mod socketcan;
 #[cfg(target_os = "linux")]

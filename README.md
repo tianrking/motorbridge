@@ -242,6 +242,116 @@ cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --mod
 cargo run -p motor_cli --release -- --vendor damiao --channel can0@1000000 --model 4310 --motor-id 0x07 --feedback-id 0x17 --mode pos-vel --pos 3.1416 --vlim 2.0 --loop 1 --dt-ms 20
 ```
 
+## macOS PCAN Runtime (PCBUSB)
+
+This project supports PCAN on macOS via MacCAN's `PCBUSB` runtime.
+On macOS, `PCANBasic.dll` is not used.
+
+### 1. Prerequisites
+
+- A PEAK-compatible USB-CAN adapter recognized by macOS.
+- `motorbridge` source built on macOS.
+- MacCAN PCBUSB package (example: `macOS_Library_for_PCANUSB_v0.13.tar.gz`).
+
+### 2. Install PCBUSB (system-wide)
+
+```bash
+cd /path/to/package
+tar -xzf macOS_Library_for_PCANUSB_v0.13.tar.gz
+cd PCBUSB
+sudo ./install.sh
+```
+
+The installer places:
+
+- `libPCBUSB.dylib` into `/usr/local/lib`
+- `PCBUSB.h` into `/usr/local/include`
+
+### 3. Optional user-local install (no sudo)
+
+If your user cannot write to `/usr/local`, use a local runtime path:
+
+```bash
+mkdir -p ~/.local/lib ~/.local/include
+cp PCBUSB/libPCBUSB.0.13.dylib ~/.local/lib/
+ln -sf ~/.local/lib/libPCBUSB.0.13.dylib ~/.local/lib/libPCBUSB.dylib
+cp PCBUSB/PCBUSB.h ~/.local/include/
+```
+
+Then run `motor_cli` with:
+
+```bash
+DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli ...
+```
+
+### 4. Verify runtime loading
+
+```bash
+python3 - <<'PY'
+from can.interfaces.pcan.basic import PCANBasic
+PCANBasic()
+print("PCBUSB load OK")
+PY
+```
+
+If using user-local install:
+
+```bash
+DYLD_LIBRARY_PATH=$HOME/.local/lib python3 - <<'PY'
+from can.interfaces.pcan.basic import PCANBasic
+PCANBasic()
+print("PCBUSB load OK")
+PY
+```
+
+### 5. Build motorbridge CLI
+
+```bash
+cargo build -p motor_cli --release
+```
+
+### 6. Channel mapping on macOS (PCAN backend)
+
+- `can0` maps to `PCAN_USBBUS1`
+- `can1` maps to `PCAN_USBBUS2`
+- Optional bitrate suffix is supported (example: `can0@1000000`)
+
+### 7. Scan motors (Damiao)
+
+```bash
+./target/release/motor_cli \
+  --vendor damiao --channel can0 --mode scan --start-id 1 --end-id 16
+```
+
+If using user-local `PCBUSB`:
+
+```bash
+DYLD_LIBRARY_PATH=$HOME/.local/lib ./target/release/motor_cli \
+  --vendor damiao --channel can0 --mode scan --start-id 1 --end-id 16
+```
+
+### 8. Control example (Damiao MIT)
+
+Replace `motor-id` and `feedback-id` with your scan hits.
+
+```bash
+./target/release/motor_cli \
+  --vendor damiao --channel can0 --model 4310 \
+  --motor-id 0x02 --feedback-id 0x12 \
+  --mode mit --pos 0 --vel 0 --kp 20 --kd 1 --tau 0 \
+  --loop 50 --dt-ms 20
+```
+
+### 9. Troubleshooting
+
+- `load PCBUSB failed ...`:
+  - Install PCBUSB with `install.sh`, or export `DYLD_LIBRARY_PATH` for local install.
+- `No CAN backend for current platform`:
+  - Use a build that includes the macOS PCAN backend.
+- `hits=0` on scan:
+  - Check wiring, power, termination resistor, and CAN bitrate.
+
+
 ## Linux USB-CAN (`slcan`) Quick Guide
 
 Linux uses SocketCAN interface names directly (for example `can0`, `slcan0`).

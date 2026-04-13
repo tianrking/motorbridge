@@ -91,7 +91,7 @@ Notes:
 | `--help` | flag | off | Prints CLI help and exits |
 | `--vendor` | string | `damiao` | `damiao`, `robstride`, `hightorque`, `myactuator`, `hexfellow`, `all` |
 | `--transport` | string | `auto` | `auto`, `socketcan`, `socketcanfd`, `dm-serial` (`socketcanfd` is Hexfellow-required path; `dm-serial` is Damiao-only) |
-| `--channel` | string | `can0` | Linux: SocketCAN interface name (`can0`/`slcan0`); Windows (PCAN backend): `can0`/`can1` with optional `@bitrate` suffix (for example `can0@1000000`) |
+| `--channel` | string | `can0` | Linux: SocketCAN interface name (`can0`/`slcan0`); Windows (PCAN backend): `can0`/`can1` with optional `@bitrate` suffix (for example `can0@1000000`); macOS (PCBUSB backend): `can0`/`can1` |
 | `--serial-port` | string | `/dev/ttyACM0` | Used when `--transport dm-serial` |
 | `--serial-baud` | u64 | `921600` | Used when `--transport dm-serial` |
 | `--model` | string | vendor dependent | `4340` for Damiao, `rs-00` for RobStride, `hightorque` for HighTorque, `X8` for MyActuator |
@@ -111,6 +111,9 @@ Notes:
 - Windows PCAN:
   - `can0` maps to `PCAN_USBBUS1`, `can1` maps to `PCAN_USBBUS2`.
   - Optional bitrate suffix is supported: `can0@1000000`.
+- macOS PCBUSB (PCAN backend):
+  - `can0` maps to `PCAN_USBBUS1`, `can1` maps to `PCAN_USBBUS2`.
+  - Install `libPCBUSB.dylib` first (see root `README.md` macOS section).
 
 ### 2.2 Damiao Serial-Bridge Quick Reference (`--transport dm-serial`)
 

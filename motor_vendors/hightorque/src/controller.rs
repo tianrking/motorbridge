@@ -1,7 +1,7 @@
 use crate::motor::HightorqueMotor;
 use motor_core::bus::CanBus;
 use motor_core::error::{MotorError, Result};
-#[cfg(target_os = "windows")]
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 use motor_core::pcan::PcanBus;
 #[cfg(target_os = "linux")]
 use motor_core::socketcan::SocketCanBus;
@@ -19,12 +19,12 @@ impl HightorqueController {
             let bus: Arc<dyn CanBus> = Arc::new(SocketCanBus::open(channel)?);
             return Ok(Self { bus });
         }
-        #[cfg(target_os = "windows")]
+        #[cfg(any(target_os = "windows", target_os = "macos"))]
         {
             let bus: Arc<dyn CanBus> = Arc::new(PcanBus::open(channel)?);
             return Ok(Self { bus });
         }
-        #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+        #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
         {
             let _ = channel;
             Err(MotorError::InvalidArgument(

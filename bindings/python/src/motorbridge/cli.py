@@ -382,10 +382,10 @@ def _scan_damiao(args: argparse.Namespace, start_id: int, end_id: int) -> list[t
         f"[scan:damiao] channel={args.channel} model={args.model} "
         f"id_range=[0x{start_id:X},0x{end_id:X}] timeout_ms={args.timeout_ms}"
     )
-    for mid in range(start_id, end_id + 1):
-        fid = feedback_base + (mid & 0x0F)
-        ctrl = _open_controller(args, "damiao")
-        try:
+    ctrl = _open_controller(args, "damiao")
+    try:
+        for mid in range(start_id, end_id + 1):
+            fid = feedback_base + (mid & 0x0F)
             motor = ctrl.add_damiao_motor(mid, fid, args.model)
             try:
                 esc_id = motor.get_register_u32(8, args.timeout_ms)
@@ -396,9 +396,9 @@ def _scan_damiao(args: argparse.Namespace, start_id: int, end_id: int) -> list[t
                 print(f"[.. ] vendor=damiao probe=0x{mid:02X} no reply")
             finally:
                 motor.close()
-        finally:
-            ctrl.close_bus()
-            ctrl.close()
+    finally:
+        ctrl.close_bus()
+        ctrl.close()
     return found
 
 
@@ -411,11 +411,11 @@ def _scan_robstride(args: argparse.Namespace, start_id: int, end_id: int) -> lis
         f"id_range=[0x{start_id:X},0x{end_id:X}] timeout_ms={args.timeout_ms} "
         f"feedback_ids={','.join(f'0x{x:X}' for x in feedback_ids)} param_id=0x{param_id:X}"
     )
-    for mid in range(start_id, end_id + 1):
-        hit_meta = None
-        for fid in feedback_ids:
-            ctrl = Controller(args.channel)
-            try:
+    ctrl = Controller(args.channel)
+    try:
+        for mid in range(start_id, end_id + 1):
+            hit_meta = None
+            for fid in feedback_ids:
                 motor = ctrl.add_robstride_motor(mid, fid, args.model)
                 try:
                     try:
@@ -434,14 +434,14 @@ def _scan_robstride(args: argparse.Namespace, start_id: int, end_id: int) -> lis
                         break
                 finally:
                     motor.close()
-            finally:
-                ctrl.close_bus()
-                ctrl.close()
-        if hit_meta is None:
-            print(f"[.. ] vendor=robstride probe=0x{mid:02X} no reply")
-        else:
-            found.append((mid, hit_meta))
-            print(f"[hit] probe=0x{mid:02X} {hit_meta}")
+            if hit_meta is None:
+                print(f"[.. ] vendor=robstride probe=0x{mid:02X} no reply")
+            else:
+                found.append((mid, hit_meta))
+                print(f"[hit] probe=0x{mid:02X} {hit_meta}")
+    finally:
+        ctrl.close_bus()
+        ctrl.close()
     return found
 
 
@@ -453,10 +453,10 @@ def _scan_myactuator(args: argparse.Namespace, start_id: int, end_id: int) -> li
         f"[scan:myactuator] channel={args.channel} model={args.model} "
         f"id_range=[0x{lo:X},0x{hi:X}] timeout_ms={args.timeout_ms}"
     )
-    for mid in range(lo, hi + 1):
-        fid = 0x240 + mid
-        ctrl = Controller(args.channel)
-        try:
+    ctrl = Controller(args.channel)
+    try:
+        for mid in range(lo, hi + 1):
+            fid = 0x240 + mid
             motor = ctrl.add_myactuator_motor(mid, fid, args.model)
             try:
                 try:
@@ -476,9 +476,9 @@ def _scan_myactuator(args: argparse.Namespace, start_id: int, end_id: int) -> li
                     print(f"[.. ] vendor=myactuator probe=0x{mid:02X} no reply")
             finally:
                 motor.close()
-        finally:
-            ctrl.close_bus()
-            ctrl.close()
+    finally:
+        ctrl.close_bus()
+        ctrl.close()
     return found
 
 
@@ -490,9 +490,9 @@ def _scan_hightorque(args: argparse.Namespace, start_id: int, end_id: int) -> li
         f"[scan:hightorque] channel={args.channel} model={args.model} "
         f"id_range=[0x{lo:X},0x{hi:X}] timeout_ms={args.timeout_ms}"
     )
-    for mid in range(lo, hi + 1):
-        ctrl = Controller(args.channel)
-        try:
+    ctrl = Controller(args.channel)
+    try:
+        for mid in range(lo, hi + 1):
             motor = ctrl.add_hightorque_motor(mid, 0x01, args.model)
             try:
                 try:
@@ -510,9 +510,9 @@ def _scan_hightorque(args: argparse.Namespace, start_id: int, end_id: int) -> li
                     print(f"[.. ] vendor=hightorque probe=0x{mid:02X} no reply")
             finally:
                 motor.close()
-        finally:
-            ctrl.close_bus()
-            ctrl.close()
+    finally:
+        ctrl.close_bus()
+        ctrl.close()
     return found
 
 

@@ -1,7 +1,9 @@
 export class WsGatewayClient {
   constructor({ onEvent, onState, onOpen, onClose, onError, onMessage }) {
     this.ws = null;
-    this.pending = [];
+    this.pendingByReqId = new Map();
+    this.pendingLegacyQueue = [];
+    this.nextReqId = 1;
     this.onEvent = onEvent;
     this.onState = onState;
     this.onOpen = onOpen;
@@ -23,8 +25,14 @@ export class WsGatewayClient {
     };
 
     this.ws.onclose = () => {
-      while (this.pending.length) {
-        const p = this.pending.shift();
+      for (const p of this.pendingByReqId.values()) {
+        clearTimeout(p.timer);
+        p.reject(new Error('ws closed'));
+      }
+      this.pendingByReqId.clear();
+
+      while (this.pendingLegacyQueue.length) {
+        const p = this.pendingLegacyQueue.shift();
         clearTimeout(p.timer);
         p.reject(new Error('ws closed'));
       }
@@ -52,10 +60,19 @@ export class WsGatewayClient {
       }
 
       if (typeof msg?.ok === 'boolean') {
-        const p = this.pending.shift();
+        const reqId = msg?.req_id;
+        const p =
+          reqId != null && this.pendingByReqId.has(reqId)
+            ? this.pendingByReqId.get(reqId)
+            : this.pendingLegacyQueue.shift();
         if (!p) {
           this.onEvent?.(`async ws message: ${JSON.stringify(msg)}`, 'info');
           return;
+        }
+        if (reqId != null) {
+          this.pendingByReqId.delete(reqId);
+          const idx = this.pendingLegacyQueue.indexOf(p);
+          if (idx >= 0) this.pendingLegacyQueue.splice(idx, 1);
         }
         clearTimeout(p.timer);
         p.resolve(msg);
@@ -84,24 +101,29 @@ export class WsGatewayClient {
         return;
       }
 
-      const req = { op, ...payload };
+      const reqId = this.nextReqId++;
+      const req = { op, req_id: reqId, ...payload };
       const pending = {
         resolve,
         reject,
+        reqId,
         timer: setTimeout(() => {
-          const idx = this.pending.indexOf(pending);
-          if (idx >= 0) this.pending.splice(idx, 1);
+          this.pendingByReqId.delete(reqId);
+          const idx = this.pendingLegacyQueue.indexOf(pending);
+          if (idx >= 0) this.pendingLegacyQueue.splice(idx, 1);
           reject(new Error(`timeout waiting response for op=${op}`));
         }, timeoutMs),
       };
-      this.pending.push(pending);
+      this.pendingByReqId.set(reqId, pending);
+      this.pendingLegacyQueue.push(pending);
 
       try {
         this.ws.send(JSON.stringify(req));
       } catch (e) {
         clearTimeout(pending.timer);
-        const idx = this.pending.indexOf(pending);
-        if (idx >= 0) this.pending.splice(idx, 1);
+        this.pendingByReqId.delete(reqId);
+        const idx = this.pendingLegacyQueue.indexOf(pending);
+        if (idx >= 0) this.pendingLegacyQueue.splice(idx, 1);
         reject(e);
       }
     });

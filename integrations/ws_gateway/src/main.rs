@@ -742,6 +742,7 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
                             }
                         };
                         let op = v.get("op").and_then(Value::as_str).unwrap_or("").to_lowercase();
+                        let req_id = v.get("req_id").cloned();
 
                         let result: Result<Value, String> = (|| -> Result<Value, String> {
                             match op.as_str() {
@@ -1368,8 +1369,24 @@ async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Result<(), Strin
                         })();
 
                         match result {
-                            Ok(data) => send_json(&mut tx, json!({"ok": true, "op": op, "data": data})).await?,
-                            Err(err) => send_json(&mut tx, json!({"ok": false, "op": op, "error": err})).await?,
+                            Ok(data) => {
+                                let mut resp = json!({"ok": true, "op": op, "data": data});
+                                if let Some(id) = req_id.clone() {
+                                    if let Some(obj) = resp.as_object_mut() {
+                                        obj.insert("req_id".to_string(), id);
+                                    }
+                                }
+                                send_json(&mut tx, resp).await?
+                            }
+                            Err(err) => {
+                                let mut resp = json!({"ok": false, "op": op, "error": err});
+                                if let Some(id) = req_id.clone() {
+                                    if let Some(obj) = resp.as_object_mut() {
+                                        obj.insert("req_id".to_string(), id);
+                                    }
+                                }
+                                send_json(&mut tx, resp).await?
+                            }
                         }
                     }
                     Message::Ping(payload) => {

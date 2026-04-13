@@ -87,8 +87,19 @@ export async function setIdForOp({ h, controls, vendors, setTargetFor, sendCmd, 
   }
 }
 
-export async function controlMotorOp({ h, action, controls, vendors, setTargetFor, sendCmd, setHits, closeBusQuietly, pushLog }) {
-  const c = controls[motorKey(h)] || defaultControlsForHit(h);
+export async function controlMotorOp({
+  h,
+  action,
+  controls,
+  controlOverride,
+  vendors,
+  setTargetFor,
+  sendCmd,
+  setHits,
+  closeBusQuietly,
+  pushLog,
+}) {
+  const c = { ...(controls[motorKey(h)] || defaultControlsForHit(h)), ...(controlOverride || {}) };
   const target = parseNum(c.target, 0);
   const vlim = parseNum(c.vlim, 1);
   const kp = parseNum(c.kp, 30);

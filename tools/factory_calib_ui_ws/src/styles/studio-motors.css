@@ -402,3 +402,16 @@
     max-height: none;
   }
 }
+
+
+.armLiveToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #37528f;
+  font-weight: 600;
+}
+
+.armLiveToggle input {
+  accent-color: #4f7cff;
+}

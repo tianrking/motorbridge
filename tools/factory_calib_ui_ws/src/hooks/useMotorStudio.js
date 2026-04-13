@@ -25,6 +25,7 @@ const DEFAULT_UI_PREFS = {
   sectionMotorsCollapsed: false,
   sectionStateCollapsed: true,
   sectionLogsCollapsed: true,
+  armSliderLiveMove: false,
 };
 
 function loadJson(key, fallback) {
@@ -286,8 +287,19 @@ export function useMotorStudio() {
     return setIdForOp({ h, controls, vendors, setTargetFor, sendCmd, closeBusQuietly, pushLog });
   };
 
-  const controlMotor = (h, action) =>
-    controlMotorOp({ h, action, controls, vendors, setTargetFor, sendCmd, setHits, closeBusQuietly, pushLog });
+  const controlMotor = (h, action, controlOverride = null) =>
+    controlMotorOp({
+      h,
+      action,
+      controls,
+      controlOverride,
+      vendors,
+      setTargetFor,
+      sendCmd,
+      setHits,
+      closeBusQuietly,
+      pushLog,
+    });
 
   const refreshMotorState = (h) =>
     refreshMotorStateOp({ h, vendors, setTargetFor, sendCmd, setHits, pushLog });

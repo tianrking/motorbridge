@@ -20,6 +20,8 @@ export function RobotArmPage({
   patchControl,
   controlMotor,
   refreshMotorState,
+  uiPrefs,
+  setUiPref,
 }) {
   const { t } = useI18n();
   const [activeJointKey, setActiveJointKey] = React.useState('');
@@ -49,6 +51,38 @@ export function RobotArmPage({
     });
     return out;
   }, [robotArmJointRows]);
+
+  const liveMove = Boolean(uiPrefs?.armSliderLiveMove);
+  const liveMoveTimerRef = React.useRef(null);
+  const pendingLiveMoveRef = React.useRef(null);
+
+  React.useEffect(() => () => {
+    if (liveMoveTimerRef.current) clearTimeout(liveMoveTimerRef.current);
+  }, []);
+
+  const scheduleLiveMove = React.useCallback(
+    (hit, targetText) => {
+      if (!liveMove || !connected || !hit) return;
+      pendingLiveMoveRef.current = { hit, targetText };
+      if (liveMoveTimerRef.current) return;
+      liveMoveTimerRef.current = setTimeout(() => {
+        liveMoveTimerRef.current = null;
+        const pending = pendingLiveMoveRef.current;
+        if (!pending) return;
+        controlMotor(pending.hit, 'move', { target: pending.targetText });
+      }, 80);
+    },
+    [liveMove, connected, controlMotor],
+  );
+
+  const onSliderTargetChange = React.useCallback(
+    (targetText) => {
+      if (!activeRow) return;
+      patchControl(activeRow.key, { target: targetText });
+      scheduleLiveMove(activeRow.hit, targetText);
+    },
+    [activeRow, patchControl, scheduleLiveMove],
+  );
 
   return (
     <section className="card glass">
@@ -190,7 +224,7 @@ export function RobotArmPage({
                   <label>{t('target')}</label>
                   <input
                     value={activeRow.control.target}
-                    onChange={(e) => patchControl(activeRow.key, { target: e.target.value })}
+                    onChange={(e) => onSliderTargetChange(e.target.value)}
                   />
                 </div>
               </div>
@@ -205,14 +239,25 @@ export function RobotArmPage({
                   max="3.14"
                   step="0.01"
                   value={sliderValue}
-                  onChange={(e) => patchControl(activeRow.key, { target: e.target.value })}
+                  onChange={(e) => onSliderTargetChange(e.target.value)}
                 />
+                <div className="armSliderMeta">
+                  <label className="armLiveToggle">
+                    <input
+                      type="checkbox"
+                      checked={liveMove}
+                      onChange={(e) => setUiPref('armSliderLiveMove', e.target.checked)}
+                    />
+                    <span>{t('arm_live_move')}</span>
+                  </label>
+                  <span>{liveMove ? t('arm_live_move_on') : t('arm_live_move_off')}</span>
+                </div>
                 <div className="armSliderMeta">
                   <span>{t('arm_pos_range_hint')}</span>
                   <input
                     className="armPosInput"
                     value={activeRow.control.target}
-                    onChange={(e) => patchControl(activeRow.key, { target: e.target.value })}
+                    onChange={(e) => onSliderTargetChange(e.target.value)}
                   />
                 </div>
               </div>

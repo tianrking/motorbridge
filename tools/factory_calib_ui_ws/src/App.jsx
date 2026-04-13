@@ -113,6 +113,8 @@ export default function App() {
           patchControl={studio.patchControl}
           controlMotor={studio.controlMotor}
           refreshMotorState={studio.refreshMotorState}
+          uiPrefs={studio.uiPrefs}
+          setUiPref={studio.setUiPref}
         />
       )}
 

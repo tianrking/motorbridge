@@ -113,7 +113,12 @@ setup(
     packages=find_packages(where="src"),
     package_data={"motorbridge": ["lib/*", "bin/*"]},
     include_package_data=True,
-    entry_points={"console_scripts": ["motorbridge-cli=motorbridge.cli:main"]},
+    entry_points={
+        "console_scripts": [
+            "motorbridge-cli=motorbridge.cli:main",
+            "motorbridge-gateway=motorbridge.gateway:main",
+        ]
+    },
     distclass=BinaryDistribution,
     cmdclass={"build_py": BuildPyWithAbi},
     zip_safe=False,

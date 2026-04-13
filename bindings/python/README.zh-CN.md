@@ -43,6 +43,8 @@
 
 - 高层 API: `Controller`、`Motor`、`Mode`
 - CLI: `motorbridge-cli`
+- 网关启动命令（pip 安装后进入 PATH）：
+  - `motorbridge-gateway -- --bind 0.0.0.0:9002 ...`
 - Controller 构造入口：
   - `Controller(channel=\"can0\")`（SocketCAN/PCAN 路径）
   - `Controller.from_socketcanfd(channel=\"can0\")`（CAN-FD 路径，Hexfellow 必须使用）

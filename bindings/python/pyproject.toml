@@ -30,6 +30,7 @@ Repository = "https://github.com/tianrking/motorbridge"
 
 [project.scripts]
 motorbridge-cli = "motorbridge.cli:main"
+motorbridge-gateway = "motorbridge.gateway:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

@@ -42,6 +42,7 @@ Notes:
 ## Scope
 Packaging note:
 
+- Current package target version: `0.1.9`.
 - Published wheel includes `motor_abi` shared library and `ws_gateway` binary for that platform.
 - After `pip install motorbridge`, gateway binary path is typically:
   `.../site-packages/motorbridge/bin/ws_gateway` (or `ws_gateway.exe` on Windows).

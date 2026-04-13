@@ -41,6 +41,7 @@
 
 ## 范围
 
+- 当前目标包版本：`0.1.9`。
 - 高层 API: `Controller`、`Motor`、`Mode`
 - CLI: `motorbridge-cli`
 - 网关启动命令（pip 安装后进入 PATH）：

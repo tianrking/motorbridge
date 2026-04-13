@@ -42,7 +42,9 @@ jobs:
         run: python -m pip install --upgrade pip setuptools wheel
 
       - name: Build ABI
-        run: cargo build -p motor_abi --release
+        run: |
+          cargo build -p motor_abi --release
+          cargo build -p ws_gateway --release
 
       - name: Build wheel
         shell: pwsh

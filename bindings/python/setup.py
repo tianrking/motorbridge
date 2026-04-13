@@ -15,6 +15,39 @@ def _platform_lib_name() -> str:
     return "libmotor_abi.so"
 
 
+def _platform_gateway_name() -> str:
+    if sys.platform.startswith("win"):
+        return "ws_gateway.exe"
+    return "ws_gateway"
+
+
+def _candidate_gateway_paths() -> list[Path]:
+    here = Path(__file__).resolve()
+    repo_root = here.parents[2]
+    bin_name = _platform_gateway_name()
+    candidates: list[Path] = []
+
+    env = os.getenv("MOTORBRIDGE_WS_GATEWAY_BIN")
+    if env:
+        candidates.append(Path(env).expanduser())
+
+    candidates.append(repo_root / "target" / "release" / bin_name)
+    candidates.append(here.parent / "src" / "motorbridge" / "bin" / bin_name)
+    return candidates
+
+
+def _resolve_gateway_path() -> Path:
+    for path in _candidate_gateway_paths():
+        if path.exists():
+            return path
+    tried = "\n".join(f"- {path}" for path in _candidate_gateway_paths())
+    raise RuntimeError(
+        "Cannot locate ws_gateway binary for wheel build.\n"
+        f"Tried:\n{tried}\n"
+        "Build gateway first (`cargo build -p ws_gateway --release`) or set MOTORBRIDGE_WS_GATEWAY_BIN."
+    )
+
+
 def _candidate_abi_paths() -> list[Path]:
     here = Path(__file__).resolve()
     repo_root = here.parents[2]
@@ -50,6 +83,17 @@ class BuildPyWithAbi(_build_py):
         dst_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(abi_src, dst_dir / abi_src.name)
 
+        gateway_src = _resolve_gateway_path()
+        gateway_dir = Path(self.build_lib) / "motorbridge" / "bin"
+        gateway_dir.mkdir(parents=True, exist_ok=True)
+        gateway_dst = gateway_dir / gateway_src.name
+        shutil.copy2(gateway_src, gateway_dst)
+        try:
+            gateway_dst.chmod(0o755)
+        except OSError:
+            # Windows may not honor POSIX mode bits; keep best effort.
+            pass
+
 
 class BinaryDistribution(Distribution):
     def has_ext_modules(self):
@@ -58,7 +102,7 @@ class BinaryDistribution(Distribution):
 
 setup(
     name="motorbridge",
-    version="0.1.7",
+    version="0.1.8",
     description="Python SDK for motorbridge Rust ABI",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
@@ -67,7 +111,7 @@ setup(
     python_requires=">=3.10",
     package_dir={"": "src"},
     packages=find_packages(where="src"),
-    package_data={"motorbridge": ["lib/*"]},
+    package_data={"motorbridge": ["lib/*", "bin/*"]},
     include_package_data=True,
     entry_points={"console_scripts": ["motorbridge-cli=motorbridge.cli:main"]},
     distclass=BinaryDistribution,

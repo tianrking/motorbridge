@@ -40,6 +40,12 @@ Notes:
 - If your goal is CLI parameter lookup, see `../../motor_cli/README.md`.
 
 ## Scope
+Packaging note:
+
+- Published wheel includes `motor_abi` shared library and `ws_gateway` binary for that platform.
+- After `pip install motorbridge`, gateway binary path is typically:
+  `.../site-packages/motorbridge/bin/ws_gateway` (or `ws_gateway.exe` on Windows).
+
 
 - High-level API: `Controller`, `Motor`, `Mode`
 - CLI: `motorbridge-cli`

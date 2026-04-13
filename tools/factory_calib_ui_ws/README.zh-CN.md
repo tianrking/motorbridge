@@ -19,13 +19,24 @@
 
 ## 1）启动 ws_gateway
 
-在仓库根目录执行：
+方式 A（推荐，pip 安装后直接使用 PATH 命令）：
 
 ```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm
-cargo run -p ws_gateway --release -- \
-  --bind 0.0.0.0:9002 \
-  --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+motorbridge-gateway --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+macOS 如遇动态库加载错误，可用通用写法（不写死本机路径）：
+
+```bash
+GW="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent/'bin'/'ws_gateway')")"
+PKG_DIR="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent)")"
+DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+方式 B（源码仓库内运行）：
+
+```bash
+cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 ```
 
 ## 2）前端开发模式

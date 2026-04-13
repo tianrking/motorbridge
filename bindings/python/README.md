@@ -49,6 +49,12 @@ Packaging note:
 
 - Gateway launch command (added to PATH by pip):
   - `motorbridge-gateway -- --bind 0.0.0.0:9002 ...`
+- macOS runtime note (only if you see dynamic library load errors):
+  - Resolve binary path generically:
+    `GW="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent/'bin'/'ws_gateway')")"`
+  - Use package-local `lib` directory (no machine-specific absolute path):
+    `PKG_DIR="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent)")"`
+    `DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`
 
 
 - High-level API: `Controller`, `Motor`, `Mode`

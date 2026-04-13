@@ -46,6 +46,12 @@
 - CLI: `motorbridge-cli`
 - 网关启动命令（pip 安装后进入 PATH）：
   - `motorbridge-gateway -- --bind 0.0.0.0:9002 ...`
+- macOS 运行说明（仅当出现动态库加载错误时需要）：
+  - 通用方式获取网关路径（不写死本机路径）：
+    `GW="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent/'bin'/'ws_gateway')")"`
+  - 使用包内 `lib` 目录设置动态库路径：
+    `PKG_DIR="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent)")"`
+    `DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`
 - Controller 构造入口：
   - `Controller(channel=\"can0\")`（SocketCAN/PCAN 路径）
   - `Controller.from_socketcanfd(channel=\"can0\")`（CAN-FD 路径，Hexfellow 必须使用）

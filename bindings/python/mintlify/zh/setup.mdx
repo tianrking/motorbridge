@@ -226,39 +226,56 @@ deactivate
 
 使用 SDK 前，确保 CAN 接口已配置：
 
-### SocketCAN 设置
+### Linux（SocketCAN）软件检查与初始化
 
 ```bash
+# 检查 CAN 接口是否存在
+ip link show can0
+
 # 加载 CAN 内核模块
 sudo modprobe can
 sudo modprobe can_raw
 sudo modprobe can_dev
 
-# 配置 CAN 接口（示例：1M 波特率）
+# 如果不存在，配置 CAN 接口（示例：1M 波特率）
 sudo ip link set can0 type can bitrate 1000000
 sudo ip link set can0 up
 
-# 验证接口存在
-ip link show can0
+# 增加 TX 队列长度（防止缓冲区溢出）
+sudo ifconfig can0 txqueuelen 1000
 ```
 
-### 增加 TX 队列长度
+### Windows（PCAN）软件检查与初始化
 
-防止"无缓冲空间"错误：
+PowerShell（管理员）建议流程：
+
+```powershell
+# 检查 Python 包和 CLI 是否就绪
+python -c "import motorbridge; print('motorbridge OK')"
+motorbridge-cli --help
+
+# 可选：检查 PCANBasic.dll 是否可加载（需已安装 PEAK 驱动与 PCAN-Basic）
+python -c "import ctypes; ctypes.CDLL('PCANBasic.dll'); print('PCANBasic load OK')"
+
+# 运行一次扫描验证（can0@1000000 映射 PCAN_USBBUS1）
+motorbridge-cli scan --vendor damiao --transport auto --channel can0@1000000 --start-id 1 --end-id 16
+```
+
+### macOS（PCBUSB）软件检查与初始化
 
 ```bash
-# 增加 TX 队列长度
-sudo ifconfig can0 txqueuelen 1000
+# 检查 Python 包和 CLI 是否就绪
+python3 -c "import motorbridge; print('motorbridge OK')"
+motorbridge-cli --help
 
-# 或永久设置在 /etc/network/interfaces：
-# auto can0
-# iface can0 inet manual
-#     pre-up ip link set can0 type can bitrate 1000000
-#     up ip link set can0 up
-#     post-up ifconfig can0 txqueuelen 1000
+# 可选：检查 PCBUSB 运行时是否可加载
+python3 -c "import ctypes; ctypes.CDLL('libPCBUSB.dylib'); print('PCBUSB load OK')"
+
+# 运行一次扫描验证（CAN 路径）
+motorbridge-cli scan --vendor damiao --transport auto --channel can0 --start-id 1 --end-id 16
 ```
 
-### 串口权限
+### 串口权限（Linux，dm-serial）
 
 对于 DM 串口桥传输：
 
@@ -299,6 +316,20 @@ sudo modprobe can_raw
 sudo ip link set can0 type can bitrate 1000000
 sudo ip link set can0 up
 ```
+
+### Windows PCAN 运行时缺失
+
+如果提示 `PCANBasic.dll` 缺失：
+1. 安装 PEAK 驱动与 PCAN-Basic 运行时。
+2. 重新打开终端/IDE 后重试。
+3. 通道建议使用 `can0@1000000` 或 `can1@1000000`。
+
+### macOS PCBUSB 运行时缺失
+
+如果提示 `libPCBUSB.dylib` 缺失：
+1. 先安装 PCBUSB 运行时。
+2. 确认 `libPCBUSB.dylib` 在系统可搜索路径中（如 `/usr/local/lib`）。
+3. 重新打开终端后重试。
 
 ## 下一步
 

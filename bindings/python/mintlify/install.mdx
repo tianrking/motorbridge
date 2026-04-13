@@ -222,39 +222,56 @@ deactivate
 
 Before using the SDK, ensure your CAN interface is configured:
 
-### SocketCAN Setup
+### Linux (SocketCAN) software checks and bring-up
 
 ```bash
+# Check whether CAN interface exists
+ip link show can0
+
 # Load CAN kernel modules
 sudo modprobe can
 sudo modprobe can_raw
 sudo modprobe can_dev
 
-# Configure CAN interface (example: 1M bitrate)
+# If interface is missing, configure CAN interface (example: 1M bitrate)
 sudo ip link set can0 type can bitrate 1000000
 sudo ip link set can0 up
 
-# Verify interface exists
-ip link show can0
-```
-
-### Increase TX Queue Length
-
-Prevent "No buffer space available" errors:
-
-```bash
 # Increase TX queue length
 sudo ifconfig can0 txqueuelen 1000
-
-# Or permanently in /etc/network/interfaces:
-# auto can0
-# iface can0 inet manual
-#     pre-up ip link set can0 type can bitrate 1000000
-#     up ip link set can0 up
-#     post-up ifconfig can0 txqueuelen 1000
 ```
 
-### Serial Port Permissions
+### Windows (PCAN) software checks and bring-up
+
+Recommended PowerShell (Admin) flow:
+
+```powershell
+# Verify package and CLI
+python -c "import motorbridge; print('motorbridge OK')"
+motorbridge-cli --help
+
+# Optional: verify PCANBasic.dll loadability
+python -c "import ctypes; ctypes.CDLL('PCANBasic.dll'); print('PCANBasic load OK')"
+
+# Run a scan check (can0@1000000 maps to PCAN_USBBUS1)
+motorbridge-cli scan --vendor damiao --transport auto --channel can0@1000000 --start-id 1 --end-id 16
+```
+
+### macOS (PCBUSB) software checks and bring-up
+
+```bash
+# Verify package and CLI
+python3 -c "import motorbridge; print('motorbridge OK')"
+motorbridge-cli --help
+
+# Optional: verify PCBUSB runtime loadability
+python3 -c "import ctypes; ctypes.CDLL('libPCBUSB.dylib'); print('PCBUSB load OK')"
+
+# Run a scan check (CAN path)
+motorbridge-cli scan --vendor damiao --transport auto --channel can0 --start-id 1 --end-id 16
+```
+
+### Serial Port Permissions (Linux, dm-serial)
 
 For DM serial bridge transport:
 
@@ -295,6 +312,20 @@ sudo modprobe can_raw
 sudo ip link set can0 type can bitrate 1000000
 sudo ip link set can0 up
 ```
+
+### Windows PCAN runtime missing
+
+If you see `PCANBasic.dll` missing:
+1. Install PEAK driver + PCAN-Basic runtime.
+2. Reopen terminal/IDE and retry.
+3. Prefer channels like `can0@1000000` or `can1@1000000`.
+
+### macOS PCBUSB runtime missing
+
+If you see `libPCBUSB.dylib` missing:
+1. Install PCBUSB runtime first.
+2. Ensure `libPCBUSB.dylib` is in a searchable path (for example `/usr/local/lib`).
+3. Reopen terminal and retry.
 
 ## Next Steps
 

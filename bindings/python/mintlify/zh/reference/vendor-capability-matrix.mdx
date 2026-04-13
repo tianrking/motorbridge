@@ -22,20 +22,117 @@ title: 厂商能力矩阵
 
 ## 顶层统一模式支持
 
-| 厂商 | MIT | POS_VEL | VEL | FORCE_POS |
-|------|-----|---------|-----|-----------|
-| Damiao | 支持 | 支持 | 支持 | 支持 |
-| RobStride | 支持 | 支持 | 支持 | 暂不支持（仅参数级路径） |
-| MyActuator | 不支持 | 支持 | 支持 | 不支持 |
-| HighTorque | 支持 | 支持 | 支持 | 支持 |
-| Hexfellow | 支持 | 支持 | 不支持 | 支持 |
+| 厂商 | 典型型号 | MIT | POS_VEL | VEL | FORCE_POS |
+|------|----------|-----|---------|-----|-----------|
+| Damiao | 4310, 4340P, 6006 | ✅ | ✅ | ✅ | ✅ |
+| RobStride | rs-00, rs-01, rs-06 | ✅ | ✅ | ✅ | ❌ |
+| MyActuator | X8 | ❌ | ✅ | ✅ | ❌ |
+| HighTorque | hightorque | ✅ | ✅ | ✅ | ✅ |
+| Hexfellow | hexfellow | ✅ | ✅ | ❌ | ❌ |
 
 ### RobStride 映射说明
 
 - `MIT` 映射到原生阻抗控制报文（`pos/vel/kp/kd/tau` 均有效）。
 - `POS_VEL` 映射到原生位置流程（`run_mode=1` + `loc_ref` + `limit_spd` + 可选 `loc_kp`）。
 - 统一 `pos-vel` 下，CLI 的 `--vel/--kd/--tau` 为无效参数：只给 warning，不报错。
-- 扭矩/电流目前仍是参数级能力（`write-param`），尚未独立成统一模式。
+- 扭矩/电流目前仍是参数级能力（`write-param`），尚未独立成统一模式（因此 `FORCE_POS` 为 ❌）。
+
+## 统一模式 -> 厂商原生能力映射
+
+| 统一模式 | Damiao | RobStride | MyActuator | HighTorque | Hexfellow |
+|----------|--------|-----------|------------|------------|-----------|
+| `MIT` | 原生 MIT | 原生 MIT | 不支持 | 映射到原生 pos+vel+tqe | 原生 MIT |
+| `POS_VEL` | 原生 POS_VEL | 原生位置流程（`run_mode=1 + loc_ref + limit_spd`） | 原生位置流程 | 原生 POS_VEL | 原生 POS_VEL |
+| `VEL` | 原生 VEL | 原生 Velocity | 原生 Velocity | 原生 Velocity | 不支持 |
+| `FORCE_POS` | 原生 FORCE_POS | 不支持 | 不支持 | 映射到原生 pos+vel+tqe | 不支持 |
+
+## 实验章节：厂商原生协议入口（已实现）
+
+> 该章节用于暴露“已实现但不属于统一四模式”的厂商原生能力，便于现场调试与协议联调。
+
+| 厂商 | 原生能力入口（示例） | 说明 |
+|------|----------------------|------|
+| Damiao | `id-dump`, `id-set`（CLI）+ `set_zero_position()`（API） | 寄存器读写、ID 修改、置零流程 |
+| RobStride | `ping`, `robstride-read-param`, `robstride-write-param` | 29-bit 扩展帧参数通道，支持类型化参数读写 |
+| MyActuator | 厂商原生命令路径（由适配层暴露） | 以位置/速度主流程为主，寄存器能力有限 |
+| HighTorque | 厂商原生命令路径（由适配层暴露） | 统一接口下内部做缩放映射 |
+| Hexfellow | CAN-FD 原生路径（`socketcanfd`） | 主要覆盖 MIT/POS_VEL，依赖 CAN-FD |
+
+### RobStride 原生参数命令（跨平台）
+
+Linux / macOS:
+
+```bash
+motorbridge-cli robstride-read-param \
+  --channel can0 --model rs-00 --motor-id 127 \
+  --param-id 0x7019 --type f32 --timeout-ms 500
+```
+
+Windows (PowerShell):
+
+```powershell
+motorbridge-cli robstride-read-param `
+  --channel can0@1000000 --model rs-00 --motor-id 127 `
+  --param-id 0x7019 --type f32 --timeout-ms 500
+```
+
+## 三平台命令模板（统一接口）
+
+以下示例均基于 Python 包命令 `motorbridge-cli`。
+
+### Linux（Ubuntu / SocketCAN）
+
+```bash
+# RobStride POS_VEL（已支持）
+motorbridge-cli run \
+  --vendor robstride --transport auto --channel can0 \
+  --model rs-00 --motor-id 127 --feedback-id 0xFD \
+  --mode pos-vel --pos 1.2 --vlim 2.0 --loop 20 --dt-ms 20
+
+# Damiao FORCE_POS
+motorbridge-cli run \
+  --vendor damiao --transport auto --channel can0 \
+  --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode force-pos --pos 0.8 --vlim 1.5 --ratio 0.3 --loop 20 --dt-ms 20
+```
+
+### macOS
+
+```bash
+# CAN 路径（需 PCBUSB 运行时）
+motorbridge-cli run \
+  --vendor robstride --transport auto --channel can0 \
+  --model rs-00 --motor-id 127 --feedback-id 0xFD \
+  --mode pos-vel --pos 1.2 --vlim 2.0 --loop 20 --dt-ms 20
+
+# Damiao dm-serial 路径（不依赖 CAN 运行时）
+motorbridge-cli run \
+  --vendor damiao --transport dm-serial \
+  --serial-port /dev/cu.usbmodemXXXX --serial-baud 921600 \
+  --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode mit --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 20 --dt-ms 20
+```
+
+### Windows（PowerShell / PCAN）
+
+```powershell
+# RobStride POS_VEL（PCAN 通道示例）
+motorbridge-cli run `
+  --vendor robstride --transport auto --channel can0@1000000 `
+  --model rs-00 --motor-id 127 --feedback-id 0xFD `
+  --mode pos-vel --pos 1.2 --vlim 2.0 --loop 20 --dt-ms 20
+
+# Damiao FORCE_POS
+motorbridge-cli run `
+  --vendor damiao --transport auto --channel can0@1000000 `
+  --model 4340P --motor-id 0x01 --feedback-id 0x11 `
+  --mode force-pos --pos 0.8 --vlim 1.5 --ratio 0.3 --loop 20 --dt-ms 20
+```
+
+提示：
+- Linux/macOS 的 SocketCAN/PCAN 通道通常写 `can0`。
+- Windows PCAN 建议写 `can0@1000000`。
+- `dm-serial` 仅 Damiao 支持。
 
 ## Host / Feedback ID 说明
 

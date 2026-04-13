@@ -18,20 +18,117 @@ This page tracks the production capability status across vendors in motorbridge.
 
 ## Unified Mode Support
 
-| Vendor | MIT | POS_VEL | VEL | FORCE_POS |
-|--------|-----|---------|-----|-----------|
-| Damiao | Yes | Yes | Yes | Yes |
-| RobStride | Yes | Yes | Yes | No (parameter-level path only) |
-| MyActuator | No | Yes | Yes | No |
-| HighTorque | Yes | Yes | Yes | Yes |
-| Hexfellow | Yes | Yes | No | Yes |
+| Vendor | Typical Models | MIT | POS_VEL | VEL | FORCE_POS |
+|--------|----------------|-----|---------|-----|-----------|
+| Damiao | 4310, 4340P, 6006 | ✅ | ✅ | ✅ | ✅ |
+| RobStride | rs-00, rs-01, rs-06 | ✅ | ✅ | ✅ | ❌ |
+| MyActuator | X8 | ❌ | ✅ | ✅ | ❌ |
+| HighTorque | hightorque | ✅ | ✅ | ✅ | ✅ |
+| Hexfellow | hexfellow | ✅ | ✅ | ❌ | ❌ |
 
 ### RobStride Mapping Notes
 
 - `MIT` maps to native impedance packet (`pos/vel/kp/kd/tau` all effective).
 - `POS_VEL` maps to native position flow (`run_mode=1`, `loc_ref`, `limit_spd`, optional `loc_kp`).
 - In unified `pos-vel`, CLI args `--vel/--kd/--tau` are ignored by design and shown as warnings.
-- Torque/current is currently parameter-level only (`write-param`), not a separate unified mode.
+- Torque/current is currently parameter-level only (`write-param`), not a separate unified mode (`FORCE_POS` remains ❌).
+
+## Unified Mode -> Native Vendor Mapping
+
+| Unified Mode | Damiao | RobStride | MyActuator | HighTorque | Hexfellow |
+|--------------|--------|-----------|------------|------------|-----------|
+| `MIT` | Native MIT | Native MIT | Not supported | Mapped to native pos+vel+tqe | Native MIT |
+| `POS_VEL` | Native POS_VEL | Native position flow (`run_mode=1 + loc_ref + limit_spd`) | Native position flow | Native POS_VEL | Native POS_VEL |
+| `VEL` | Native VEL | Native Velocity | Native Velocity | Native Velocity | Not supported |
+| `FORCE_POS` | Native FORCE_POS | Not supported | Not supported | Mapped to native pos+vel+tqe | Not supported |
+
+## Experimental Section: Vendor-Native Protocol Entrypoints (Implemented)
+
+> This section exposes implemented vendor-native capabilities that are outside the unified 4-mode surface, mainly for commissioning/debug workflows.
+
+| Vendor | Native Entrypoints (examples) | Notes |
+|--------|--------------------------------|-------|
+| Damiao | `id-dump`, `id-set` (CLI) + `set_zero_position()` (API) | Register R/W, ID update, zeroing flow |
+| RobStride | `ping`, `robstride-read-param`, `robstride-write-param` | 29-bit extended-frame parameter path |
+| MyActuator | Vendor-native command path (adapter exposed) | Position/velocity-first flow, limited register surface |
+| HighTorque | Vendor-native command path (adapter exposed) | Internal scaling under unified API |
+| Hexfellow | CAN-FD native path (`socketcanfd`) | Primarily MIT/POS_VEL, requires CAN-FD |
+
+### RobStride Native Parameter Command (Cross-Platform)
+
+Linux / macOS:
+
+```bash
+motorbridge-cli robstride-read-param \
+  --channel can0 --model rs-00 --motor-id 127 \
+  --param-id 0x7019 --type f32 --timeout-ms 500
+```
+
+Windows (PowerShell):
+
+```powershell
+motorbridge-cli robstride-read-param `
+  --channel can0@1000000 --model rs-00 --motor-id 127 `
+  --param-id 0x7019 --type f32 --timeout-ms 500
+```
+
+## Cross-Platform Command Templates
+
+All examples below use the unified Python package CLI: `motorbridge-cli`.
+
+### Linux (Ubuntu / SocketCAN)
+
+```bash
+# RobStride POS_VEL (supported)
+motorbridge-cli run \
+  --vendor robstride --transport auto --channel can0 \
+  --model rs-00 --motor-id 127 --feedback-id 0xFD \
+  --mode pos-vel --pos 1.2 --vlim 2.0 --loop 20 --dt-ms 20
+
+# Damiao FORCE_POS
+motorbridge-cli run \
+  --vendor damiao --transport auto --channel can0 \
+  --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode force-pos --pos 0.8 --vlim 1.5 --ratio 0.3 --loop 20 --dt-ms 20
+```
+
+### macOS
+
+```bash
+# CAN path (requires PCBUSB runtime)
+motorbridge-cli run \
+  --vendor robstride --transport auto --channel can0 \
+  --model rs-00 --motor-id 127 --feedback-id 0xFD \
+  --mode pos-vel --pos 1.2 --vlim 2.0 --loop 20 --dt-ms 20
+
+# Damiao dm-serial path (no CAN runtime needed)
+motorbridge-cli run \
+  --vendor damiao --transport dm-serial \
+  --serial-port /dev/cu.usbmodemXXXX --serial-baud 921600 \
+  --model 4340P --motor-id 0x01 --feedback-id 0x11 \
+  --mode mit --pos 0.5 --vel 0 --kp 20 --kd 1 --tau 0 --loop 20 --dt-ms 20
+```
+
+### Windows (PowerShell / PCAN)
+
+```powershell
+# RobStride POS_VEL (PCAN channel example)
+motorbridge-cli run `
+  --vendor robstride --transport auto --channel can0@1000000 `
+  --model rs-00 --motor-id 127 --feedback-id 0xFD `
+  --mode pos-vel --pos 1.2 --vlim 2.0 --loop 20 --dt-ms 20
+
+# Damiao FORCE_POS
+motorbridge-cli run `
+  --vendor damiao --transport auto --channel can0@1000000 `
+  --model 4340P --motor-id 0x01 --feedback-id 0x11 `
+  --mode force-pos --pos 0.8 --vlim 1.5 --ratio 0.3 --loop 20 --dt-ms 20
+```
+
+Notes:
+- Linux/macOS CAN channel is typically `can0`.
+- Windows PCAN is typically `can0@1000000`.
+- `dm-serial` is Damiao-only.
 
 ## Host / Feedback ID Notes
 

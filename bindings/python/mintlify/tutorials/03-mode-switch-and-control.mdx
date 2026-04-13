@@ -415,10 +415,10 @@ from motorbridge import Controller, Mode
 # Vendor mode support matrix
 VENDOR_MODES = {
     "damiao": [Mode.MIT, Mode.POS_VEL, Mode.VEL, Mode.FORCE_POS],
-    "robstride": [Mode.MIT, Mode.VEL],  # No POS_VEL, FORCE_POS
+    "robstride": [Mode.MIT, Mode.POS_VEL, Mode.VEL],  # No FORCE_POS
     "myactuator": [Mode.POS_VEL, Mode.VEL],  # No MIT
     "hightorque": [Mode.MIT, Mode.POS_VEL, Mode.VEL, Mode.FORCE_POS],
-    "hexfellow": [Mode.MIT, Mode.POS_VEL, Mode.FORCE_POS],  # No VEL
+    "hexfellow": [Mode.MIT, Mode.POS_VEL],  # No VEL, FORCE_POS
 }
 
 def safe_ensure_mode(motor, mode, vendor):

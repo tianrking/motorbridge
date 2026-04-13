@@ -4,7 +4,7 @@ title: What is MotorBridge?
 
 # What is MotorBridge?
 
-<Badge variant="primary">v0.1.3</Badge> <Badge variant="secondary">Rust Core</Badge> <Badge variant="outline">Python Binding</Badge>
+<Badge variant="primary">v0.1.9</Badge> <Badge variant="secondary">Rust Core</Badge> <Badge variant="outline">Python Binding</Badge>
 
 MotorBridge is a **unified motor control stack** with pluggable vendor drivers and a C ABI for cross-language integration.
 
@@ -18,7 +18,7 @@ Every motor vendor has a different protocol:
 | RobStride | RobStride MIT | CAN 2.0 | MIT, Position, Velocity |
 | MyActuator | RMD | CAN 2.0 | Current, Position, Velocity |
 | HighTorque | HT Native | CAN 2.0 | MIT, POS_VEL, VEL, FORCE_POS |
-| Hexfellow | Hexfellow MIT | CAN-FD | MIT, POS_VEL, FORCE_POS |
+| Hexfellow | Hexfellow MIT | CAN-FD | MIT, POS_VEL |
 
 <Callout type="warn">
 Without MotorBridge, you need to:

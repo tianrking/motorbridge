@@ -304,8 +304,14 @@ motorbridge-cli id-dump --motor-id 0x01 --rids 7,8,9,10
 通过 WebSocket 控制电机（适用于浏览器/远程应用）：
 
 ```bash
-# 启动网关
-cargo run -p ws_gateway
+# 启动网关（pip wheel 安装后可直接使用）
+motorbridge-gateway -- --bind 0.0.0.0:9002
+```
+
+在源码仓库中仍可使用：
+
+```bash
+cargo run -p ws_gateway -- --bind 0.0.0.0:9002
 ```
 
 ### 电机校准

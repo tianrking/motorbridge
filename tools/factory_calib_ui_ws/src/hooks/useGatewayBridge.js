@@ -6,6 +6,8 @@ export function useGatewayBridge({ wsUrl, channel, pushLog, setStateSnapshot }) 
   const { t } = useI18n();
   const [connText, setConnText] = useState(t('conn_disconnected'));
   const [connected, setConnected] = useState(false);
+  const [targetTransport, setTargetTransport] = useState('auto');
+  const [targetSerialPort, setTargetSerialPort] = useState('');
   const clientRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const reconnectAttemptRef = useRef(0);
@@ -52,29 +54,42 @@ export function useGatewayBridge({ wsUrl, channel, pushLog, setStateSnapshot }) 
           setStateSnapshot(JSON.stringify(st, null, 2));
         },
         onMessage: (msg) => {
-          if (msg?.type !== 'event' || msg?.event !== 'connected' || !msg?.data) return;
-          const d = msg.data;
-          const target = d.default_target || {};
-          setStateSnapshot(
-            JSON.stringify(
-              {
-                gateway: {
-                  router_mode: d.router_mode || 'unknown',
-                  connected_bus: d.connected_bus ?? null,
+          if (msg?.type === 'event' && msg?.event === 'connected' && msg?.data) {
+            const d = msg.data;
+            const target = d.default_target || {};
+            const transport = target.transport ?? d.transport ?? 'auto';
+            const serialPort = target.serial_port ?? d.serial_port ?? '';
+            setTargetTransport(transport);
+            setTargetSerialPort(serialPort);
+            setStateSnapshot(
+              JSON.stringify(
+                {
+                  gateway: {
+                    router_mode: d.router_mode || 'unknown',
+                    connected_bus: d.connected_bus ?? null,
+                  },
+                  target_default: {
+                    vendor: target.vendor ?? d.vendor ?? null,
+                    transport,
+                    channel: target.channel ?? d.channel ?? null,
+                    serial_port: serialPort || null,
+                    model: target.model ?? d.model ?? null,
+                    motor_id: target.motor_id ?? d.motor_id ?? null,
+                    feedback_id: target.feedback_id ?? d.feedback_id ?? null,
+                  },
                 },
-                target_default: {
-                  vendor: target.vendor ?? d.vendor ?? null,
-                  transport: target.transport ?? d.transport ?? null,
-                  channel: target.channel ?? d.channel ?? null,
-                  model: target.model ?? d.model ?? null,
-                  motor_id: target.motor_id ?? d.motor_id ?? null,
-                  feedback_id: target.feedback_id ?? d.feedback_id ?? null,
-                },
-              },
-              null,
-              2,
-            ),
-          );
+                null,
+                2,
+              ),
+            );
+            return;
+          }
+
+          if (msg?.ok === true && msg?.op === 'set_target') {
+            const d = msg?.data || {};
+            if (typeof d.transport === 'string') setTargetTransport(d.transport);
+            if (typeof d.serial_port === 'string') setTargetSerialPort(d.serial_port);
+          }
         },
         onOpen: () => {
           clearReconnectTimer();
@@ -163,6 +178,8 @@ export function useGatewayBridge({ wsUrl, channel, pushLog, setStateSnapshot }) 
   return {
     connText,
     connected,
+    targetTransport,
+    targetSerialPort,
     connectWs,
     disconnectWs,
     sendCmd,

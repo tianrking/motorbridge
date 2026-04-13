@@ -5,6 +5,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+from .platform_hints import (
+    parse_channel_arg,
+    parse_transport_arg,
+    preflight_can_runtime,
+)
+
 
 def _platform_gateway_name() -> str:
     if sys.platform.startswith("win"):
@@ -59,6 +65,16 @@ def run_gateway(argv: list[str] | None = None) -> int:
     gateway_args = list(sys.argv[1:] if argv is None else argv)
     if gateway_args and gateway_args[0] == "--":
         gateway_args = gateway_args[1:]
+    if any(a in ("-h", "--help") for a in gateway_args):
+        exe = _resolve_gateway_binary()
+        return subprocess.call([exe, *gateway_args])
+
+    transport = parse_transport_arg(gateway_args, default="auto")
+    channel = parse_channel_arg(gateway_args, default="can0")
+    hint = preflight_can_runtime("motorbridge-gateway", transport, channel)
+    if hint:
+        print(hint, file=sys.stderr)
+        return 2
 
     exe = _resolve_gateway_binary()
     cmd = [exe, *gateway_args]

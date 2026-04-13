@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import sys
 import time
 
 from .core import Controller
 from .models import Mode
+from .platform_hints import preflight_can_runtime
 
 
 def _mode_to_enum(mode: str) -> Mode:
@@ -615,20 +617,30 @@ def _robstride_write_param_command(args: argparse.Namespace) -> None:
 
 def main() -> None:
     args = _parse_with_legacy_support()
-    if args.command == "run":
-        _run_command(args)
-    elif args.command == "id-dump":
-        _id_dump_command(args)
-    elif args.command == "id-set":
-        _id_set_command(args)
-    elif args.command == "scan":
-        _scan_command(args)
-    elif args.command == "robstride-read-param":
-        _robstride_read_param_command(args)
-    elif args.command == "robstride-write-param":
-        _robstride_write_param_command(args)
-    else:
-        raise RuntimeError(f"unknown command: {args.command}")
+    try:
+        transport = str(getattr(args, "transport", "auto") or "auto")
+        channel = str(getattr(args, "channel", "can0") or "can0")
+        hint = preflight_can_runtime("motorbridge-cli", transport, channel)
+        if hint:
+            raise RuntimeError(hint)
+
+        if args.command == "run":
+            _run_command(args)
+        elif args.command == "id-dump":
+            _id_dump_command(args)
+        elif args.command == "id-set":
+            _id_set_command(args)
+        elif args.command == "scan":
+            _scan_command(args)
+        elif args.command == "robstride-read-param":
+            _robstride_read_param_command(args)
+        elif args.command == "robstride-write-param":
+            _robstride_write_param_command(args)
+        else:
+            raise RuntimeError(f"unknown command: {args.command}")
+    except Exception as e:
+        print(f"[motorbridge-cli] {e}", file=sys.stderr)
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

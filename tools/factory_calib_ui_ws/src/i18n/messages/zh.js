@@ -41,6 +41,9 @@ export const zh = {
   connect: '连接',
   disconnect: '断开',
   ws_url: 'WS 地址',
+  transport: '传输方式',
+  serial_port: '串口端口',
+  serial_port_gateway_managed: '由网关启动参数管理（--serial-port）',
   can_channel: 'CAN 通道',
   scan_timeout_ms: '扫描超时 (ms)',
   websocket_can: 'WebSocket + CAN',
@@ -52,6 +55,8 @@ export const zh = {
   scan_robstride: '扫描 RobStride',
   clear_list: '清空列表',
   clear_devices: '清空设备',
+  clear_all_motors: '一键清空',
+  clear_offline: '清空离线',
 
   model: '型号',
   start: '起始',
@@ -129,6 +134,7 @@ export const zh = {
   clear_logs: '清空日志',
 
   confirm_clear_all: '确认清空所有电机卡片和本地缓存？',
+  confirm_clear_offline: '确认清空 {{count}} 个离线电机卡片？',
   confirm_delete_card: '确认删除这张卡片？\n{{vendor}} ESC {{esc}} / MST {{mst}}',
   confirm_set_id: '确认修改 {{vendor}} ESC {{esc}} / MST {{mst}} 的 ID？这会改变设备身份。',
 
@@ -148,4 +154,6 @@ export const zh = {
   log_manual_add_failed: '手动添加失败：ESC/MST ID 无效',
   log_manual_added: '手动卡片已添加: {{vendor}} ESC={{esc}} MST={{mst}}',
   log_card_removed: '卡片已删除: {{vendor}} {{key}}',
+  log_no_offline_motors: '当前没有离线电机可清除',
+  log_offline_cleared: '已清除 {{count}} 个离线电机卡片',
 };

@@ -12,6 +12,8 @@ export function MotorSection({
   newCardKeys,
   cardRefs,
   removeMotorCard,
+  clearAllMotors,
+  clearOfflineMotors,
   moveMotorCard,
   activeMotor,
   activeControl,
@@ -75,6 +77,8 @@ export function MotorSection({
               <option value="online">{t('online_unknown')}</option>
               <option value="offline">{t('offline')}</option>
             </select>
+            <button onClick={clearOfflineMotors}>{t('clear_offline')}</button>
+            <button onClick={clearAllMotors}>{t('clear_all_motors')}</button>
           </div>
 
           {!connected && <div className="offlineBanner">{t('ws_disconnected_motor')}</div>}

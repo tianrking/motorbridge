@@ -227,6 +227,23 @@
   gap: 6px;
 }
 
+.connCompactGrid {
+  display: grid;
+  grid-template-columns: minmax(240px, 2.1fr) minmax(120px, 0.8fr) minmax(220px, 1.8fr) minmax(120px, 0.8fr);
+  gap: 8px;
+  align-items: end;
+}
+
+.compactField label {
+  margin-bottom: 4px;
+  font-size: 11px;
+}
+
+.compactField input,
+.compactField select {
+  padding: 6px 8px;
+}
+
 .inlineInput,
 .inlineSelect {
   width: auto;
@@ -241,6 +258,16 @@
   }
 
   .menuGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .connCompactGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .connCompactGrid {
     grid-template-columns: 1fr;
   }
 }

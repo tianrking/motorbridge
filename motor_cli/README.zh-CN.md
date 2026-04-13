@@ -1,73 +1,73 @@
-﻿# motor_cliï¼ˆä¸­æ–‡ï¼‰
+﻿# motor_cli（中文）
 
-Rust `motor_cli` çš„å…¨å‚æ•°å®Œæ•´è¯´æ˜Žã€‚
+Rust `motor_cli` 的全参数完整说明。
 
 - Crate: `motor_cli`
-- æŽ¨èï¼ˆrelease åŽ‹ç¼©åŒ…ï¼‰ï¼š`./bin/motor_cli [å‚æ•°...]`
-- å¯é€‰ï¼ˆæºç ç¼–è¯‘åŽï¼‰ï¼š`./target/release/motor_cli [å‚æ•°...]`
+- 推荐（release 压缩包）：`./bin/motor_cli [参数...]`
+- 可选（源码编译后）：`./target/release/motor_cli [参数...]`
 
-## ä¼˜å…ˆä½¿ç”¨ Release äºŒè¿›åˆ¶
+## 优先使用 Release 二进制
 
-å…ˆä»Ž GitHub Releases ä¸‹è½½å¹¶è§£åŽ‹å¯¹åº”åŒ…ï¼ˆä¾‹å¦‚ `motor-cli-vX.Y.Z-linux-x86_64.tar.gz`ï¼‰ï¼Œå†ç›´æŽ¥è¿è¡Œï¼š
+先从 GitHub Releases 下载并解压对应包（例如 `motor-cli-vX.Y.Z-linux-x86_64.tar.gz`），再直接运行：
 
 ```bash
 ./bin/motor_cli -h
 ./bin/motor_cli --vendor damiao --mode scan --start-id 1 --end-id 16
 ```
 
-å¦‚æžœä½ å¸Œæœ›ç›´æŽ¥è¾“å…¥ `motor_cli` å‘½ä»¤ï¼š
+如果你希望直接输入 `motor_cli` 命令：
 
 ```bash
 export PATH="$(pwd)/bin:$PATH"
 motor_cli -h
 ```
 
-## Damiao æŒ‡ä»¤ä¸Žå¯„å­˜å™¨è¿›é˜¶æ–‡æ¡£
+## Damiao 指令与寄存器进阶文档
 
-- ä¸­æ–‡è¯¦è¡¨ï¼ˆæŒ‡ä»¤/å¯„å­˜å™¨/è°ƒå‚ï¼‰: `DAMIAO_API.zh-CN.md`
+- 中文详表（指令/寄存器/调参）: `DAMIAO_API.zh-CN.md`
 - English version: `DAMIAO_API.md`
 
-## RobStride æŒ‡ä»¤ä¸Žå‚æ•°è¿›é˜¶æ–‡æ¡£
+## RobStride 指令与参数进阶文档
 
-- ä¸­æ–‡è¯¦è¡¨ï¼ˆå‚æ•°/èƒ½åŠ›è¾¹ç•Œï¼‰: `ROBSTRIDE_API.zh-CN.md`
+- 中文详表（参数/能力边界）: `ROBSTRIDE_API.zh-CN.md`
 - English version: `ROBSTRIDE_API.md`
 
-## MyActuator æŒ‡ä»¤ä¸Žæ¨¡å¼è¿›é˜¶æ–‡æ¡£
+## MyActuator 指令与模式进阶文档
 
-- ä¸­æ–‡è¯¦è¡¨ï¼ˆå‘½ä»¤/æ¨¡å¼/å‚æ•°ï¼‰: `MYACTUATOR_API.zh-CN.md`
+- 中文详表（命令/模式/参数）: `MYACTUATOR_API.zh-CN.md`
 - English version: `MYACTUATOR_API.md`
 
-## HighTorque è¡¥å……è¯´æ˜Ž
+## HighTorque 补充说明
 
-- åè®®æ·±åº¦åˆ†æžæ–‡æ¡£ï¼š`../docs/zh/hightorque_protocol_analysis.md`
-- å½“å‰ `vendor=hightorque` ä¸º åŽŸç”Ÿ ht_can v1.5.5 çš„â€œç›´è¿ž CANâ€æ¨¡å¼ï¼Œä¸æ˜¯å®˜æ–¹çš„â€œä¸²å£->CANboardâ€ä¼ è¾“é“¾è·¯ã€‚
+- 协议深度分析文档：`../docs/zh/hightorque_protocol_analysis.md`
+- 当前 `vendor=hightorque` 为 原生 ht_can v1.5.5 的“直连 CAN”模式，不是官方的“串口->CANboard”传输链路。
 
-## CAN è°ƒè¯•å…¥å£
+## CAN 调试入口
 
-- Linux `slcan` + Windows `pcan` ä¸“ä¸šæŽ’éšœï¼š`../docs/zh/can_debugging.md`
+- Linux `slcan` + Windows `pcan` 专业排障：`../docs/zh/can_debugging.md`
 - English guide: `../docs/en/can_debugging.md`
 
-## ä¼ è¾“æ ‡è¯†
+## 传输标识
 
 - `[STD-CAN]` => `--transport auto|socketcan`
-- `[CAN-FD]` => `--transport socketcanfd`ï¼ˆä»… Linuxï¼›Hexfellow å¿…é¡»ä½¿ç”¨ï¼‰
-- `[DM-SERIAL]` => `--transport dm-serial`ï¼ˆä»… Damiaoï¼‰
+- `[CAN-FD]` => `--transport socketcanfd`（仅 Linux；Hexfellow 必须使用）
+- `[DM-SERIAL]` => `--transport dm-serial`（仅 Damiao）
 
-å½“å‰çŠ¶æ€ï¼š
-- Hexfellowï¼š`socketcanfd` è·¯å¾„å·²å®žæµ‹ï¼Œç»Ÿä¸€ `mit` / `pos-vel` å¯ç”¨ã€‚
-- HighTorqueï¼šæ ‡å‡† CAN ä¸‹ç»Ÿä¸€ `mit` / `vel` å·²å®žæµ‹å¯ç”¨ï¼ˆåè®®å±‚å¿½ç•¥ `kp/kd`ï¼‰ã€‚
-- Damiaoï¼šç»Ÿä¸€ `mit` / `pos-vel` / `vel` / `force-pos` çš„åŸºçº¿å®žçŽ°ã€‚
+当前状态：
+- Hexfellow：`socketcanfd` 路径已实测，统一 `mit` / `pos-vel` 可用。
+- HighTorque：标准 CAN 下统一 `mit` / `vel` 已实测可用（协议层忽略 `kp/kd`）。
+- Damiao：统一 `mit` / `pos-vel` / `vel` / `force-pos` 的基线实现。
 
-## 1. å‚æ•°è§£æžè§„åˆ™
+## 1. 参数解析规则
 
-- ä»…è§£æž `--key value` å½¢å¼ã€‚
-- å•ç‹¬å¼€å…³ï¼ˆå¦‚ `--help`ï¼‰ä¼šæŒ‰å€¼ `1` å¤„ç†ã€‚
-- ID ç±»å‚æ•°æ”¯æŒåè¿›åˆ¶ï¼ˆå¦‚ `20`ï¼‰ä¸Žåå…­è¿›åˆ¶ï¼ˆå¦‚ `0x14`ï¼‰ã€‚
-- æœªè¢«ä»£ç ä½¿ç”¨çš„å‚æ•°å³ä½¿ä¼ å…¥ï¼Œä¹Ÿä¸ä¼šç”Ÿæ•ˆã€‚
+- 仅解析 `--key value` 形式。
+- 单独开关（如 `--help`）会按值 `1` 处理。
+- ID 类参数支持十进制（如 `20`）与十六进制（如 `0x14`）。
+- 未被代码使用的参数即使传入，也不会生效。
 
-### 1.1 ç»Ÿä¸€è°ƒç”¨èŒƒå¼ï¼ˆCLI å¤§ä¸€ç»Ÿï¼‰
+### 1.1 统一调用范式（CLI 大一统）
 
-æ‰€æœ‰å“ç‰Œéƒ½éµå¾ªåŒä¸€ä¸ªè°ƒç”¨éª¨æž¶ï¼Œåªæ˜¯ `vendor/model/mode` ä¸Žé™„åŠ å‚æ•°ä¸åŒï¼š
+所有品牌都遵循同一个调用骨架，只是 `vendor/model/mode` 与附加参数不同：
 
 ```bash
 motor_cli \
@@ -77,87 +77,87 @@ motor_cli \
   --model <model-name> \
   --motor-id <id> --feedback-id <id> \
   --mode <mode-name> \
-  [æ¨¡å¼å‚æ•°...] \
+  [模式参数...] \
   --loop <n> --dt-ms <ms>
 ```
 
-è¯´æ˜Žï¼š
-- `socketcanfd` ä¸º Hexfellow å¿…éœ€é“¾è·¯ï¼›Damiao å¯æŒ‰åž‹å·åš CAN-FD éªŒè¯ï¼›`dm-serial` ä»… Damiao å¯ç”¨ã€‚
-- `vendor=all` å½“å‰ä»…ç”¨äºŽç»Ÿä¸€æ‰«æï¼ˆ`--mode scan`ï¼‰ã€‚
+说明：
+- `socketcanfd` 为 Hexfellow 必需链路；Damiao 可按型号做 CAN-FD 验证；`dm-serial` 仅 Damiao 可用。
+- `vendor=all` 当前仅用于统一扫描（`--mode scan`）。
 
-### 1.2 é€šç”¨å‚æ•°è¯­ä¹‰ï¼ˆå…ˆç†è§£è¿™äº›ï¼‰
+### 1.2 通用参数语义（先理解这些）
 
-| å‚æ•° | è¯­ä¹‰ |
+| 参数 | 语义 |
 |---|---|
-| `--vendor` | é€‰æ‹©å“ç‰Œé©±åŠ¨å®žçŽ°ï¼ˆç»Ÿä¸€å…¥å£ä¸‹å‘åˆ°ä¸åŒ vendor backendï¼‰ |
-| `--transport` | é€‰æ‹©ä¼ è¾“å±‚ï¼ˆæ ‡å‡† CAN æˆ– Damiao ä¸²å£æ¡¥ï¼‰ |
-| `--channel` | CAN é€šé“åï¼ˆLinux ä¸ºç½‘å¡åï¼›Windows å¯å¸¦ `@bitrate`ï¼‰ |
-| `--model` | åž‹å·åç§°ï¼Œç”¨äºŽè¯¥å“ç‰Œä¸‹çš„é™å€¼/èƒ½åŠ›è¾¹ç•Œä¸Žç¼–ç æ˜ å°„ |
-| `--motor-id` | ç›®æ ‡ç”µæœº IDï¼ˆå‘é€å‘½ä»¤ç›®æ ‡ï¼‰ |
-| `--feedback-id` | åé¦ˆå¸§ IDï¼ˆæŽ¥æ”¶çŠ¶æ€æ¥æºï¼‰ |
-| `--mode` | æŽ§åˆ¶/æŸ¥è¯¢åŠ¨ä½œç±»åž‹ï¼ˆä¸åŒå“ç‰Œæ”¯æŒé›†åˆä¸åŒï¼‰ |
-| `--loop` / `--dt-ms` | å¾ªçŽ¯å‘é€æ¬¡æ•° / å‘¨æœŸ |
-| `--ensure-mode` | æŽ§åˆ¶å‰æ˜¯å¦è‡ªåŠ¨åˆ‡æŽ§åˆ¶æ¨¡å¼ï¼ˆDamiao ç­‰æ”¯æŒï¼‰ |
+| `--vendor` | 选择品牌驱动实现（统一入口下发到不同 vendor backend） |
+| `--transport` | 选择传输层（标准 CAN 或 Damiao 串口桥） |
+| `--channel` | CAN 通道名（Linux 为网卡名；Windows 可带 `@bitrate`） |
+| `--model` | 型号名称，用于该品牌下的限值/能力边界与编码映射 |
+| `--motor-id` | 目标电机 ID（发送命令目标） |
+| `--feedback-id` | 反馈帧 ID（接收状态来源） |
+| `--mode` | 控制/查询动作类型（不同品牌支持集合不同） |
+| `--loop` / `--dt-ms` | 循环发送次数 / 周期 |
+| `--ensure-mode` | 控制前是否自动切控制模式（Damiao 等支持） |
 
-### 1.3 å„å“ç‰Œå‚æ•°å˜é‡æ€Žä¹ˆä¼ ï¼ˆç»Ÿä¸€è°ƒç”¨ä¸‹çš„å·®å¼‚ï¼‰
+### 1.3 各品牌参数变量怎么传（统一调用下的差异）
 
-| å“ç‰Œ | `--model` ä¼ å…¥ | `--motor-id` / `--feedback-id` ä¼ å…¥ | å¸¸ç”¨ `--mode` |
+| 品牌 | `--model` 传入 | `--motor-id` / `--feedback-id` 传入 | 常用 `--mode` |
 |---|---|---|---|
-| Damiao | å¿…ä¼ ä¸”å»ºè®®æŒ‰ç”µæœºçœŸå®žåž‹å·ï¼ˆæ··åž‹åœºæ™¯ä¸è¦å†™æ­»ä¸€ä¸ª modelï¼‰ | `motor-id` ä¸Ž `feedback-id` éƒ½éœ€è¦æŒ‰å®žé™…è®¾å¤‡ä¼ å…¥ | `scan`ã€`enable`ã€`disable`ã€`mit`ï¼ˆå½“å‰ä¸²å£æ¡¥å»ºè®®è¿™å››ä¸ªï¼‰ |
-| RobStride | ä¼  `rs-00/01...` ç­‰ | `motor-id` å¿…ä¼ ï¼›`feedback-id` å¸¸ç”¨ `0xFD` | `ping`ã€`scan`ã€`mit`ã€`vel`ã€`read-param`ã€`write-param` |
-| HighTorque | ä¼  `hightorque`ï¼ˆhintï¼‰ | æŒ‰è®¾å¤‡ ID ä¼ å…¥ | `read`ã€`mit`ã€`pos`ã€`vel`ã€`tqe`ã€`scan` ç­‰ |
-| MyActuator | ä¼ è¿è¡Œæ—¶åž‹å·å­—ç¬¦ä¸²ï¼ˆé»˜è®¤ `X8`ï¼‰ | æ ‡å‡† 11-bit è§„åˆ™ï¼ˆå¸¸ç”¨ `0x140+id` / `0x240+id`ï¼‰ | `status`ã€`scan`ã€`current`ã€`vel`ã€`pos`ã€`enable/disable` |
-| all | åˆ†å“ç‰Œ hintï¼ˆ`--damiao-model` ç­‰ï¼‰ | ä»…æ‰«æåœºæ™¯ä½¿ç”¨ | `scan` |
+| Damiao | 必传且建议按电机真实型号（混型场景不要写死一个 model） | `motor-id` 与 `feedback-id` 都需要按实际设备传入 | `scan`、`enable`、`disable`、`mit`（当前串口桥建议这四个） |
+| RobStride | 传 `rs-00/01...` 等 | `motor-id` 必传；`feedback-id` 常用 `0xFD` | `ping`、`scan`、`mit`、`vel`、`read-param`、`write-param` |
+| HighTorque | 传 `hightorque`（hint） | 按设备 ID 传入 | `read`、`mit`、`pos`、`vel`、`tqe`、`scan` 等 |
+| MyActuator | 传运行时型号字符串（默认 `X8`） | 标准 11-bit 规则（常用 `0x140+id` / `0x240+id`） | `status`、`scan`、`current`、`vel`、`pos`、`enable/disable` |
+| all | 分品牌 hint（`--damiao-model` 等） | 仅扫描场景使用 | `scan` |
 
-## 2. é¡¶å±‚é€šç”¨å‚æ•°ï¼ˆæ‰€æœ‰ vendorï¼‰
+## 2. 顶层通用参数（所有 vendor）
 
-| å‚æ•° | ç±»åž‹ | é»˜è®¤å€¼ | è¯´æ˜Ž |
+| 参数 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `--help` | flag | å…³é—­ | è¾“å‡ºå¸®åŠ©å¹¶é€€å‡º |
+| `--help` | flag | 关闭 | 输出帮助并退出 |
 | `--vendor` | string | `damiao` | `damiao` / `robstride` / `hightorque` / `myactuator` / `hexfellow` / `all` |
-| `--transport` | string | `auto` | `auto` / `socketcan` / `socketcanfd` / `dm-serial`ï¼ˆ`socketcanfd` ä¸º Hexfellow å¿…éœ€ï¼›`dm-serial` ä»… Damiaoï¼‰ |
+| `--transport` | string | `auto` | `auto` / `socketcan` / `socketcanfd` / `dm-serial`（`socketcanfd` 为 Hexfellow 必需；`dm-serial` 仅 Damiao） |
 | `--channel` | string | `can0` | Linux：SocketCAN 网卡名（`can0`/`slcan0`）；Windows（PCAN 后端）：`can0`/`can1`，可加 `@bitrate`（如 `can0@1000000`）；macOS（PCBUSB 后端）：`can0`/`can1` |
-| `--serial-port` | string | `/dev/ttyACM0` | `--transport dm-serial` æ—¶ä½¿ç”¨ |
-| `--serial-baud` | u64 | `921600` | `--transport dm-serial` æ—¶ä½¿ç”¨ |
-| `--model` | string | æŒ‰ vendor å†³å®š | Damiao é»˜è®¤ `4340`ï¼›RobStride é»˜è®¤ `rs-00`ï¼›HighTorque é»˜è®¤ `hightorque`ï¼›MyActuator é»˜è®¤ `X8` |
-| `--motor-id` | u16(hex/dec) | `0x01` | ç”µæœº CAN ID |
-| `--feedback-id` | u16(hex/dec) | æŒ‰ vendor å†³å®š | Damiao é»˜è®¤ `0x11`ï¼›RobStride é»˜è®¤ `0xFD`ï¼›HighTorque é»˜è®¤ `0x01`ï¼›MyActuator é»˜è®¤ `0x241`ï¼ˆmotor-id=1ï¼‰ |
-| `--mode` | string | æŒ‰ vendor å†³å®š | Damiao é»˜è®¤ `mit`ï¼›RobStride é»˜è®¤ `ping`ï¼›HighTorque é»˜è®¤ `read`ï¼›MyActuator é»˜è®¤ `status`ï¼›`all` é»˜è®¤ `scan` |
-| `--loop` | u64 | `1` | æŽ§åˆ¶å¾ªçŽ¯æ¬¡æ•° |
-| `--dt-ms` | u64 | `20` | å¾ªçŽ¯é—´éš”æ¯«ç§’ |
-| `--ensure-mode` | `0/1` | `1` | æŽ§åˆ¶å‰è‡ªåŠ¨åˆ‡æ¨¡å¼ |
+| `--serial-port` | string | `/dev/ttyACM0` | `--transport dm-serial` 时使用 |
+| `--serial-baud` | u64 | `921600` | `--transport dm-serial` 时使用 |
+| `--model` | string | 按 vendor 决定 | Damiao 默认 `4340`；RobStride 默认 `rs-00`；HighTorque 默认 `hightorque`；MyActuator 默认 `X8` |
+| `--motor-id` | u16(hex/dec) | `0x01` | 电机 CAN ID |
+| `--feedback-id` | u16(hex/dec) | 按 vendor 决定 | Damiao 默认 `0x11`；RobStride 默认 `0xFD`；HighTorque 默认 `0x01`；MyActuator 默认 `0x241`（motor-id=1） |
+| `--mode` | string | 按 vendor 决定 | Damiao 默认 `mit`；RobStride 默认 `ping`；HighTorque 默认 `read`；MyActuator 默认 `status`；`all` 默认 `scan` |
+| `--loop` | u64 | `1` | 控制循环次数 |
+| `--dt-ms` | u64 | `20` | 循环间隔毫秒 |
+| `--ensure-mode` | `0/1` | `1` | 控制前自动切模式 |
 
-### 2.1 é€šé“é€ŸæŸ¥ï¼ˆ`--channel`ï¼‰
+### 2.1 通道速查（`--channel`）
 
-- Linux SocketCANï¼š
-  - ç›´æŽ¥ä½¿ç”¨ç½‘å¡åï¼š`can0`ã€`can1`ã€`slcan0`ã€‚
-  - æ³¢ç‰¹çŽ‡åœ¨ç½‘å¡åˆå§‹åŒ–é˜¶æ®µè®¾ç½®ï¼ˆ`ip link` / `slcand`ï¼‰ï¼Œä¸è¦å†™åˆ° `--channel`ã€‚
-  - `can0@1000000` åœ¨ Linux SocketCAN ä¸‹æ— æ•ˆã€‚
-- Windows PCANï¼š
-  - `can0` æ˜ å°„ `PCAN_USBBUS1`ï¼Œ`can1` æ˜ å°„ `PCAN_USBBUS2`ã€‚
-  - æ”¯æŒå¯é€‰æ³¢ç‰¹çŽ‡åŽç¼€ï¼š`can0@1000000`ã€‚
+- Linux SocketCAN：
+  - 直接使用网卡名：`can0`、`can1`、`slcan0`。
+  - 波特率在网卡初始化阶段设置（`ip link` / `slcand`），不要写到 `--channel`。
+  - `can0@1000000` 在 Linux SocketCAN 下无效。
+- Windows PCAN：
+  - `can0` 映射 `PCAN_USBBUS1`，`can1` 映射 `PCAN_USBBUS2`。
+  - 支持可选波特率后缀：`can0@1000000`。
 - macOS PCBUSB（PCAN 后端）：
   - `can0` 映射 `PCAN_USBBUS1`，`can1` 映射 `PCAN_USBBUS2`。
   - 需先安装 `libPCBUSB.dylib`（见仓库根目录 `README.zh-CN.md` 的 macOS 章节）。
 
 
-### 2.2 Damiao ä¸²å£æ¡¥é€ŸæŸ¥ï¼ˆ`--transport dm-serial`ï¼‰
+### 2.2 Damiao 串口桥速查（`--transport dm-serial`）
 
-- è¯¥é“¾è·¯ä¸ºé€‚é…å™¨ç§æœ‰è·¯å¾„ï¼Œé¢å‘ Damiao ç”µæœºã€‚
-- å¸¸ç”¨å‚æ•°ï¼š`--transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600`ã€‚
-- `dm-serial` æ¨¡å¼ä¸‹ï¼Œä¼ è¾“å±‚åˆ›å»ºä¼šå¿½ç•¥ `--channel`ã€‚
-- `dm-serial` ä»…æ”¹å˜â€œä¼ è¾“å±‚â€ï¼ˆèµ°ä¸²å£æ¡¥ï¼‰ï¼ŒDamiao çš„ä¸šåŠ¡å‚æ•°ä¸Žæ¨¡å¼æŽ¥å£ä¿æŒä¸€è‡´ï¼ˆ`--mode`ã€`--motor-id`ã€`--feedback-id`ã€`--verify-model`ã€`--ensure-mode` ç­‰ï¼‰ã€‚
+- 该链路为适配器私有路径，面向 Damiao 电机。
+- 常用参数：`--transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600`。
+- `dm-serial` 模式下，传输层创建会忽略 `--channel`。
+- `dm-serial` 仅改变“传输层”（走串口桥），Damiao 的业务参数与模式接口保持一致（`--mode`、`--motor-id`、`--feedback-id`、`--verify-model`、`--ensure-mode` 等）。
 
-### 2.3 Damiao ç‹¬ç«‹ CAN-FD é“¾è·¯é€ŸæŸ¥ï¼ˆ`--transport socketcanfd`ï¼‰
+### 2.3 Damiao 独立 CAN-FD 链路速查（`--transport socketcanfd`）
 
-- è¯¥é“¾è·¯ä¸º Linux ä¸“ç”¨ï¼Œå¹¶ä¸Žç»å…¸ `socketcan` é“¾è·¯å¹¶å­˜ã€‚
-- å¸¸ç”¨å‚æ•°ï¼š`--transport socketcanfd --channel can0`ã€‚
-- ä½¿ç”¨å‰å…ˆç¡®ä¿ç½‘å£å¤„äºŽ FD æ¨¡å¼ï¼ˆ`scripts/canfd_restart.sh can0`ï¼‰ã€‚
-- å½“å‰çŠ¶æ€ï¼šé“¾è·¯å·²æŽ¥å…¥ï¼Œå°šæœªæ ‡æ³¨â€œå·²å®Œæˆ CAN-FD ç”µæœºéªŒè¯â€çš„åž‹å·åˆ—è¡¨ã€‚
+- 该链路为 Linux 专用，并与经典 `socketcan` 链路并存。
+- 常用参数：`--transport socketcanfd --channel can0`。
+- 使用前先确保网口处于 FD 模式（`scripts/canfd_restart.sh can0`）。
+- 当前状态：链路已接入，尚未标注“已完成 CAN-FD 电机验证”的型号列表。
 
 ## 3. vendor=`damiao`
 
-### 3.1 æ”¯æŒæ¨¡å¼
+### 3.1 支持模式
 
 - `scan`
 - `enable`
@@ -167,51 +167,51 @@ motor_cli \
 - `vel`
 - `force-pos`
 
-### 3.2 Damiao ä¸“ç”¨å‚æ•°
+### 3.2 Damiao 专用参数
 
-| å‚æ•° | ç±»åž‹ | é»˜è®¤å€¼ | ä½œç”¨èŒƒå›´ | è¯´æ˜Ž |
+| 参数 | 类型 | 默认值 | 作用范围 | 说明 |
 |---|---|---|---|---|
-| `--verify-model` | `0/1` | `1` | éž scan | æ ¡éªŒ PMAX/VMAX/TMAX ä¸Ž `--model` ä¸€è‡´ |
-| `--verify-timeout-ms` | u64 | `500` | éž scan | åž‹å·æ¡æ‰‹è¯»å–è¶…æ—¶ |
-| `--verify-tol` | f32 | `0.2` | éž scan | é™å€¼åŒ¹é…å®¹å·® |
-| `--start-id` | u16 | `1` | scan | æ‰«æèµ·å§‹ IDï¼ˆ1..255ï¼‰ |
-| `--end-id` | u16 | `255` | scan | æ‰«æç»“æŸ IDï¼ˆ1..255ï¼‰ |
-| `--set-motor-id` | u16 å¯é€‰ | æ—  | æ”¹ ID æµç¨‹ | å†™ ESC_IDï¼ˆRID 8ï¼‰ |
-| `--set-feedback-id` | u16 å¯é€‰ | æ—  | æ”¹ ID æµç¨‹ | å†™ MST_IDï¼ˆRID 7ï¼‰ |
-| `--store` | `0/1` | `1` | æ”¹ ID æµç¨‹ | æ˜¯å¦ä¿å­˜å‚æ•° |
-| `--verify-id` | `0/1` | `1` | æ”¹ ID æµç¨‹ | æ˜¯å¦å›žè¯» RID7/RID8 æ ¡éªŒ |
+| `--verify-model` | `0/1` | `1` | 非 scan | 校验 PMAX/VMAX/TMAX 与 `--model` 一致 |
+| `--verify-timeout-ms` | u64 | `500` | 非 scan | 型号握手读取超时 |
+| `--verify-tol` | f32 | `0.2` | 非 scan | 限值匹配容差 |
+| `--start-id` | u16 | `1` | scan | 扫描起始 ID（1..255） |
+| `--end-id` | u16 | `255` | scan | 扫描结束 ID（1..255） |
+| `--set-motor-id` | u16 可选 | 无 | 改 ID 流程 | 写 ESC_ID（RID 8） |
+| `--set-feedback-id` | u16 可选 | 无 | 改 ID 流程 | 写 MST_ID（RID 7） |
+| `--store` | `0/1` | `1` | 改 ID 流程 | 是否保存参数 |
+| `--verify-id` | `0/1` | `1` | 改 ID 流程 | 是否回读 RID7/RID8 校验 |
 
-### 3.3 å„æ¨¡å¼æŽ§åˆ¶å‚æ•°
+### 3.3 各模式控制参数
 
-| æ¨¡å¼ | å‚æ•° | é»˜è®¤å€¼ |
+| 模式 | 参数 | 默认值 |
 |---|---|---|
 | `mit` | `--pos --vel --kp --kd --tau` | `0 0 2 1 0` |
 | `pos-vel` | `--pos --vlim` | `0 1.0` |
 | `vel` | `--vel` | `0` |
 | `force-pos` | `--pos --vlim --ratio` | `0 1.0 0.1` |
-| `enable` / `disable` | æ— é¢å¤–å‚æ•° | n/a |
+| `enable` / `disable` | 无额外参数 | n/a |
 
-### 3.4 æ‰«æè¡Œä¸ºç»†èŠ‚
+### 3.4 扫描行为细节
 
-- æ‰«æé€»è¾‘æœ¬è´¨ä¸Šæ˜¯â€œåž‹å·æ— å…³â€çš„ï¼šå†…éƒ¨ä¼šéåŽ†å†…ç½® model-hint åˆ—è¡¨ã€‚
-- æ¯ä¸ªå€™é€‰ ID ä¼šå°è¯•å¤šä¸ª feedback-hintï¼šæŽ¨æ–­å€¼ï¼ˆ`id+0x10`ï¼‰ã€ç”¨æˆ·ç»™å®š `--feedback-id`ã€`0x11`ã€`0x17`ã€‚
-- ä¼˜å…ˆç”¨å¯„å­˜å™¨ï¼ˆRID 21/22/23ï¼‰æ£€æµ‹ï¼Œå¤±è´¥å†èµ°åé¦ˆå›žé€€æ£€æµ‹ã€‚
+- 扫描逻辑本质上是“型号无关”的：内部会遍历内置 model-hint 列表。
+- 每个候选 ID 会尝试多个 feedback-hint：推断值（`id+0x10`）、用户给定 `--feedback-id`、`0x11`、`0x17`。
+- 优先用寄存器（RID 21/22/23）检测，失败再走反馈回退检测。
 
-### 3.5 Damiao ç¤ºä¾‹
+### 3.5 Damiao 示例
 
 ```bash
-# æ‰«æ 1..16
+# 扫描 1..16
 motor_cli \
   --vendor damiao --channel can0 --mode scan --start-id 1 --end-id 16
 # [STD-CAN]
 
-# MIT æŽ§åˆ¶
+# MIT 控制
 motor_cli \
   --vendor damiao --channel can0 --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode mit --pos 1.57 --vel 2.0 --kp 35 --kd 1.2 --tau 0.3 --loop 120 --dt-ms 20
 # [STD-CAN]
 
-# é€šè¿‡ Damiao ä¸²å£æ¡¥æ‰§è¡Œ MIT
+# 通过 Damiao 串口桥执行 MIT
 motor_cli \
   --vendor damiao --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 \
   --model 4310 --motor-id 0x04 --feedback-id 0x14 \
@@ -219,50 +219,50 @@ motor_cli \
   --pos 1.0 --vel 0 --kp 2 --kd 1 --tau 0 --loop 80 --dt-ms 20
 # [DM-SERIAL]
 
-# ä½ç½®é€Ÿåº¦æŽ§åˆ¶
+# 位置速度控制
 motor_cli \
   --vendor damiao --channel can0 --model 4310 --motor-id 0x04 --feedback-id 0x14 \
   --mode pos-vel --pos 3.14 --vlim 4.0 --loop 120 --dt-ms 20
 # [STD-CAN]
 
-# æ”¹ ID + ä¿å­˜ + æ ¡éªŒ
+# 改 ID + 保存 + 校验
 motor_cli \
   --vendor damiao --channel can0 --model 4310 --motor-id 0x01 --feedback-id 0x11 \
   --set-motor-id 0x04 --set-feedback-id 0x14 --store 1 --verify-id 1
 ```
 
-### 3.6 Damiao ä¸²å£æ¡¥å®Œæ•´æŽ¥å£ä¸Žç”¨æ³•ï¼ˆ`--transport dm-serial`ï¼‰
+### 3.6 Damiao 串口桥完整接口与用法（`--transport dm-serial`）
 
-å…ˆå®šä¹‰å…¬å…±å‰ç¼€ï¼ˆå»ºè®®ï¼‰ï¼š
+先定义公共前缀（建议）：
 
 ```bash
 DM_SERIAL="--vendor damiao --transport dm-serial --serial-port /dev/ttyACM1 --serial-baud 921600 --model 4310"
 ```
 
-#### 3.6.1 ä¸²å£æ¡¥ä¸‹å¿…ç”¨/å¸¸ç”¨å‚æ•°
+#### 3.6.1 串口桥下必用/常用参数
 
-| å‚æ•° | æ˜¯å¦å»ºè®®æ˜¾å¼ä¼ å…¥ | è¯´æ˜Ž |
+| 参数 | 是否建议显式传入 | 说明 |
 |---|---|---|
-| `--transport dm-serial` | å¿…é¡» | åˆ‡åˆ° Damiao ä¸²å£æ¡¥é“¾è·¯ |
-| `--serial-port` | å¿…é¡» | ä¸²å£è®¾å¤‡ï¼Œå¦‚ `/dev/ttyACM1` |
-| `--serial-baud` | å¿…é¡» | ä¸²å£æ³¢ç‰¹çŽ‡ï¼Œå¸¸ç”¨ `921600` |
-| `--channel` | å¯çœç•¥ | è¯¥æ¨¡å¼ä¸‹ä¼šè¢«å¿½ç•¥ |
-| `--motor-id` / `--feedback-id` | æŽ§åˆ¶æ—¶å¿…é¡» | ä¸Žæ‰«æå‘½ä¸­ç»“æžœä¸€è‡´ |
-| `--verify-model` | å»ºè®®æŒ‰çŽ°åœºå¼€å…³ | è‹¥æ¡æ‰‹é“¾è·¯ä¸ç¨³å®šå¯å…ˆè®¾ `0` åšè”é€šéªŒè¯ |
-| `--ensure-mode` | å»ºè®®æŒ‰çŽ°åœºå¼€å…³ | è‹¥ç”µæœºæ¨¡å¼åˆ‡æ¢æµç¨‹ä¸ç¨³å®šå¯å…ˆè®¾ `0` |
+| `--transport dm-serial` | 必须 | 切到 Damiao 串口桥链路 |
+| `--serial-port` | 必须 | 串口设备，如 `/dev/ttyACM1` |
+| `--serial-baud` | 必须 | 串口波特率，常用 `921600` |
+| `--channel` | 可省略 | 该模式下会被忽略 |
+| `--motor-id` / `--feedback-id` | 控制时必须 | 与扫描命中结果一致 |
+| `--verify-model` | 建议按现场开关 | 若握手链路不稳定可先设 `0` 做联通验证 |
+| `--ensure-mode` | 建议按现场开关 | 若电机模式切换流程不稳定可先设 `0` |
 
-> å½“å‰ä¸²å£æ¡¥åœºæ™¯å¯¹å¤–æŽ¨èä»…ä½¿ç”¨ï¼š`scan` / `enable` / `disable` / `mit`ã€‚
+> 当前串口桥场景对外推荐仅使用：`scan` / `enable` / `disable` / `mit`。
 
-#### 3.6.2 ä¸²å£æ¡¥ä¸‹å¸¸ç”¨å››æ¨¡å¼å‘½ä»¤æ¨¡æ¿
+#### 3.6.2 串口桥下常用四模式命令模板
 
 ```bash
-# 1) æ‰«æ
+# 1) 扫描
 motor_cli $DM_SERIAL --mode scan --start-id 1 --end-id 16
 
-# 2) ä½¿èƒ½
+# 2) 使能
 motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 --mode enable --verify-model 0 --loop 1
 
-# 3) å¤±èƒ½
+# 3) 失能
 motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 --mode disable --verify-model 0 --loop 1
 
 # 4) MIT
@@ -271,16 +271,16 @@ motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 \
   --pos 0.5 --vel 0 --kp 2 --kd 1 --tau 0 --loop 80 --dt-ms 20
 ```
 
-#### 3.6.3 æŽ¨èæµ‹è¯•é¡ºåº
+#### 3.6.3 推荐测试顺序
 
-1. `scan` å…ˆç¡®è®¤åœ¨çº¿ IDã€‚
-2. `enable --loop 1` åšæœ€å°åŠ¨ä½œéªŒè¯ã€‚
-3. `mit` å°æ­¥å‚æ•°ï¼ˆå° `pos`ã€ä¸­ä½Ž `kp/kd`ï¼‰éªŒè¯æŽ§åˆ¶é—­çŽ¯ã€‚
-4. æœ€åŽå†ä¸Šä¸šåŠ¡å‚æ•°ä¸Žè¿žç»­å¾ªçŽ¯ã€‚
+1. `scan` 先确认在线 ID。
+2. `enable --loop 1` 做最小动作验证。
+3. `mit` 小步参数（小 `pos`、中低 `kp/kd`）验证控制闭环。
+4. 最后再上业务参数与连续循环。
 
 ## 4. vendor=`robstride`
 
-### 4.1 æ”¯æŒæ¨¡å¼
+### 4.1 支持模式
 
 - `ping`
 - `scan`
@@ -292,86 +292,86 @@ motor_cli $DM_SERIAL --motor-id 0x04 --feedback-id 0x14 \
 - `read-param`
 - `write-param`
 
-### 4.2 RobStride ä¸“ç”¨å‚æ•°
+### 4.2 RobStride 专用参数
 
-| å‚æ•° | ç±»åž‹ | é»˜è®¤å€¼ | ä½œç”¨èŒƒå›´ | è¯´æ˜Ž |
+| 参数 | 类型 | 默认值 | 作用范围 | 说明 |
 |---|---|---|---|---|
-| `--start-id` | u16 | `1` | scan | æ‰«æèµ·å§‹ IDï¼ˆ1..255ï¼‰ |
-| `--end-id` | u16 | `255` | scan | æ‰«æç»“æŸ IDï¼ˆ1..255ï¼‰ |
-| `--manual-vel` | f32 | `0.2` | scan å›žé€€ | ç›²æŽ¢é€Ÿåº¦ |
-| `--manual-ms` | u64 | `200` | scan å›žé€€ | æ¯ä¸ª ID è„‰å†²æ—¶é•¿ |
-| `--manual-gap-ms` | u64 | `200` | scan å›žé€€ | ID é—´éš” |
-| `--set-motor-id` | u16 å¯é€‰ | æ—  | æ”¹ ID æµç¨‹ | è®¾ç½®æ–°è®¾å¤‡ ID |
-| `--store` | `0/1` | `1` | æ”¹ ID æµç¨‹ | ä¿å­˜å‚æ•° |
-| `--param-id` | u16 | å‚æ•°æ¨¡å¼å¿…å¡« | è¯»å†™å‚æ•° | å‚æ•° ID |
-| `--param-value` | ç±»åž‹åŒ–å€¼ | å†™å‚æ•°å¿…å¡« | write-param | æŒ‰å‚æ•°å…ƒæ•°æ®è§£æž |
+| `--start-id` | u16 | `1` | scan | 扫描起始 ID（1..255） |
+| `--end-id` | u16 | `255` | scan | 扫描结束 ID（1..255） |
+| `--manual-vel` | f32 | `0.2` | scan 回退 | 盲探速度 |
+| `--manual-ms` | u64 | `200` | scan 回退 | 每个 ID 脉冲时长 |
+| `--manual-gap-ms` | u64 | `200` | scan 回退 | ID 间隔 |
+| `--set-motor-id` | u16 可选 | 无 | 改 ID 流程 | 设置新设备 ID |
+| `--store` | `0/1` | `1` | 改 ID 流程 | 保存参数 |
+| `--param-id` | u16 | 参数模式必填 | 读写参数 | 参数 ID |
+| `--param-value` | 类型化值 | 写参数必填 | write-param | 按参数元数据解析 |
 
-### 4.3 å„æ¨¡å¼æŽ§åˆ¶å‚æ•°
+### 4.3 各模式控制参数
 
-| æ¨¡å¼ | å‚æ•° | é»˜è®¤å€¼ |
+| 模式 | 参数 | 默认值 |
 |---|---|---|
 | `mit` | `--pos --vel --kp --kd --tau` | `0 0 8 0.2 0` |
-| `pos-vel` | `--pos --vlim [--kp]` | `0 1.0 [æ— ]` |
+| `pos-vel` | `--pos --vlim [--kp]` | `0 1.0 [无]` |
 | `vel` | `--vel` | `0` |
-| `enable` / `disable` | æ— é¢å¤–å‚æ•° | n/a |
+| `enable` / `disable` | 无额外参数 | n/a |
 
-è¯´æ˜Žï¼š
+说明：
 
-- RobStride ç»Ÿä¸€é«˜å±‚å½“å‰æ”¯æŒ `MIT` / `POS_VEL` / `VEL`ã€‚
-- `TORQUE/CURRENT` ç›®å‰ä»æ˜¯å‚æ•°çº§èƒ½åŠ›ï¼ˆé€šè¿‡ `write-param` å†™ `iq_ref` ä¸Žé™å¹…å‚æ•°ï¼‰ï¼Œå°šæœªå¼€æ”¾ç»Ÿä¸€æ¨¡å¼ã€‚
+- RobStride 统一高层当前支持 `MIT` / `POS_VEL` / `VEL`。
+- `TORQUE/CURRENT` 目前仍是参数级能力（通过 `write-param` 写 `iq_ref` 与限幅参数），尚未开放统一模式。
 - RobStride 的 `mit` 五个参数都生效：`--pos`、`--vel`、`--kp`、`--kd`、`--tau`。
 - RobStride 的 `mit` 单位：`pos(rad)`、`vel(rad/s)`、`tau(Nm)`，`kp/kd` 为 MIT 闭环增益。
 - RobStride 的 `pos-vel` 仅消费 `--pos`、`--vlim`、可选 `--kp`/`--loc-kp`。
 - RobStride 的 `pos-vel` 会忽略 `--vel`、`--kd`、`--tau`（CLI 在传入时会打印 warning）。
 
-### 4.4 æ‰«æè¡Œä¸ºç»†èŠ‚
+### 4.4 扫描行为细节
 
-- ç¬¬ä¸€é˜¶æ®µï¼šæ¯ä¸ª ID åš `ping` + å‚æ•°æŸ¥è¯¢æŽ¢æµ‹ã€‚
-- å…¨èŒƒå›´æ— å‘½ä¸­æ—¶ï¼šè¿›å…¥ç›²æŽ¢é€Ÿåº¦è„‰å†²æ¨¡å¼ï¼ˆäººå·¥è§‚å¯Ÿæ˜¯å¦è½¬åŠ¨ï¼‰ã€‚
-- å›žé€€é˜¶æ®µè‹¥æœ‰çŠ¶æ€åé¦ˆï¼Œä¹Ÿä¼šè®¡å…¥å‘½ä¸­ã€‚
+- 第一阶段：每个 ID 做 `ping` + 参数查询探测。
+- 全范围无命中时：进入盲探速度脉冲模式（人工观察是否转动）。
+- 回退阶段若有状态反馈，也会计入命中。
 
-### 4.5 RobStride ç¤ºä¾‹
+### 4.5 RobStride 示例
 
 ```bash
 # ping
 motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFD --mode ping
 
-# æ‰«æ
+# 扫描
 motor_cli \
   --vendor robstride --channel can0 --model rs-06 --mode scan --start-id 1 --end-id 255
 
-# MIT æŽ§åˆ¶
+# MIT 控制
 motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFD \
   --mode mit --pos 3.14 --vel 0 --kp 0.5 --kd 0.2 --tau 0 --loop 120 --dt-ms 20
 
-# POS_VELï¼ˆæ˜ å°„åˆ°åŽŸç”Ÿ Positionï¼‰
+# POS_VEL（映射到原生 Position）
 motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFD \
   --mode pos-vel --pos 1.0 --vlim 1.5 --loop 1 --dt-ms 20
 
-# é€Ÿåº¦æ¨¡å¼
+# 速度模式
 motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFD \
   --mode vel --vel 2.0 --loop 100 --dt-ms 20
 
-# è¯»å‚æ•°
+# 读参数
 motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFD \
   --mode read-param --param-id 0x7005
 
-# å†™å‚æ•°
+# 写参数
 motor_cli \
   --vendor robstride --channel can0 --model rs-06 --motor-id 20 --feedback-id 0xFD \
   --mode write-param --param-id 0x7005 --param-value 2
 
-# æ”¹ IDï¼ˆæ—§ 1 -> æ–° 11ï¼‰å¹¶å­˜å‚
+# 改 ID（旧 1 -> 新 11）并存参
 motor_cli \
   --vendor robstride --channel can0 --model rs-00 --motor-id 1 --feedback-id 0xFD \
   --set-motor-id 11 --store 1
 
-# è®¾é›¶ï¼ˆå®žéªŒæ—¶åºï¼‰
+# 设零（实验时序）
 motor_cli \
   --vendor robstride --channel can0 --model rs-00 --motor-id 11 --feedback-id 0xFD \
   --mode zero --zero-exp 1 --store 1
@@ -379,42 +379,42 @@ motor_cli \
 
 ## 5. vendor=`all`
 
-`vendor=all` å½“å‰ä»…æ”¯æŒ `--mode scan`ã€‚
+`vendor=all` 当前仅支持 `--mode scan`。
 
-### 5.1 all-scan é¢å¤–å‚æ•°
+### 5.1 all-scan 额外参数
 
-| å‚æ•° | é»˜è®¤å€¼ | è¯´æ˜Ž |
+| 参数 | 默认值 | 说明 |
 |---|---|---|
-| `--damiao-model` | `4340P` | ä¼ ç»™ Damiao æ‰«ææµç¨‹çš„ model hint |
-| `--robstride-model` | `rs-00` | ä¼ ç»™ RobStride æ‰«ææµç¨‹çš„ model hint |
-| `--hightorque-model` | `hightorque` | ä¼ ç»™ HighTorque æ‰«ææµç¨‹çš„ model hint |
-| `--myactuator-model` | `X8` | ä¼ ç»™ MyActuator æ‰«ææµç¨‹çš„ model hint |
-| `--start-id` | `1` | åŒæ—¶ä¼ ç»™å„æ‰«ææµç¨‹ |
-| `--end-id` | `255` | ä¼ ç»™ Damiao/RobStrideï¼›MyActuator ä¼šè‡ªåŠ¨æˆªæ–­åˆ° `32` |
+| `--damiao-model` | `4340P` | 传给 Damiao 扫描流程的 model hint |
+| `--robstride-model` | `rs-00` | 传给 RobStride 扫描流程的 model hint |
+| `--hightorque-model` | `hightorque` | 传给 HighTorque 扫描流程的 model hint |
+| `--myactuator-model` | `X8` | 传给 MyActuator 扫描流程的 model hint |
+| `--start-id` | `1` | 同时传给各扫描流程 |
+| `--end-id` | `255` | 传给 Damiao/RobStride；MyActuator 会自动截断到 `32` |
 
-### 5.2 ç¤ºä¾‹
+### 5.2 示例
 
 ```bash
 motor_cli \
   --vendor all --channel can0 --mode scan --start-id 1 --end-id 255
 ```
 
-## 5.3 vendor=`hightorque`ï¼ˆåŽŸç”Ÿ `ht_can` v1.5.5ï¼‰
+## 5.3 vendor=`hightorque`（原生 `ht_can` v1.5.5）
 
-- å½“å‰å®žçŽ°èµ° HighTorque åŽŸç”Ÿ `ht_can` v1.5.5 ç›´è¿ž CAN åè®®è·¯å¾„ã€‚
-- ç”¨äºŽ SocketCANï¼ˆ`can0` ç­‰ï¼‰ç›´è¿žç”µæœºåœºæ™¯ã€‚
-- HighTorque å®˜æ–¹ Panthera SDK çš„â€œUSB ä¸²å£ -> CANboard -> ç”µæœºâ€é“¾è·¯ä¸Žå½“å‰ CLI ç›´è¿ž CAN è·¯å¾„ç›¸äº’ç‹¬ç«‹ã€‚
-- æ”¯æŒæ¨¡å¼ï¼š`scan | read | ping | mit | pos | vel | tqe | pos-vel-tqe | volt | cur | stop | brake | rezero | conf-write | timed-read`ã€‚
-- ç»Ÿä¸€å•ä½æŽ¥å£ï¼š
-  - `--pos` ä¸º `rad`
-  - `--vel` ä¸º `rad/s`
-  - `--tau` ä¸º `Nm`
-  - `--kp`ã€`--kd` ä¸ºç»Ÿä¸€ MIT å‚æ•°ç­¾åä¿ç•™ï¼Œ`ht_can` åè®®æœ¬èº«ä¸ä½¿ç”¨ã€‚
-  - åŽŸå§‹è°ƒè¯•å‚æ•°ï¼š`--raw-pos`ã€`--raw-vel`ã€`--raw-tqe`ã€‚
+- 当前实现走 HighTorque 原生 `ht_can` v1.5.5 直连 CAN 协议路径。
+- 用于 SocketCAN（`can0` 等）直连电机场景。
+- HighTorque 官方 Panthera SDK 的“USB 串口 -> CANboard -> 电机”链路与当前 CLI 直连 CAN 路径相互独立。
+- 支持模式：`scan | read | ping | mit | pos | vel | tqe | pos-vel-tqe | volt | cur | stop | brake | rezero | conf-write | timed-read`。
+- 统一单位接口：
+  - `--pos` 为 `rad`
+  - `--vel` 为 `rad/s`
+  - `--tau` 为 `Nm`
+  - `--kp`、`--kd` 为统一 MIT 参数签名保留，`ht_can` 协议本身不使用。
+  - 原始调试参数：`--raw-pos`、`--raw-vel`、`--raw-tqe`。
 
 ## 6. vendor=`myactuator`
 
-### 6.1 æ”¯æŒæ¨¡å¼
+### 6.1 支持模式
 
 - `scan`
 - `enable`
@@ -428,45 +428,45 @@ motor_cli \
 - `version`
 - `mode-query`
 
-### 6.2 MyActuator ä¸“ç”¨å‚æ•°
+### 6.2 MyActuator 专用参数
 
-| å‚æ•° | ç±»åž‹ | é»˜è®¤å€¼ | ä½œç”¨èŒƒå›´ | è¯´æ˜Ž |
+| 参数 | 类型 | 默认值 | 作用范围 | 说明 |
 |---|---|---|---|---|
-| `--start-id` | u16 | `1` | scan | æ‰«æèµ·å§‹ IDï¼ˆ1..32ï¼‰ |
-| `--end-id` | u16 | `32` | scan | æ‰«æç»“æŸ IDï¼ˆ1..32ï¼Œä¼ å…¥å¤§äºŽ 32 ä¼šè‡ªåŠ¨æˆªæ–­ï¼‰ |
-| `--current` | f32 | `0.0` | current | ç”µæµç›®æ ‡å€¼ï¼ˆAï¼‰ |
-| `--vel` | f32 | `0.0` | vel | é€Ÿåº¦ç›®æ ‡å€¼ï¼ˆrad/sï¼Œå†…éƒ¨è½¬æ¢ä¸º deg/sï¼‰ |
-| `--pos` | f32 | `0.0` | pos | ç»å¯¹ä½ç½®ç›®æ ‡å€¼ï¼ˆradï¼Œå†…éƒ¨è½¬æ¢ä¸º degï¼‰ |
-| `--max-speed` | f32 | `8.726646` | pos | ä½ç½®æ¨¡å¼æœ€å¤§é€Ÿåº¦ï¼ˆrad/sï¼Œå†…éƒ¨è½¬æ¢ï¼‰ |
+| `--start-id` | u16 | `1` | scan | 扫描起始 ID（1..32） |
+| `--end-id` | u16 | `32` | scan | 扫描结束 ID（1..32，传入大于 32 会自动截断） |
+| `--current` | f32 | `0.0` | current | 电流目标值（A） |
+| `--vel` | f32 | `0.0` | vel | 速度目标值（rad/s，内部转换为 deg/s） |
+| `--pos` | f32 | `0.0` | pos | 绝对位置目标值（rad，内部转换为 deg） |
+| `--max-speed` | f32 | `8.726646` | pos | 位置模式最大速度（rad/s，内部转换） |
 
-çŠ¶æ€è¾“å‡ºè¯´æ˜Žï¼š
+状态输出说明：
 
-- `angle` æ¥è‡ª `0x9C` çŠ¶æ€2è¿‘åœˆè§’ã€‚
-- `mt_angle` æ¥è‡ª `0x92` å¤šåœˆè§’ï¼Œç»å¯¹ä½ç½®åˆ¤å®šåº”ä¼˜å…ˆçœ‹å®ƒã€‚
+- `angle` 来自 `0x9C` 状态2近圈角。
+- `mt_angle` 来自 `0x92` 多圈角，绝对位置判定应优先看它。
 
-### 6.3 MyActuator ç¤ºä¾‹
+### 6.3 MyActuator 示例
 
 ```bash
-# æ‰«æ 1..32
+# 扫描 1..32
 motor_cli \
   --vendor myactuator --channel can0 --mode scan --start-id 1 --end-id 32
 
-# è¿žç»­çŠ¶æ€è¯»å–
+# 连续状态读取
 motor_cli \
   --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
   --mode status --loop 40 --dt-ms 50
 
-# é€Ÿåº¦æ¨¡å¼
+# 速度模式
 motor_cli \
   --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
   --mode vel --vel 0.5236 --loop 100 --dt-ms 20
 
-# ä½ç½®æ¨¡å¼
+# 位置模式
 motor_cli \
   --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
   --mode pos --pos 3.1416 --max-speed 5.236 --loop 1
 
-# å°†å½“å‰ä½ç½®è®¾ä¸ºé›¶ç‚¹ï¼ˆæŒä¹…ç”Ÿæ•ˆéœ€æ–­ç”µé‡å¯ï¼‰
+# 将当前位置设为零点（持久生效需断电重启）
 motor_cli \
   --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 \
   --mode set-zero --loop 1
@@ -474,43 +474,43 @@ motor_cli \
 
 ## 7. vendor=`hexfellow`
 
-é“¾è·¯é™åˆ¶ï¼š
-- Hexfellow åœ¨æœ¬ä»“åº“æŒ‰â€œä»… CAN-FDâ€æŽ¥å…¥ï¼ˆ`--transport socketcanfd`ï¼‰ã€‚
-- å½“å‰æ”¯æŒèŒƒå›´ï¼š`scan / status / pos-vel / mit / enable / disable`ã€‚
-- å½“å‰çŠ¶æ€ï¼šé“¾è·¯å·²æŽ¥å…¥ï¼Œç”µæœºéªŒè¯çŸ©é˜µå¾…è¡¥ã€‚
+链路限制：
+- Hexfellow 在本仓库按“仅 CAN-FD”接入（`--transport socketcanfd`）。
+- 当前支持范围：`scan / status / pos-vel / mit / enable / disable`。
+- 当前状态：链路已接入，电机验证矩阵待补。
 
-### 7.1 Hexfellow ç¤ºä¾‹
+### 7.1 Hexfellow 示例
 
 ```bash
-# æ‰«æ ID
+# 扫描 ID
 motor_cli \
   --vendor hexfellow --transport socketcanfd --channel can0 \
   --mode scan --start-id 1 --end-id 32
 
-# çŠ¶æ€æŸ¥è¯¢
+# 状态查询
 motor_cli \
   --vendor hexfellow --transport socketcanfd --channel can0 \
   --model hexfellow --motor-id 1 --feedback-id 0 \
   --mode status
 
-# ä½ç½®é€Ÿåº¦ï¼ˆpos å•ä½ radï¼Œvlim å•ä½ rad/sï¼‰
+# 位置速度（pos 单位 rad，vlim 单位 rad/s）
 motor_cli \
   --vendor hexfellow --transport socketcanfd --channel can0 \
   --model hexfellow --motor-id 1 --feedback-id 0 \
   --mode pos-vel --pos 3.1415926 --vlim 2.0
 
-# MITï¼ˆpos/vel å•ä½ rad/rad/sï¼‰
+# MIT（pos/vel 单位 rad/rad/s）
 motor_cli \
   --vendor hexfellow --transport socketcanfd --channel can0 \
   --model hexfellow --motor-id 1 --feedback-id 0 \
   --mode mit --pos 0.0 --vel 0.0 --kp 1000 --kd 100 --tau 0
 ```
 
-## 8. å®žç”¨å»ºè®®
+## 8. 实用建议
 
-- Damiao æ”¹ ID å»ºè®®å§‹ç»ˆä½¿ç”¨ `--store 1 --verify-id 1`ã€‚
-- è‹¥æ‰«æå¶å‘æ¼æ£€ï¼Œé‡å¯ CAN åŽé‡è¯•ã€‚
-- RobStride æ²¡æœ‰ CLI çš„ `send_pos_vel` æ¨¡å¼ï¼Œè¯·ç”¨ `mit` æˆ– `vel`ã€‚
+- Damiao 改 ID 建议始终使用 `--store 1 --verify-id 1`。
+- 若扫描偶发漏检，重启 CAN 后重试。
+- RobStride 没有 CLI 的 `send_pos_vel` 模式，请用 `mit` 或 `vel`。
 
 ## 已验证能力矩阵（Damiao + RobStride，2026-04）
 
@@ -530,7 +530,7 @@ motor_cli \
 说明：
 - RobStride 默认 `--feedback-id` 为 `0xFD`，内部会回退探测 `0xFF/0xFE`。
 - RobStride 的 `pos-vel` 下 `--vel/--kd/--tau` 为无效参数，仅告警不报错。
-- MyActuator è‹¥ `0x9A` è¿”å›žé”™è¯¯ç  `0x0004`ï¼ˆæ¬ åŽ‹ï¼‰ï¼Œç”µæœºä¼šåœ¨çº¿ä½†ä¸è½¬ï¼Œéœ€è¦å…ˆæ¢å¤ä¾›ç”µç”µåŽ‹ã€‚
+- MyActuator 若 `0x9A` 返回错误码 `0x0004`（欠压），电机会在线但不转，需要先恢复供电电压。
 
 
 

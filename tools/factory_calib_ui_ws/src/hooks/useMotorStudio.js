@@ -91,6 +91,8 @@ export function useMotorStudio() {
   const {
     connText,
     connected,
+    targetTransport,
+    targetSerialPort,
     connectWs,
     disconnectWs,
     sendCmd,
@@ -174,6 +176,35 @@ export function useMotorStudio() {
     } catch {
       // ignore localStorage failures
     }
+  };
+
+  const clearOfflineMotors = () => {
+    const offlineHits = hits.filter((h) => h.online === false);
+    if (offlineHits.length === 0) {
+      pushLog(t('log_no_offline_motors'), 'info');
+      return;
+    }
+
+    const ok =
+      typeof window === 'undefined'
+        ? true
+        : window.confirm(t('confirm_clear_offline', { count: offlineHits.length }));
+    if (!ok) return;
+
+    const offlineKeys = new Set(offlineHits.map((h) => motorKey(h)));
+    setHits((prev) => prev.filter((h) => h.online !== false));
+    setControls((prev) => {
+      const next = { ...prev };
+      for (const k of offlineKeys) delete next[k];
+      return next;
+    });
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const k of offlineKeys) next.delete(k);
+      return next;
+    });
+    setActiveMotorKey((prev) => (prev && offlineKeys.has(prev) ? '' : prev));
+    pushLog(t('log_offline_cleared', { count: offlineHits.length }), 'ok');
   };
 
   const removeMotorCard = (hit) => {
@@ -342,6 +373,8 @@ export function useMotorStudio() {
     setScanTimeoutMs,
     connText,
     connected,
+    targetTransport,
+    targetSerialPort,
     scanBusy,
     scanProgress,
     scanFoundFx,
@@ -378,6 +411,7 @@ export function useMotorStudio() {
     addManualCard,
     probeMotor,
     clearDevices,
+    clearOfflineMotors,
     patchControl,
     controlMotor,
     verifyHit,

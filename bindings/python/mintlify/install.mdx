@@ -2,7 +2,7 @@
 
 <mintly-toc>
 
-This guide covers installing the `motorbridge` Python package on Linux systems.
+This guide covers installing the `motorbridge` Python package on Linux, Windows, and macOS.
 
 </mintly-toc>
 
@@ -10,7 +10,7 @@ This guide covers installing the `motorbridge` Python package on Linux systems.
 
 ### System Requirements
 
-- **Operating System**: Linux (tested on Ubuntu 20.04+)
+- **Operating System**: Linux / Windows / macOS
 - **Python**: 3.10, 3.11, 3.12, 3.13, or 3.14
 - **Hardware**: CAN interface (SocketCAN, PCAN) or serial adapter
 
@@ -31,7 +31,7 @@ python3 -m pip install motorbridge
 ### Install Specific Version
 
 ```bash
-python3 -m pip install motorbridge==0.1.7
+python3 -m pip install motorbridge==0.1.9
 ```
 
 ### Upgrade Existing Installation
@@ -73,10 +73,83 @@ motorbridge Python SDK CLI
 `motorbridge` wheel also installs a standalone gateway launcher:
 
 ```bash
-motorbridge-gateway -- --help
+motorbridge-gateway --help
 ```
 
-> Use `--` to forward remaining arguments to `ws_gateway`.
+> `--` is optional: `motorbridge-gateway -- --help` and `motorbridge-gateway --help` are equivalent.
+
+## WS Gateway Quick Start (3 Platforms)
+
+Use `motorbridge-gateway` (the Python launcher for `ws_gateway`) directly after `pip install`.
+
+### A) Damiao serial bridge (`dm-serial`)
+
+Ubuntu:
+
+```bash
+motorbridge-gateway \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport dm-serial \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+macOS:
+
+```bash
+motorbridge-gateway \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport dm-serial \
+  --serial-port /dev/cu.usbmodemXXXX --serial-baud 921600 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+Windows (PowerShell):
+
+```powershell
+motorbridge-gateway `
+  --bind 0.0.0.0:9002 `
+  --vendor damiao --transport dm-serial `
+  --serial-port COM3 --serial-baud 921600 `
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+### B) CAN path (`auto/socketcan/pcan`)
+
+Ubuntu (SocketCAN):
+
+```bash
+motorbridge-gateway \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport auto \
+  --channel can0 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+macOS (PCBUSB runtime):
+
+```bash
+motorbridge-gateway \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport auto \
+  --channel can0 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+Windows (PCAN backend):
+
+```powershell
+motorbridge-gateway `
+  --bind 0.0.0.0:9002 `
+  --vendor damiao --transport auto `
+  --channel can0@1000000 `
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+Notes:
+- `dm-serial` is Damiao-only.
+- For CAN path: Linux needs SocketCAN interface up (`ip link set can0 up`), Windows needs PEAK PCAN driver + `PCANBasic.dll`, macOS needs PCBUSB runtime.
+- CLI/Gateway now print platform-specific dependency hints before startup.
 
 macOS only (if dynamic library load fails):
 

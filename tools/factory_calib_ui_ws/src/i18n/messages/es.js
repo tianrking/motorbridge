@@ -41,6 +41,9 @@ export const es = {
   connect: 'Conectar',
   disconnect: 'Desconectar',
   ws_url: 'URL WS',
+  transport: 'Transporte',
+  serial_port: 'Puerto serial',
+  serial_port_gateway_managed: 'Gestionado por argumentos de arranque del gateway (--serial-port)',
   can_channel: 'Canal CAN',
   scan_timeout_ms: 'Timeout de escaneo (ms)',
   websocket_can: 'WebSocket + CAN',
@@ -52,6 +55,8 @@ export const es = {
   scan_robstride: 'Escanear RobStride',
   clear_list: 'Limpiar lista',
   clear_devices: 'Limpiar dispositivos',
+  clear_all_motors: 'Limpiar todo',
+  clear_offline: 'Limpiar offline',
 
   model: 'Modelo',
   start: 'Inicio',
@@ -129,6 +134,7 @@ export const es = {
   clear_logs: 'Limpiar logs',
 
   confirm_clear_all: '¿Limpiar todas las tarjetas y la caché local?',
+  confirm_clear_offline: '¿Limpiar {{count}} tarjeta(s) de motor offline?',
   confirm_delete_card: '¿Eliminar esta tarjeta?\n{{vendor}} ESC {{esc}} / MST {{mst}}',
   confirm_set_id: '¿Cambiar ID para {{vendor}} ESC {{esc}} / MST {{mst}}? Esto cambia la identidad del dispositivo.',
 
@@ -148,4 +154,6 @@ export const es = {
   log_manual_add_failed: 'falló alta manual: ESC/MST inválido',
   log_manual_added: 'tarjeta manual agregada: {{vendor}} ESC={{esc}} MST={{mst}}',
   log_card_removed: 'tarjeta eliminada: {{vendor}} {{key}}',
+  log_no_offline_motors: 'no hay motores offline para limpiar',
+  log_offline_cleared: 'se limpiaron {{count}} tarjeta(s) de motor offline',
 };

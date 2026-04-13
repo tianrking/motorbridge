@@ -2,74 +2,137 @@
 
 基于 WebSocket 的工厂上位机（纯前端）。
 
-- 前端技术栈：React + Vite
-- 后端控制链路：`integrations/ws_gateway`
-- 浏览器仅通过 WS 调用接口：`set_target` / `scan` / `set_id` / `verify` / `enable` / `disable` / `mit` / `pos_vel` / `vel` / `force_pos` / `stop`
+- 前端：React + Vite
+- 后端：`ws_gateway`
+- 浏览器调用 WS 指令：`set_target` / `scan` / `set_id` / `verify` / `enable` / `disable` / `mit` / `pos_vel` / `vel` / `force_pos` / `stop`
 
-## 功能
-
-- 按品牌扫描（`damiao`、`robstride`、`myactuator`、`hightorque`、`hexfellow`）
-- Damiao / RobStride 一键扫描按钮
-- 扫描到的电机自动加入列表
-- 每个电机支持：
-  - Enable / Disable / Move / Stop
-  - 模式切换 + 目标参数输入
-  - Set ID + Verify
-- Damiao 扫描参数可视化（`pmax/vmax/tmax`、`detected_by`、`model_guess`）
-
-## 1）启动 ws_gateway
-
-方式 A（推荐，pip 安装后直接使用 PATH 命令）：
+## 1）安装依赖
 
 ```bash
-motorbridge-gateway --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+pip install -U motorbridge
+cd tools/factory_calib_ui_ws
+npm install
 ```
 
-macOS 如遇动态库加载错误，可用通用写法（不写死本机路径）：
+安装后可直接使用 `motorbridge-gateway`（无需额外配置 `MOTORBRIDGE_WS_GATEWAY_BIN` 环境变量）。
+若选择 CAN 路径（`auto/socketcan/socketcanfd`），命令行会在启动前做平台提示：
+- Linux：提示 `canX/slcanX` 初始化与 `ip link up`
+- Windows：提示安装 PEAK PCAN 驱动与 `PCANBasic.dll`
+- macOS：提示安装 PCBUSB 运行时
+`dm-serial` 路径不触发上述 CAN 依赖检查。
+
+## 2）选择传输链路并启动 `ws_gateway`
+
+以下示例统一使用：
+
+```bash
+--bind 0.0.0.0:9002
+```
+
+### A. Damiao 串口桥（`dm-serial`）
+
+当适配器是 Damiao 串口桥时使用。
+
+Ubuntu：
+
+```bash
+motorbridge-gateway -- \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport dm-serial \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+macOS：
+
+```bash
+motorbridge-gateway -- \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport dm-serial \
+  --serial-port /dev/cu.usbmodemXXXX --serial-baud 921600 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+如果 macOS 报动态库加载错误，使用包内路径兜底：
 
 ```bash
 GW="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent/'bin'/'ws_gateway')")"
 PKG_DIR="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent)")"
-DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" \
+  --bind 0.0.0.0:9002 --vendor damiao --transport dm-serial \
+  --serial-port /dev/cu.usbmodemXXXX --serial-baud 921600 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 ```
 
-方式 B（源码仓库内运行）：
+Windows（PowerShell）：
 
-```bash
-cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```powershell
+motorbridge-gateway -- `
+  --bind 0.0.0.0:9002 `
+  --vendor damiao --transport dm-serial `
+  --serial-port COM3 --serial-baud 921600 `
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 ```
 
-## 2）前端开发模式
+### B. PCAN / 标准 CAN 路径（`socketcan`/`pcan`）
+
+当适配器是 PCAN 或标准 CAN 网卡时使用。
+
+Ubuntu（SocketCAN）：
 
 ```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm/tools/factory_calib_ui_ws
-npm install
+motorbridge-gateway -- \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport auto \
+  --channel can0 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+macOS（PCBUSB 运行时）：
+
+```bash
+motorbridge-gateway -- \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport auto \
+  --channel can0 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+Windows（PCAN 后端）：
+
+```powershell
+motorbridge-gateway -- `
+  --bind 0.0.0.0:9002 `
+  --vendor damiao --transport auto `
+  --channel can0@1000000 `
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+## 3）启动前端
+
+```bash
+cd tools/factory_calib_ui_ws
 npm run dev
 ```
 
 打开：`http://127.0.0.1:18110`
 
-如果遇到 `vite: not found`，直接用一键命令：
+UI 连接参数：
 
-```bash
-npm run dev:ready
-```
+- WS URL：`ws://127.0.0.1:9002`
+- Channel：与网关启动参数一致（例如 `can0`）
 
-## 3）构建后本地预览
+## 4）快速验证
 
-```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm/tools/factory_calib_ui_ws
-npm install
-npm run build
-npm run preview
-```
+- 通用页：点击 `Scan Damiao`。
+- 机械臂页：选 profile，点击 `Prepare 7 Cards`，再点 `Scan All Joints`。
 
-打开：`http://127.0.0.1:18110/`
+## 5）说明
 
-## 备注
+- Linux SocketCAN 下通道写 `can0`，不要写 `can0@1000000`。
+- `dm-serial` 只支持 Damiao。
+- 日志里的 `ws disconnected` 常见于浏览器重连，不一定是网关故障；看网关是否仍在监听。
 
-- Linux SocketCAN 通道建议使用 `can0`（不要写成 `can0@1000000`）。
-- 当前结构已按“工厂可用”组织，后续可继续扩展滑条控制、轨迹控制、多机批量策略等页面能力。
+深入排障文档：
 
-
-通道排障参考：请查看 docs/zh/can_debugging.md（包含 can0 与 slcan0 的配置说明）。
+- `docs/zh/can_debugging.md`

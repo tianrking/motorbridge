@@ -41,6 +41,9 @@ export const en = {
   connect: 'Connect',
   disconnect: 'Disconnect',
   ws_url: 'WS URL',
+  transport: 'Transport',
+  serial_port: 'Serial Port',
+  serial_port_gateway_managed: 'Managed by gateway startup args (--serial-port)',
   can_channel: 'CAN Channel',
   scan_timeout_ms: 'Scan Timeout (ms)',
   websocket_can: 'WebSocket + CAN',
@@ -52,6 +55,8 @@ export const en = {
   scan_robstride: 'Scan RobStride',
   clear_list: 'Clear List',
   clear_devices: 'Clear Devices',
+  clear_all_motors: 'Clear All',
+  clear_offline: 'Clear Offline',
 
   model: 'Model',
   start: 'Start',
@@ -129,6 +134,7 @@ export const en = {
   clear_logs: 'Clear Logs',
 
   confirm_clear_all: 'Clear all motor cards and local cache?',
+  confirm_clear_offline: 'Clear {{count}} offline motor card(s)?',
   confirm_delete_card: 'Delete this card?\n{{vendor}} ESC {{esc}} / MST {{mst}}',
   confirm_set_id: 'Set ID for {{vendor}} ESC {{esc}} / MST {{mst}}? This may change device identity.',
 
@@ -148,4 +154,6 @@ export const en = {
   log_manual_add_failed: 'manual add failed: invalid ESC/MST id',
   log_manual_added: 'manual card added: {{vendor}} ESC={{esc}} MST={{mst}}',
   log_card_removed: 'card removed: {{vendor}} {{key}}',
+  log_no_offline_motors: 'no offline motors to clear',
+  log_offline_cleared: 'cleared {{count}} offline motor card(s)',
 };

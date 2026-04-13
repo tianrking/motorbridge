@@ -49,6 +49,8 @@ export default function App() {
         setWsUrl={studio.setWsUrl}
         channel={studio.channel}
         setChannel={studio.setChannel}
+        targetTransport={studio.targetTransport}
+        targetSerialPort={studio.targetSerialPort}
         scanTimeoutMs={studio.scanTimeoutMs}
         setScanTimeoutMs={studio.setScanTimeoutMs}
         connectWs={studio.connectWs}
@@ -87,6 +89,8 @@ export default function App() {
             newCardKeys={studio.newCardKeys}
             cardRefs={studio.cardRefs}
             removeMotorCard={studio.removeMotorCard}
+            clearAllMotors={studio.clearDevices}
+            clearOfflineMotors={studio.clearOfflineMotors}
             moveMotorCard={studio.moveMotorCard}
             activeMotor={studio.activeMotor}
             activeControl={studio.activeControl}

@@ -1,75 +1,131 @@
 # factory_calib_ui_ws (React)
 
-WebSocket-based factory upper-computer UI (pure frontend).
+WebSocket-based factory control UI (frontend only).
 
-- Frontend stack: React + Vite
-- Backend control link: `integrations/ws_gateway`
-- Browser only talks to WS API (`set_target` / `scan` / `set_id` / `verify` / `enable` / `disable` / `mit` / `pos_vel` / `vel` / `force_pos` / `stop`)
+- Frontend: React + Vite
+- Backend: `ws_gateway`
+- Browser calls WS operations: `set_target` / `scan` / `set_id` / `verify` / `enable` / `disable` / `mit` / `pos_vel` / `vel` / `force_pos` / `stop`
 
-## Features
-
-- Per-vendor scanning (`damiao`, `robstride`, `myactuator`, `hightorque`, `hexfellow`)
-- One-click scan buttons for Damiao/RobStride
-- Auto-append discovered motors into list
-- Per-motor operations:
-  - Enable / Disable / Move / Stop
-  - Mode switch + target parameters
-  - Set ID + Verify
-- Damiao scan parameter visualization (`pmax/vmax/tmax`, `detected_by`, `model_guess`)
-
-## 1) Start ws_gateway
-
-Method A (recommended, after `pip install motorbridge`):
+## 1) Install Prerequisites
 
 ```bash
-motorbridge-gateway --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+pip install -U motorbridge
+cd tools/factory_calib_ui_ws
+npm install
 ```
 
-On macOS, only if you see dynamic-library loading errors:
+## 2) Choose Transport and Start `ws_gateway`
+
+Default WS bind in all examples:
+
+```bash
+--bind 0.0.0.0:9002
+```
+
+### A. Damiao over `dm-serial`
+
+Use this when the adapter is Damiao serial bridge.
+
+Ubuntu:
+
+```bash
+motorbridge-gateway -- \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport dm-serial \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+macOS:
+
+```bash
+motorbridge-gateway -- \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport dm-serial \
+  --serial-port /dev/cu.usbmodemXXXX --serial-baud 921600 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+If macOS reports dynamic-library loading errors, use package-local fallback:
 
 ```bash
 GW="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent/'bin'/'ws_gateway')")"
 PKG_DIR="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent)")"
-DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" \
+  --bind 0.0.0.0:9002 --vendor damiao --transport dm-serial \
+  --serial-port /dev/cu.usbmodemXXXX --serial-baud 921600 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 ```
 
-Method B (run from source tree):
+Windows (PowerShell):
 
-```bash
-cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```powershell
+motorbridge-gateway -- `
+  --bind 0.0.0.0:9002 `
+  --vendor damiao --transport dm-serial `
+  --serial-port COM3 --serial-baud 921600 `
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 ```
 
-## 2) Frontend development mode
+### B. PCAN / Standard CAN path (`socketcan`/`pcan`)
+
+Use this when the adapter is PCAN or other standard CAN interface.
+
+Ubuntu (SocketCAN):
 
 ```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm/tools/factory_calib_ui_ws
-npm install
+motorbridge-gateway -- \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport auto \
+  --channel can0 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+macOS (PCBUSB runtime):
+
+```bash
+motorbridge-gateway -- \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport auto \
+  --channel can0 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+Windows (PCAN backend):
+
+```powershell
+motorbridge-gateway -- `
+  --bind 0.0.0.0:9002 `
+  --vendor damiao --transport auto `
+  --channel can0@1000000 `
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+## 3) Start Frontend
+
+```bash
+cd tools/factory_calib_ui_ws
 npm run dev
 ```
 
 Open: `http://127.0.0.1:18110`
 
-If you hit `vite: not found`, run one command:
+In UI connection panel:
 
-```bash
-npm run dev:ready
-```
+- WS URL: `ws://127.0.0.1:9002`
+- Channel: same as gateway channel (for example `can0`)
 
-## 3) Build + local preview
+## 4) Verify Quickly
 
-```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm/tools/factory_calib_ui_ws
-npm install
-npm run build
-npm run preview
-```
+- General page: run `Scan Damiao`.
+- Robot Arm page: select profile, click `Prepare 7 Cards`, then `Scan All Joints`.
 
-Open: `http://127.0.0.1:18110/`
+## 5) Notes
 
-## Notes
+- Linux SocketCAN channel should be `can0` (do not use `can0@1000000`).
+- `dm-serial` is Damiao-only transport.
+- `ws disconnected` in logs is often browser reconnect behavior; check whether gateway is still listening.
 
-- Linux SocketCAN channel format: `can0` (not `can0@1000000`).
-- This UI is designed for factory/operator workflows and future extensibility (slider/trajectory pages can be added on top of current structure).
+For detailed CAN troubleshooting, see:
 
-
-Channel troubleshooting reference: see docs/en/can_debugging.md (covers can0 and slcan0 setup).
+- `docs/en/can_debugging.md`

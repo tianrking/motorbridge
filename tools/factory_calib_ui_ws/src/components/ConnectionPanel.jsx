@@ -6,6 +6,8 @@ export function ConnectionPanel({
   setWsUrl,
   channel,
   setChannel,
+  targetTransport,
+  targetSerialPort,
   scanTimeoutMs,
   setScanTimeoutMs,
   connectWs,
@@ -14,6 +16,9 @@ export function ConnectionPanel({
   onToggleCollapsed,
 }) {
   const { t } = useI18n();
+  const isDmSerial = String(targetTransport || '').trim().toLowerCase() === 'dm-serial';
+  const transportText = String(targetTransport || 'auto').trim() || 'auto';
+  const serialText = String(targetSerialPort || '').trim() || t('serial_port_gateway_managed');
   return (
     <section className="card glass">
       <div className="sectionTitle">
@@ -25,16 +30,24 @@ export function ConnectionPanel({
 
       {!collapsed && (
         <>
-          <div className="grid3 denseGrid">
-            <div className="field">
+          <div className="connCompactGrid">
+            <div className="field compactField">
               <label>{t('ws_url')}</label>
               <input value={wsUrl} onChange={(e) => setWsUrl(e.target.value)} />
             </div>
-            <div className="field">
-              <label>{t('can_channel')}</label>
-              <input value={channel} onChange={(e) => setChannel(e.target.value)} />
+            <div className="field compactField">
+              <label>{t('transport')}</label>
+              <input value={transportText} readOnly />
             </div>
-            <div className="field">
+            <div className="field compactField">
+              <label>{isDmSerial ? t('serial_port') : t('can_channel')}</label>
+              {isDmSerial ? (
+                <input value={serialText} readOnly disabled title={t('serial_port_gateway_managed')} />
+              ) : (
+                <input value={channel} onChange={(e) => setChannel(e.target.value)} />
+              )}
+            </div>
+            <div className="field compactField">
               <label>{t('scan_timeout_ms')}</label>
               <input value={scanTimeoutMs} onChange={(e) => setScanTimeoutMs(e.target.value)} />
             </div>

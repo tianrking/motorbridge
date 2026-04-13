@@ -6,7 +6,7 @@ title: 安装环境
 
 <mintly-toc>
 
-本指南介绍如何在 Linux 系统上安装 `motorbridge` Python 包。
+本指南介绍如何在 Linux、Windows、macOS 上安装 `motorbridge` Python 包。
 
 </mintly-toc>
 
@@ -14,7 +14,7 @@ title: 安装环境
 
 ### 硬件要求
 
-- **操作系统**：Linux（已在 Ubuntu 20.04+ 测试）
+- **操作系统**：Linux / Windows / macOS
 - **Python**：3.10、3.11、3.12、3.13 或 3.14
 - **硬件**：CAN 接口（SocketCAN、PCAN）或串口适配器
 
@@ -35,7 +35,7 @@ python3 -m pip install motorbridge
 ### 安装特定版本
 
 ```bash
-python3 -m pip install motorbridge==0.1.7
+python3 -m pip install motorbridge==0.1.9
 ```
 
 ### 升级现有安装
@@ -77,10 +77,83 @@ motorbridge Python SDK CLI
 `motorbridge` wheel 还会安装独立网关启动器：
 
 ```bash
-motorbridge-gateway -- --help
+motorbridge-gateway --help
 ```
 
-> 使用 `--` 将后续参数透传给 `ws_gateway`。
+> `--` 是可选的：`motorbridge-gateway -- --help` 与 `motorbridge-gateway --help` 等价。
+
+## WS Gateway 启动（三平台）
+
+下面命令均使用 Python 包内置网关命令 `motorbridge-gateway`（即 `ws_gateway` 启动器）。
+
+### A) Damiao 串口桥（dm-serial）
+
+Ubuntu:
+
+```bash
+motorbridge-gateway \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport dm-serial \
+  --serial-port /dev/ttyACM0 --serial-baud 921600 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+macOS:
+
+```bash
+motorbridge-gateway \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport dm-serial \
+  --serial-port /dev/cu.usbmodemXXXX --serial-baud 921600 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+Windows (PowerShell):
+
+```powershell
+motorbridge-gateway `
+  --bind 0.0.0.0:9002 `
+  --vendor damiao --transport dm-serial `
+  --serial-port COM3 --serial-baud 921600 `
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+### B) CAN 路径（auto/socketcan/pcan）
+
+Ubuntu (SocketCAN):
+
+```bash
+motorbridge-gateway \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport auto \
+  --channel can0 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+macOS (PCBUSB runtime):
+
+```bash
+motorbridge-gateway \
+  --bind 0.0.0.0:9002 \
+  --vendor damiao --transport auto \
+  --channel can0 \
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+Windows (PCAN backend):
+
+```powershell
+motorbridge-gateway `
+  --bind 0.0.0.0:9002 `
+  --vendor damiao --transport auto `
+  --channel can0@1000000 `
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+```
+
+提示：
+- `dm-serial` 仅用于 Damiao。
+- CAN 路径下，Linux 需先 `ip link set can0 up`；Windows 需安装 PCAN 驱动/`PCANBasic.dll`；macOS 需安装 PCBUSB 运行时。
+- CLI 与 Gateway 现已在启动前给出平台依赖提示。
 
 仅 macOS（如果出现动态库加载失败）可使用：
 

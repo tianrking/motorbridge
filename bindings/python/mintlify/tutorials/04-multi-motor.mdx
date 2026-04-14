@@ -47,7 +47,7 @@ with Controller("can0") as dm_ctrl:
 
     # RobStride motors (different controller on same bus)
     with Controller("can0") as rs_ctrl:
-        rs = rs_ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+        rs = rs_ctrl.add_robstride_motor(127, 0xFD, "rs-00")
         rs_ctrl.enable_all()
 
         # Control both

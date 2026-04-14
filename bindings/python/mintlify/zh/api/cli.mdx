@@ -74,7 +74,7 @@ motorbridge-cli run [选项]
 | `--model` | `4340` | 电机型号字符串 |
 | `--motor-id` | `0x01` | 电机 CAN ID（支持十六进制） |
 | `--feedback-id` | `0x11` | 反馈 CAN ID（支持十六进制） |
-| `--mode` | `mit` | 控制模式：enable, disable, mit, pos-vel, vel, force-pos, ping |
+| `--mode` | `mit` | 控制模式：enable, disable, mit, pos-vel, vel, force-pos, ping, zero, set-zero |
 | `--loop` | `100` | 控制迭代次数 |
 | `--dt-ms` | `20` | 控制周期（毫秒） |
 | `--ensure-mode` | `1` | 是否在控制前确保模式 |
@@ -88,6 +88,14 @@ motorbridge-cli run [选项]
 | `--tau` | `0.0` | 前馈力矩（Nm） |
 | `--vlim` | `1.0` | 速度限制（rad/s） |
 | `--ratio` | `0.3` | 力比例（force-pos 模式） |
+| `--zero-exp` | `0` | 启用 RobStride 实验性置零序列（传 `1` 才真正执行） |
+| `--store` | `1` | 写入/置零后持久化保存 |
+
+### 模式与参数生效关系
+
+- `mit`：`--pos/--vel/--kp/--kd/--tau` 全部生效。
+- `pos-vel`：只使用 `--pos/--vlim`；`--vel/--kd/--tau` 按设计忽略（仅 warning，不报错）。
+- `zero` / `set-zero`：当前仅 RobStride 支持；必须传 `--zero-exp 1` 才会下发置零序列。
 
 ### 示例
 
@@ -129,6 +137,21 @@ motorbridge-cli run \
     --vlim 1.5
 ```
 
+#### RobStride 置零（`set-zero` 为等价别名）
+
+```bash
+motorbridge-cli run \
+    --vendor robstride \
+    --channel can0 \
+    --model rs-00 \
+    --motor-id 127 \
+    --feedback-id 0xFD \
+    --mode zero \
+    --zero-exp 1 \
+    --store 1 \
+    --loop 1
+```
+
 ---
 
 ## scan
@@ -153,6 +176,11 @@ motorbridge-cli scan [选项]
 | `--model` | `4340` | 电机型号 |
 | `--start-id` | `0x01` | 扫描起始 ID |
 | `--end-id` | `0x10` | 扫描结束 ID |
+| `--feedback-ids` | `0xFD,0xFF,0xFE,0x00,0xAA` | RobStride 扫描时尝试的反馈 ID 列表 |
+| `--feedback-base` | `0x10` | Damiao 扫描反馈 ID 基址 |
+| `--timeout-ms` | `80` | 每个 ID 的超时（ms） |
+| `--param-id` | `0x7019` | RobStride 参数探测 ID |
+| `--param-timeout-ms` | `120` | RobStride 参数探测超时（ms） |
 
 ### 示例
 
@@ -166,6 +194,12 @@ motorbridge-cli scan --vendor all --channel can0 --start-id 1 --end-id 255
 
 ```bash
 motorbridge-cli scan --vendor damiao --channel can0 --start-id 0x01 --end-id 0x20
+```
+
+#### 仅扫描 RobStride
+
+```bash
+motorbridge-cli scan --vendor robstride --channel can0 --start-id 1 --end-id 127 --feedback-ids 0xFD
 ```
 
 ---
@@ -187,6 +221,8 @@ motorbridge-cli id-dump [选项]
 | `--vendor` | `damiao` | 必须为 damiao |
 | `--channel` | `can0` | CAN 接口 |
 | `--transport` | `auto` | 传输类型 |
+| `--serial-port` | `/dev/ttyACM0` | 串口（用于 dm-serial 传输） |
+| `--serial-baud` | `921600` | 串口波特率 |
 | `--model` | `4340` | 电机型号 |
 | `--motor-id` | `0x01` | 电机 ID |
 | `--feedback-id` | `0x11` | 反馈 ID |
@@ -223,6 +259,8 @@ motorbridge-cli id-set [选项]
 | `--vendor` | `damiao` | 必须为 damiao |
 | `--channel` | `can0` | CAN 接口 |
 | `--transport` | `auto` | 传输类型 |
+| `--serial-port` | `/dev/ttyACM0` | 串口（用于 dm-serial 传输） |
+| `--serial-baud` | `921600` | 串口波特率 |
 | `--model` | `4340` | 电机型号 |
 | `--motor-id` | `0x01` | 当前电机 ID |
 | `--feedback-id` | `0x11` | 当前反馈 ID |
@@ -264,8 +302,10 @@ motorbridge-cli robstride-read-param [选项]
 | 选项 | 默认值 | 描述 |
 |------|--------|------|
 | `--channel` | `can0` | CAN 接口 |
-| `--model` | `rs-00` | 电机型号 |
+| `--transport` | `auto` | 传输方式：auto, socketcan, socketcanfd |
+| `--model` | `rs-00` | 电机型号（固定为 RobStride） |
 | `--motor-id` | `127` | 电机 ID |
+| `--feedback-id` | `0xFD` | 反馈 ID（RobStride 默认） |
 | `--param-id` | (必需) | 要读取的参数 ID |
 | `--type` | (必需) | 数据类型：i8, u8, u16, u32, f32 |
 | `--timeout-ms` | `500` | 读取超时 |
@@ -297,11 +337,13 @@ motorbridge-cli robstride-write-param [选项]
 | 选项 | 默认值 | 描述 |
 |------|--------|------|
 | `--channel` | `can0` | CAN 接口 |
-| `--model` | `rs-00` | 电机型号 |
+| `--transport` | `auto` | 传输方式：auto, socketcan, socketcanfd |
+| `--model` | `rs-00` | 电机型号（固定为 RobStride） |
 | `--motor-id` | `127` | 电机 ID |
+| `--feedback-id` | `0xFD` | 反馈 ID（RobStride 默认） |
 | `--param-id` | (必需) | 要写入的参数 ID |
 | `--type` | (必需) | 数据类型：i8, u8, u16, u32, f32 |
-| `--value` | (必需) | 要写入的值 |
+| `--value` | (必需) | 要写入的值（根据 `--type` 解析） |
 | `--verify` | `1` | 回读并验证 |
 | `--timeout-ms` | `500` | 验证超时 |
 

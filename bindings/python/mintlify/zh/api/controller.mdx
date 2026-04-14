@@ -219,7 +219,7 @@ with Controller("can0") as ctrl:
 | 名称 | 类型 | 描述 |
 |------|------|------|
 | `motor_id` | `int` | 设备 ID（通常为 127） |
-| `feedback_id` | `int` | 反馈 ID（通常为 0xFE 或 0xFF） |
+| `feedback_id` | `int` | 反馈 ID（通常用 `0xFD`，运行时可回退 `0xFF/0xFE`） |
 | `model` | `str` | 电机型号："rs-00" 等 |
 
 **返回：** [`Motor`](api/motor) 实例

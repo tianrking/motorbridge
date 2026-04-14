@@ -61,7 +61,7 @@ motorbridge-cli scan --vendor all --channel can0 --start-id 1 --end-id 255
 | `--vendor` | 扫描哪个厂商的电机 | `damiao` | `damiao`, `robstride`, `myactuator`, `hightorque`, `hexfellow`, `all` |
 | `--channel` | CAN 接口名称 | `can0` | `can0`, `can1`, `slcan0` 等 |
 | `--start-id` | 扫描起始 ID | `1` | 0-255 |
-| `--end-id` | 扫描结束 ID | `32` | 0-255 |
+| `--end-id` | 扫描结束 ID | `0x10` | 0-255 |
 | `--timeout-ms` | 每个 ID 的超时时间 | `80` | 50-500 |
 
 ### 扫描特定厂商
@@ -221,10 +221,10 @@ feedback_id: motor_id + 0x10
 
 ```
 motor_id:    1-127 (通常默认是 127)
-feedback_id: 0xFE 或 0xFF
+feedback_id: 0xFD（运行时可回退 0xFF/0xFE）
 
 示例:
-  motor_id = 127, feedback_id = 0xFE
+  motor_id = 127, feedback_id = 0xFD
 ```
 
 ### MyActuator

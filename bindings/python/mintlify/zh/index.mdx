@@ -74,10 +74,10 @@ with Controller("can0") as ctrl:
 | 厂商 | 型号 | MIT | POS_VEL | VEL | FORCE_POS |
 |------|------|-----|---------|-----|-----------|
 | 达妙 (Damiao) | 4310, 4340P, 6001 | ✅ | ✅ | ✅ | ✅ |
-| RobStride | rs-00 | ✅ | ❌ | ✅ | ❌ |
+| RobStride | rs-00 | ✅ | ✅ | ✅ | ❌ |
 | MyActuator | X8 | ❌ | ✅ | ✅ | ❌ |
 | HighTorque | HT | ✅ | ✅ | ✅ | ✅ |
-| Hexfellow | * | ✅ | ✅ | ❌ | ✅ |
+| Hexfellow | * | ✅ | ✅ | ❌ | ❌ |
 
 <Note>
 Hexfellow 电机需要 CAN-FD 传输。使用 `Controller.from_socketcanfd("can0")`。

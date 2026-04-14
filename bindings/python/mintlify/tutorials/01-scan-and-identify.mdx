@@ -75,7 +75,7 @@ motorbridge-cli scan \
     --channel can0 \
     --start-id 1 \
     --end-id 127 \
-    --feedback-ids 0xFF,0xFE,0x00,0xAA
+    --feedback-ids 0xFD,0xFF,0xFE,0x00,0xAA
 ```
 
 **How it works:**
@@ -204,7 +204,7 @@ for m in motors:
 ### RobStride Format
 
 ```
-[hit] probe=0x7F vendor=robstride via=ping feedback_id=0xFE device_id=127 responder_id=254
+[hit] probe=0x7F vendor=robstride via=ping feedback_id=0xFD device_id=127 responder_id=254
 ```
 
 | Field | Meaning |

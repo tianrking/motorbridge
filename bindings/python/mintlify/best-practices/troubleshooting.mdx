@@ -262,13 +262,14 @@ pip install motorbridge
 
 2. **Excessive polling:**
    ```python
-   # Bad
+   # Bad — polling without requesting feedback
    while True:
-       ctrl.poll_feedback_once()  # Unnecessary in v0.1.7+
+       ctrl.poll_feedback_once()  # No new data unless request_feedback() was called
 
-   # Good (v0.1.7+)
+   # Good — request then poll
    while True:
        motor.request_feedback()
+       ctrl.poll_feedback_once()
        state = motor.get_state()
    ```
 

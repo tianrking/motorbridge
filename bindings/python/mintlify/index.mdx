@@ -74,10 +74,10 @@ with Controller("can0") as ctrl:
 | Vendor | Models | MIT | POS_VEL | VEL | FORCE_POS |
 |--------|--------|-----|---------|-----|-----------|
 | Damiao | 4310, 4340P, 6001 | ✅ | ✅ | ✅ | ✅ |
-| RobStride | rs-00 | ✅ | ❌ | ✅ | ❌ |
+| RobStride | rs-00 | ✅ | ✅ | ✅ | ❌ |
 | MyActuator | X8 | ❌ | ✅ | ✅ | ❌ |
 | HighTorque | HT | ✅ | ✅ | ✅ | ✅ |
-| Hexfellow | * | ✅ | ✅ | ❌ | ✅ |
+| Hexfellow | * | ✅ | ✅ | ❌ | ❌ |
 
 <Note>
 Hexfellow motors require CAN-FD transport. Use `Controller.from_socketcanfd("can0")`.

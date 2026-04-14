@@ -253,7 +253,7 @@ Register a RobStride motor and return its handle.
 | Name | Type | Description |
 |------|------|-------------|
 | `motor_id` | `int` | Device ID (typically 127) |
-| `feedback_id` | `int` | Feedback ID (typically 0xFE or 0xFF) |
+| `feedback_id` | `int` | Feedback ID (typically `0xFD`; runtime may fallback to `0xFF/0xFE`) |
 | `model` | `str` | Motor model: "rs-00", etc. |
 
 **Returns:** [`Motor`](api/motor) instance
@@ -261,7 +261,7 @@ Register a RobStride motor and return its handle.
 **Example:**
 
 ```python
-motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+motor = ctrl.add_robstride_motor(127, 0xFD, "rs-00")
 ```
 
 ---

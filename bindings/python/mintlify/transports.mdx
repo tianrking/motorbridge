@@ -80,7 +80,7 @@ with Controller("can0") as ctrl0:
     motor0 = ctrl0.add_damiao_motor(0x01, 0x11, "4340P")
 
 with Controller("can1") as ctrl1:
-    motor1 = ctrl1.add_robstride_motor(127, 0xFE, "rs-00")
+    motor1 = ctrl1.add_robstride_motor(127, 0xFD, "rs-00")
 ```
 
 ## CAN-FD (SocketCAN-FD)
@@ -208,7 +208,7 @@ with Controller("can0") as dm_ctrl:
     dm_ctrl.enable_all()
 
 with Controller("can0") as rs_ctrl:
-    rs_motor = rs_ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+    rs_motor = rs_ctrl.add_robstride_motor(127, 0xFD, "rs-00")
     rs_ctrl.enable_all()
 ```
 

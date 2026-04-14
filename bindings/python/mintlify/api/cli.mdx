@@ -70,7 +70,7 @@ motorbridge-cli run [OPTIONS]
 | `--model` | `4340` | Motor model string |
 | `--motor-id` | `0x01` | Motor CAN ID (hex supported) |
 | `--feedback-id` | `0x11` | Feedback CAN ID (hex supported) |
-| `--mode` | `mit` | Control mode: enable, disable, mit, pos-vel, vel, force-pos, ping |
+| `--mode` | `mit` | Control mode: enable, disable, mit, pos-vel, vel, force-pos, ping, zero, set-zero |
 | `--loop` | `100` | Number of control iterations |
 | `--dt-ms` | `20` | Control period in milliseconds |
 | `--ensure-mode` | `1` | Whether to ensure mode before control |
@@ -84,6 +84,14 @@ motorbridge-cli run [OPTIONS]
 | `--tau` | `0.0` | Feedforward torque (Nm) |
 | `--vlim` | `1.0` | Velocity limit (rad/s) |
 | `--ratio` | `0.3` | Force ratio (force-pos mode) |
+| `--zero-exp` | `0` | Enable RobStride experimental zero sequence (`1` to execute) |
+| `--store` | `1` | Persist parameters after write / zero sequence |
+
+### Mode-Parameter Mapping Notes
+
+- `mit`: `--pos/--vel/--kp/--kd/--tau` are effective.
+- `pos-vel`: effective args are `--pos/--vlim`; `--vel/--kd/--tau` are ignored by design (warning only).
+- `zero` / `set-zero`: currently RobStride-only; must pass `--zero-exp 1` to actually send zero command sequence.
 
 ### Examples
 
@@ -139,12 +147,27 @@ motorbridge-cli run \
     --channel can0 \
     --model rs-00 \
     --motor-id 127 \
-    --feedback-id 0xFE \
+    --feedback-id 0xFD \
     --mode mit \
     --loop 100 \
     --pos 0.5 \
     --kp 2.0 \
     --kd 0.1
+```
+
+#### RobStride Zero (set-zero alias available)
+
+```bash
+motorbridge-cli run \
+    --vendor robstride \
+    --channel can0 \
+    --model rs-00 \
+    --motor-id 127 \
+    --feedback-id 0xFD \
+    --mode zero \
+    --zero-exp 1 \
+    --store 1 \
+    --loop 1
 ```
 
 #### Using Serial Transport
@@ -186,7 +209,7 @@ motorbridge-cli scan [OPTIONS]
 | `--model` | `4340` | Motor model |
 | `--start-id` | `0x01` | Start ID for scan |
 | `--end-id` | `0x10` | End ID for scan |
-| `--feedback-ids` | `0xFF,0xFE,0x00,0xAA` | RobStride feedback IDs to try |
+| `--feedback-ids` | `0xFD,0xFF,0xFE,0x00,0xAA` | RobStride feedback IDs to try |
 | `--feedback-base` | `0x10` | Damiao feedback ID base |
 | `--timeout-ms` | `80` | Per-ID timeout |
 | `--param-id` | `0x7019` | RobStride parameter ID for probe |
@@ -209,7 +232,7 @@ motorbridge-cli scan --vendor damiao --channel can0 --start-id 0x01 --end-id 0x2
 #### Scan RobStride
 
 ```bash
-motorbridge-cli scan --vendor robstride --channel can0 --start-id 1 --end-id 127
+motorbridge-cli scan --vendor robstride --channel can0 --start-id 1 --end-id 127 --feedback-ids 0xFD
 ```
 
 #### Scan MyActuator

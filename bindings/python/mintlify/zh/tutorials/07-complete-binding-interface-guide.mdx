@@ -183,7 +183,7 @@ motor = ctrl.add_damiao_motor(
 ```python
 motor = ctrl.add_robstride_motor(
     motor_id=127,       # 设备 ID
-    feedback_id=0xFE,   # 响应者 ID
+    feedback_id=0xFD,   # 响应者 ID
     model="rs-00"       # 型号
 )
 ```
@@ -193,7 +193,7 @@ motor = ctrl.add_robstride_motor(
 | 参数 | 类型 | 说明 | 范围 |
 |------|------|------|------|
 | `motor_id` | int | 设备 ID | 1 - 127 |
-| `feedback_id` | int | 响应者 ID | 0xFE 或 0xFF |
+| `feedback_id` | int | 响应者 ID | 0xFD（运行时可回退 0xFF/0xFE） |
 | `model` | str | 电机型号 | "rs-00", "rs-01" 等 |
 
 ---

@@ -268,7 +268,7 @@ from motorbridge import Controller, Mode
 
 with Controller("can0") as ctrl:
     # RobStride uses different IDs and model string
-    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+    motor = ctrl.add_robstride_motor(127, 0xFD, "rs-00")
     ctrl.enable_all()
     motor.ensure_mode(Mode.MIT, 1000)
     motor.send_mit(0.5, 0.0, 2.0, 0.1, 0.0)

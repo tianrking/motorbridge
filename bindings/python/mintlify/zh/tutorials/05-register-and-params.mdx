@@ -232,7 +232,7 @@ RobStride 使用不同的参数协议：
 from motorbridge import Controller
 
 with Controller("can0") as ctrl:
-    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+    motor = ctrl.add_robstride_motor(127, 0xFD, "rs-00")
 
     # Ping 电机
     device_id, responder_id = motor.robstride_ping()
@@ -248,7 +248,7 @@ with Controller("can0") as ctrl:
 from motorbridge import Controller
 
 with Controller("can0") as ctrl:
-    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+    motor = ctrl.add_robstride_motor(127, 0xFD, "rs-00")
 
     # 写入不同类型的参数
     motor.robstride_write_param_i8(0x7001, -1)

@@ -91,11 +91,11 @@ with Controller.from_dm_serial("/dev/ttyACM0", 921600) as ctrl:
 
 ```
 motor_id:    127 (device ID, configurable 1-127)
-feedback_id: 0xFE or 0xFF (responder ID)
+feedback_id: 0xFD recommended (runtime may fallback 0xFF/0xFE)
 
 Default:
   motor_id = 127
-  feedback_id = 0xFE
+  feedback_id = 0xFD
 ```
 
 ### Example Code
@@ -106,7 +106,7 @@ from motorbridge import Controller, Mode
 with Controller("can0") as ctrl:
     motor = ctrl.add_robstride_motor(
         motor_id=127,       # Device ID
-        feedback_id=0xFE,   # Responder ID
+        feedback_id=0xFD,   # Responder ID
         model="rs-00"       # Model string
     )
 
@@ -265,7 +265,7 @@ with Controller("can0") as dm_ctrl:
     dm = dm_ctrl.add_damiao_motor(0x01, 0x11, "4340P")
 
     with Controller("can0") as rs_ctrl:
-        rs = rs_ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+        rs = rs_ctrl.add_robstride_motor(127, 0xFD, "rs-00")
 ```
 
 ## ID Configuration Tools
@@ -309,7 +309,7 @@ motorbridge-cli id-set \
 from motorbridge import Controller
 
 with Controller("can0") as ctrl:
-    motor = ctrl.add_robstride_motor(127, 0xFE, "rs-00")
+    motor = ctrl.add_robstride_motor(127, 0xFD, "rs-00")
 
     # Set new device ID
     motor.robstride_set_device_id(42)
@@ -387,7 +387,7 @@ MOTORS = {
     "gripper": {
         "vendor": "robstride",
         "motor_id": 127,
-        "feedback_id": 0xFE,
+        "feedback_id": 0xFD,
         "model": "rs-00",
     },
 }

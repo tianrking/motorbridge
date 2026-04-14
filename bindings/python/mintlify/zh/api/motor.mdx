@@ -22,6 +22,26 @@ from motorbridge import Motor  # 通常通过 Controller.add_*_motor() 获取
 
 ## 生命周期方法
 
+### `close()`
+
+释放电机句柄资源。控制器关闭时自动调用。
+
+**参数：** 无
+
+**返回：** `None`
+
+**示例：**
+
+```python
+motor = ctrl.add_damiao_motor(0x01, 0x11, "4340P")
+try:
+    # ... 使用电机
+finally:
+    motor.close()
+```
+
+---
+
 ### `enable()`
 
 使能电机输出（给绕组通电）。
@@ -203,6 +223,30 @@ RobStride、MyActuator 和 Hexfellow 不支持 FORCE_POS 模式。
 **参数：** 无
 
 **返回：** `MotorState | None` — 电机状态，如果尚未收到反馈则为 `None`
+
+---
+
+## CAN 配置
+
+### `set_can_timeout_ms(timeout_ms)`
+
+设置此电机的 CAN 通信超时时间。
+
+**参数：**
+
+| 名称 | 类型 | 默认值 | 描述 |
+|------|------|--------|------|
+| `timeout_ms` | `int` | 必需 | 超时时间（毫秒） |
+
+**返回：** `None`
+
+**抛出：** `CallError` 失败时
+
+**示例：**
+
+```python
+motor.set_can_timeout_ms(100)  # 100ms 超时
+```
 
 ---
 

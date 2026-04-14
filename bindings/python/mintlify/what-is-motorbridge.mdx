@@ -218,7 +218,7 @@ ctrl = Controller.from_dm_serial("/dev/ttyACM0", 921600)
 ```
 
 <Warning>
-Each Controller is bound to **one vendor**. You cannot mix Damiao and RobStride motors in the same Controller instance.
+It is recommended to bind each Controller to motors from **one vendor**. While the Python API allows mixing different vendors, mixed usage depends on the underlying ABI implementation and may have compatibility limitations.
 </Warning>
 
 ### Motor

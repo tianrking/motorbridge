@@ -218,7 +218,7 @@ ctrl = Controller.from_dm_serial("/dev/ttyACM0", 921600)
 ```
 
 <Warning>
-每个 Controller 绑定**一个厂商**。你不能在同一个 Controller 实例中混合使用达妙和 RobStride 电机。
+建议每个 Controller 绑定**一个厂商**的电机。虽然 Python API 允许混合使用不同厂商的电机，但混用行为取决于底层 ABI 实现，可能存在兼容性限制。
 </Warning>
 
 ### Motor（电机）

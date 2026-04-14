@@ -107,7 +107,7 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--mode",
         default="mit",
-        choices=["enable", "disable", "mit", "pos-vel", "vel", "force-pos", "ping"],
+        choices=["enable", "disable", "mit", "pos-vel", "vel", "force-pos", "ping", "zero", "set-zero"],
     )
     run.add_argument("--loop", type=int, default=100)
     run.add_argument("--dt-ms", type=int, default=20)
@@ -122,6 +122,8 @@ def _build_parser() -> argparse.ArgumentParser:
     run.add_argument("--tau", type=float, default=0.0)
     run.add_argument("--vlim", type=float, default=1.0)
     run.add_argument("--ratio", type=float, default=0.3)
+    run.add_argument("--zero-exp", type=int, default=0)
+    run.add_argument("--store", type=int, default=1)
 
     dump = sub.add_parser("id-dump", help="read key ID/mode/timeout registers")
     _add_common_args(dump)
@@ -193,7 +195,7 @@ def _parse_with_legacy_support() -> argparse.Namespace:
     legacy.add_argument(
         "--mode",
         default="mit",
-        choices=["enable", "disable", "mit", "pos-vel", "vel", "force-pos", "ping"],
+        choices=["enable", "disable", "mit", "pos-vel", "vel", "force-pos", "ping", "zero", "set-zero"],
     )
     legacy.add_argument("--loop", type=int, default=100)
     legacy.add_argument("--dt-ms", type=int, default=20)
@@ -208,6 +210,8 @@ def _parse_with_legacy_support() -> argparse.Namespace:
     legacy.add_argument("--tau", type=float, default=0.0)
     legacy.add_argument("--vlim", type=float, default=1.0)
     legacy.add_argument("--ratio", type=float, default=0.3)
+    legacy.add_argument("--zero-exp", type=int, default=0)
+    legacy.add_argument("--store", type=int, default=1)
     legacy_args = legacy.parse_args()
     legacy_args.command = "run"
     return legacy_args
@@ -225,11 +229,11 @@ def _run_command(args: argparse.Namespace) -> None:
     with _open_controller(args, args.vendor) as ctrl:
         motor = _add_motor(ctrl, args.vendor, motor_id, feedback_id, args.model)
         try:
-            if args.mode not in ("enable", "disable", "ping"):
+            if args.mode not in ("enable", "disable", "ping", "zero", "set-zero"):
                 ctrl.enable_all()
                 time.sleep(0.3)
 
-            if args.ensure_mode and args.mode not in ("enable", "disable", "ping"):
+            if args.ensure_mode and args.mode not in ("enable", "disable", "ping", "zero", "set-zero"):
                 try:
                     if args.vendor == "robstride" and args.mode == "force-pos":
                         raise ValueError("robstride does not support force-pos")
@@ -268,6 +272,26 @@ def _run_command(args: argparse.Namespace) -> None:
                     if args.vendor in ("robstride", "myactuator", "hexfellow"):
                         raise ValueError(f"{args.vendor} does not support force-pos command")
                     motor.send_force_pos(args.pos, args.vlim, args.ratio)
+                elif args.mode in ("zero", "set-zero"):
+                    if args.vendor != "robstride":
+                        raise ValueError("zero/set-zero mode is currently supported for --vendor robstride only")
+                    if not args.zero_exp:
+                        print(
+                            "[warn] robstride zero requires experimental sequence; "
+                            "no CAN frame sent. Re-run with --zero-exp 1"
+                        )
+                        break
+                    # Experimental sequence aligned with core CLI: disable -> set-zero -> optional store.
+                    try:
+                        motor.disable()
+                    except Exception as e:
+                        print(f"[warn] pre-zero disable failed: {e}; continue")
+                    time.sleep(0.05)
+                    motor.set_zero_position()
+                    if args.store:
+                        motor.store_parameters()
+                    print(f"[ok] robstride zero sequence finished (store={int(bool(args.store))})")
+                    break
 
                 # Keep feedback state fresh during active control loops.
                 if args.vendor == "damiao" and args.mode in ("mit", "pos-vel", "vel", "force-pos"):
@@ -411,11 +435,11 @@ def _scan_robstride(args: argparse.Namespace, start_id: int, end_id: int) -> lis
         f"id_range=[0x{start_id:X},0x{end_id:X}] timeout_ms={args.timeout_ms} "
         f"feedback_ids={','.join(f'0x{x:X}' for x in feedback_ids)} param_id=0x{param_id:X}"
     )
-    ctrl = Controller(args.channel)
-    try:
-        for mid in range(start_id, end_id + 1):
-            hit_meta = None
-            for fid in feedback_ids:
+    for mid in range(start_id, end_id + 1):
+        hit_meta = None
+        for fid in feedback_ids:
+            ctrl = Controller(args.channel)
+            try:
                 motor = ctrl.add_robstride_motor(mid, fid, args.model)
                 try:
                     try:
@@ -426,22 +450,26 @@ def _scan_robstride(args: argparse.Namespace, start_id: int, end_id: int) -> lis
                         )
                         break
                     except Exception:
-                        value = motor.robstride_get_param_f32(param_id, args.param_timeout_ms)
-                        hit_meta = (
-                            f"vendor=robstride via=read-param feedback_id=0x{fid:X} "
-                            f"param_id=0x{param_id:X} value={value}"
-                        )
-                        break
+                        try:
+                            value = motor.robstride_get_param_f32(param_id, args.param_timeout_ms)
+                            hit_meta = (
+                                f"vendor=robstride via=read-param feedback_id=0x{fid:X} "
+                                f"param_id=0x{param_id:X} value={value}"
+                            )
+                            break
+                        except Exception:
+                            # Keep probing next feedback candidate / next ID on timeout/no-response.
+                            pass
                 finally:
                     motor.close()
-            if hit_meta is None:
-                print(f"[.. ] vendor=robstride probe=0x{mid:02X} no reply")
-            else:
-                found.append((mid, hit_meta))
-                print(f"[hit] probe=0x{mid:02X} {hit_meta}")
-    finally:
-        ctrl.close_bus()
-        ctrl.close()
+            finally:
+                ctrl.close_bus()
+                ctrl.close()
+        if hit_meta is None:
+            print(f"[.. ] vendor=robstride probe=0x{mid:02X} no reply")
+        else:
+            found.append((mid, hit_meta))
+            print(f"[hit] probe=0x{mid:02X} {hit_meta}")
     return found
 
 

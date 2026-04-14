@@ -1,635 +1,424 @@
-# RobStride Python Binding 完整使用文档
+# RobStride 三通道对照手册（Core CLI / Python CLI / Python SDK）
 
-> 文件位置：`rust_dm/bindings/python/robostride_binding.md`
-> 适用项目：`/home/w0x7ce/Downloads/dm_candrive/rust_dm`
+本文只聚焦 RobStride，并按“每个功能点三种方式”组织：
+- Core CLI：`motor_cli`（Rust，基准实现）
+- Python CLI：`motorbridge-cli` 或 `python -m motorbridge.cli`
+- Python 代码：`from motorbridge import Controller, Mode`
 
-## 0. 现状说明
+## 0）前置
 
-仓库里**已有** RobStride 相关说明，但分散在多个文件：
+### 0.1 环境
 
-- `bindings/python/README.zh-CN.md`（Python 绑定总览，含 RobStride 片段）
-- `bindings/python/examples/robstride_wrapper_demo.py`（示例脚本）
-- `motor_cli/ROBSTRIDE_API.zh-CN.md`（CLI 维度的 RobStride 协议/参数）
-
-目前 `bindings/python` 目录下没有独立的 RobStride 绑定“单文件完整手册”，所以本文件作为集中版。
-
-## 1. 先编译（Cargo）+ 最小环境验证
-
-在仓库根目录执行：
+在仓库根目录：
 
 ```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm
-cargo build -p motor_abi --release
+cd motorbridge
 ```
 
-最小 Python 导入验证：
+Core CLI（建议先编译一次）：
 
 ```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm
-PYTHONPATH=bindings/python/src LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH} python3 - <<'PY'
-from motorbridge import Controller, Mode
-print('import_ok', Controller.__name__, int(Mode.MIT))
-PY
+cargo build -p motor_cli --release
+CLI=./target/release/motor_cli
 ```
 
-若输出 `import_ok Controller 1`，说明 binding 与 ABI 动态库可被正常加载。
-
-## 2. CAN 链路准备（Linux）
+Python CLI（源码联调建议带动态库路径）：
 
 ```bash
-sudo ip link set can0 down 2>/dev/null || true
-sudo ip link set can0 type can bitrate 1000000 restart-ms 100
-sudo ip link set can0 up
-ip -details link show can0
+export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
 ```
 
-说明：Linux 下 `--channel` 使用 `can0/slcan0`，不要写 `can0@1000000`。
-
-## 3. Python Binding 的 RobStride 能力总览
-
-### 3.1 控制器与挂载
-
-- `Controller(channel="can0")`
-- `Controller.add_robstride_motor(motor_id, feedback_id, model)`
-
-常用默认值建议：
-
-- `model`: `rs-00` 或实际型号（`rs-06` 等）
-- `feedback_id`: `0xFF`（常用 host id）
-
-### 3.2 通用控制方法（统一接口）
-
-- `motor.enable()` / `motor.disable()`
-- `motor.ensure_mode(Mode.MIT|Mode.POS_VEL|Mode.VEL, timeout_ms)`
-- `motor.send_mit(pos, vel, kp, kd, tau)`
-- `motor.send_vel(vel)`
-- `motor.get_state()`
-
-### 3.3 RobStride 专属方法
-
-- `motor.robstride_ping()`
-- `motor.robstride_set_device_id(new_id)`
-- `motor.robstride_get_param_{i8,u8,u16,u32,f32}(param_id, timeout_ms)`
-- `motor.robstride_write_param_{i8,u8,u16,u32,f32}(param_id, value)`
-
-### 3.3.1 私有协议到顶层统一协议映射表
-
-| 顶层统一模式 | RobStride 原生 | 说明 |
-| --- | --- | --- |
-| `Mode.MIT` | `run_mode=0(Mit)` | 统一 `send_mit(...)` 直连原生 MIT 控制帧 |
-| `Mode.POS_VEL` | `run_mode=1(Position)` + `0x7017(limit_spd)` + `0x7016(loc_ref)` | 统一 `send_pos_vel(pos, vlim)` 会映射到 Position 模式 |
-| `Mode.VEL` | `run_mode=2(Velocity)` + `0x700A(spd_ref)` | 统一 `send_vel(vel)` 映射到原生速度目标 |
-| `Mode.FORCE_POS` | 不支持 | 当前 ABI/绑定层返回 unsupported |
-
-### 3.4 每个 Python binding 方法对应的原生 CLI
-
-先定义统一前缀（后面所有命令都基于它）：
+### 0.2 通用参数（示例）
 
 ```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm
-MC='cargo run -p motor_cli --release --'
-BASE="--vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF"
+CH=can0
+MODEL=rs-06
+MID=127
+FID=0xFD
 ```
 
-`Controller(channel=\"can0\") + add_robstride_motor(...)` 对应为设置目标参数前缀：
+## 1）扫描（scan）
+
+### Core CLI
 
 ```bash
-$MC $BASE --mode ping
+$CLI --vendor robstride --channel "$CH" --model "$MODEL" --mode scan --start-id 120 --end-id 130
 ```
 
-`motor.enable()`：
+### Python CLI
 
 ```bash
-$MC $BASE --mode enable
+motorbridge-cli scan \
+  --vendor robstride --channel "$CH" --model "$MODEL" \
+  --start-id 120 --end-id 130 --feedback-ids 0xFD --param-timeout-ms 60
 ```
 
-`motor.disable()`：
-
-```bash
-$MC $BASE --mode disable
-```
-
-`motor.ensure_mode(Mode.MIT, timeout_ms)`（CLI 里通过控制命令触发/确保）：
-
-```bash
-$MC $BASE --mode mit --pos 0 --vel 0 --kp 0.5 --kd 0.2 --tau 0 --loop 1 --dt-ms 20 --ensure-mode 1
-```
-
-`motor.ensure_mode(Mode.VEL, timeout_ms)`（CLI 里通过控制命令触发/确保）：
-
-```bash
-$MC $BASE --mode vel --vel 0.0 --loop 1 --dt-ms 20 --ensure-mode 1
-```
-
-`motor.ensure_mode(Mode.POS_VEL, timeout_ms)`（映射到 RobStride 原生 Position）：
-
-```bash
-$MC $BASE --mode pos-vel --pos 1.0 --vlim 1.5 --loop 1 --dt-ms 20 --ensure-mode 1
-```
-
-`motor.send_mit(pos, vel, kp, kd, tau)`：
-
-```bash
-$MC $BASE --mode mit --pos 0.0 --vel 0.0 --kp 0.5 --kd 0.2 --tau 0.0 --loop 40 --dt-ms 50
-```
-
-`motor.send_vel(vel)`：
-
-```bash
-$MC $BASE --mode vel --vel 0.3 --loop 40 --dt-ms 50
-```
-
-`motor.get_state()`（无单独 mode；CLI 在控制循环中打印状态）：
-
-```bash
-$MC $BASE --mode vel --vel 0.0 --loop 1 --dt-ms 20
-```
-
-`motor.robstride_ping()`：
-
-```bash
-$MC $BASE --mode ping
-```
-
-`motor.robstride_set_device_id(new_device_id)`：
-
-```bash
-$MC $BASE --set-motor-id 126 --store 1
-```
-
-`motor.robstride_get_param_{i8/u8/u16/u32/f32}(param_id, timeout_ms)`：
-
-```bash
-$MC $BASE --mode read-param --param-id 0x7019
-```
-
-`motor.robstride_write_param_{i8/u8/u16/u32/f32}(param_id, value)`：
-
-```bash
-$MC $BASE --mode write-param --param-id 0x700A --param-value 0.3
-```
-
-## 4. 可直接运行的最小 Python 示例
-
-```python
-from motorbridge import Controller, Mode
-import time
-
-CHANNEL = "can0"
-MODEL = "rs-06"
-MOTOR_ID = 127
-FEEDBACK_ID = 0xFF
-
-with Controller(CHANNEL) as ctrl:
-    m = ctrl.add_robstride_motor(MOTOR_ID, FEEDBACK_ID, MODEL)
-    try:
-        # 1) 连通性
-        device_id, responder_id = m.robstride_ping()
-        print("ping:", device_id, responder_id)
-
-        # 2) 读参数（机械位置 0x7019）
-        pos = m.robstride_get_param_f32(0x7019, 500)
-        print("mechPos:", pos)
-
-        # 3) 速度模式短运行
-        ctrl.enable_all()
-        m.ensure_mode(Mode.VEL, 1000)
-        for _ in range(20):
-            m.send_vel(0.3)
-            print(m.get_state())
-            time.sleep(0.05)
-
-        # 4) 停止
-        m.send_vel(0.0)
-    finally:
-        m.close()
-```
-
-运行方式：
-
-```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm
-PYTHONPATH=bindings/python/src LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH} python3 your_script.py
-```
-
-CLI 对照（按示例流程最常用 4 条）：
-
-```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode read-param --param-id 0x7019
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode vel --vel 0.3 --loop 20 --dt-ms 50
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode vel --vel 0.0 --loop 1 --dt-ms 20
-```
-
-## 5. 直接用仓库示例脚本
-
-仓库已提供：`bindings/python/examples/robstride_wrapper_demo.py`
-
-### 5.1 ping
-
-```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm
-PYTHONPATH=bindings/python/src LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH} \
-python3 bindings/python/examples/robstride_wrapper_demo.py \
-  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
-```
-
-CLI 对照（1 行）：
-
-```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
-```
-
-### 5.2 读参数
-
-```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm
-PYTHONPATH=bindings/python/src LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH} \
-python3 bindings/python/examples/robstride_wrapper_demo.py \
-  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
-  --mode read-param --param-id 0x7019 --param-timeout-ms 1000
-```
-
-CLI 对照（1 行）：
-
-```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode read-param --param-id 0x7019
-```
-
-### 5.3 MIT
-
-```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm
-PYTHONPATH=bindings/python/src LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH} \
-python3 bindings/python/examples/robstride_wrapper_demo.py \
-  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
-  --mode mit --pos 0 --vel 0 --kp 0.5 --kd 0.2 --tau 0 --loop 40 --dt-ms 50
-```
-
-CLI 对照（1 行）：
-
-```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode mit --pos 0 --vel 0 --kp 0.5 --kd 0.2 --tau 0 --loop 40 --dt-ms 50
-```
-
-### 5.4 VEL
-
-```bash
-cd /home/w0x7ce/Downloads/dm_candrive/rust_dm
-PYTHONPATH=bindings/python/src LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH} \
-python3 bindings/python/examples/robstride_wrapper_demo.py \
-  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
-  --mode vel --vel 0.3 --loop 40 --dt-ms 50
-```
-
-CLI 对照（1 行）：
-
-```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode vel --vel 0.3 --loop 40 --dt-ms 50
-```
-
-## 6. 常用动作（每节: 1 个 Python + 1 个 CLI）
-
-### 6.1 扫描
-
-Python 示例：
+### Python 代码
 
 ```python
 from motorbridge import Controller
 
+found = []
 with Controller("can0") as ctrl:
-    for mid in range(1, 128):
+    for mid in range(120, 131):
         try:
-            m = ctrl.add_robstride_motor(mid, 0xFF, "rs-06")
-            print("hit", mid, m.robstride_ping())
-            m.close()
+            m = ctrl.add_robstride_motor(mid, 0xFD, "rs-06")
+            try:
+                print(mid, m.robstride_ping())
+                found.append(mid)
+            finally:
+                m.close()
         except Exception:
             pass
+print("found:", found)
 ```
 
-CLI 示例：
+## 2）连通性（ping）
+
+### Core CLI
 
 ```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --mode scan --start-id 1 --end-id 127
+$CLI --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" --mode ping
 ```
 
-### 6.2 ping
+### Python CLI
 
-Python 示例：
+```bash
+motorbridge-cli run \
+  --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode ping
+```
+
+### Python 代码
 
 ```python
 from motorbridge import Controller
 
 with Controller("can0") as ctrl:
-    m = ctrl.add_robstride_motor(127, 0xFF, "rs-06")
+    m = ctrl.add_robstride_motor(127, 0xFD, "rs-06")
     print(m.robstride_ping())
     m.close()
 ```
 
-CLI 示例：
+## 3）使能（enable）
+
+### Core CLI
 
 ```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
+$CLI --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" --mode enable
 ```
 
-### 6.3 读参数
+### Python CLI
 
-Python 示例：
+```bash
+motorbridge-cli run \
+  --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode enable --loop 1 --dt-ms 20
+```
+
+### Python 代码
 
 ```python
 from motorbridge import Controller
 
 with Controller("can0") as ctrl:
-    m = ctrl.add_robstride_motor(127, 0xFF, "rs-06")
-    print(m.robstride_get_param_f32(0x7019, 500))
-    m.close()
-```
-
-CLI 示例：
-
-```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode read-param --param-id 0x7019
-```
-
-### 6.4 写参数（带回读校验）
-
-Python 示例：
-
-```python
-from motorbridge import Controller
-
-with Controller("can0") as ctrl:
-    m = ctrl.add_robstride_motor(127, 0xFF, "rs-06")
-    m.robstride_write_param_f32(0x700A, 0.3)
-    print(m.robstride_get_param_f32(0x700A, 500))
-    m.close()
-```
-
-CLI 示例：
-
-```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode write-param --param-id 0x700A --param-value 0.3
-```
-
-### 6.5 改设备 ID（set device id）
-
-Python 示例：
-
-```python
-from motorbridge import Controller
-
-OLD_ID = 127
-NEW_ID = 126
-
-with Controller("can0") as ctrl:
-    m = ctrl.add_robstride_motor(OLD_ID, 0xFF, "rs-06")
-    m.robstride_set_device_id(NEW_ID)
-    m.store_parameters()  # 建议保存
-    m.close()
-```
-
-CLI 示例：
-
-```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --set-motor-id 126 --store 1
-```
-
-说明：
-
-- RobStride 当前可修改的是设备 ID（`motor-id`）。
-- 本项目里传入的 `feedback-id` 对 RobStride 是主机侧通信 host-id（常用 `0xFF`），不是像 Damiao 那样可单独写入电机的 `MST_ID`。
-- 因此在当前 RobStride 接口里，没有“单独修改反馈 ID”的 API。
-
-### 6.6 上位机如何区分回包（Damiao vs RobStride）
-
-Python 示例（推荐以 `motor_id` 作为设备主键）：
-
-```python
-# 建议：设备缓存键使用 motor_id（例如 127, 126, ...）
-device_key = motor_id
-```
-
-CLI 示例（扫描后按 id 建立设备表）：
-
-```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --mode scan --start-id 1 --end-id 127
-```
-
-说明：
-
-- Damiao：常见工作流是 `motor-id + feedback-id(MST_ID)` 成对管理。
-- RobStride：在本项目实现里，状态/故障回包按电机 `device_id`（即 `motor-id`）归属；`feedback-id` 主要是主机侧 host-id 通信参数。
-- 所以上位机统一建议：**以 `motor_id/device_id` 作为设备唯一键**，这样多电机场景最稳。
-
-## 7. 全部封装模式（统一 API）
-
-### 7.1 enable
-
-Python 示例：
-
-```python
-from motorbridge import Controller
-
-with Controller("can0") as ctrl:
-    m = ctrl.add_robstride_motor(127, 0xFF, "rs-06")
+    m = ctrl.add_robstride_motor(127, 0xFD, "rs-06")
     m.enable()
     m.close()
 ```
 
-CLI 示例：
+## 4）失能（disable）
+
+### Core CLI
 
 ```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode enable
+$CLI --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" --mode disable
 ```
 
-### 7.2 disable
+### Python CLI
 
-Python 示例：
+```bash
+motorbridge-cli run \
+  --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode disable --loop 1 --dt-ms 20
+```
+
+### Python 代码
 
 ```python
 from motorbridge import Controller
 
 with Controller("can0") as ctrl:
-    m = ctrl.add_robstride_motor(127, 0xFF, "rs-06")
+    m = ctrl.add_robstride_motor(127, 0xFD, "rs-06")
     m.disable()
     m.close()
 ```
 
-CLI 示例：
+## 4.5）模式速查：统一模式 vs 原生模式（RobStride）
+
+统一模式（推荐业务层）：
+- `MIT`：统一 5 参数 `pos/vel/kp/kd/tau`，映射到 RobStride 原生 MIT 控制帧。
+- `POS_VEL`：统一位置模式，映射到原生 Position：
+  - `run_mode=1`
+  - `vlim -> 0x7017 (limit_spd)`
+  - `pos -> 0x7016 (loc_ref)`
+- `VEL`：统一速度模式，映射到原生 Velocity：
+  - `run_mode=2`
+  - `vel -> 0x700A (spd_ref)`
+
+原生模式（协议级/调试）：
+- 通过 `read-param / write-param` 直接读写参数。
+- 常见参数：
+  - `0x7005`：`run_mode`
+  - `0x7016`：`loc_ref`
+  - `0x7017`：`limit_spd`
+  - `0x700A`：`spd_ref`
+  - `0x7019`：`mechPos`
+  - `0x701B`：`mechVel`
+
+参数有效性：
+- `MIT`：`pos/vel/kp/kd/tau` 全有效。
+- `POS_VEL`：仅 `pos/vlim/(可选 kp/loc-kp)` 有效；
+  `vel/kd/tau` 在该模式下无效（会被忽略）。
+
+## 5）MIT
+
+参数映射与有效性（RobStride）：
+- 有效参数：`pos`、`vel`、`kp`、`kd`、`tau`（五个都有效）。
+- 单位语义：`pos(rad)`、`vel(rad/s)`、`tau(Nm)`；`kp/kd` 为 MIT 闭环增益。
+- 这是 RobStride 对齐统一协议后最完整的控制模式。
+
+### Core CLI
 
 ```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode disable
+$CLI --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode mit --pos 0 --vel 0 --kp 3 --kd 0.2 --tau 0 --loop 40 --dt-ms 50
 ```
 
-### 7.3 MIT
+### Python CLI
 
-Python 示例：
+```bash
+motorbridge-cli run \
+  --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode mit --pos 0 --vel 0 --kp 3 --kd 0.2 --tau 0 --loop 40 --dt-ms 50
+```
+
+### Python 代码
 
 ```python
 from motorbridge import Controller, Mode
 
 with Controller("can0") as ctrl:
-    m = ctrl.add_robstride_motor(127, 0xFF, "rs-06")
-    ctrl.enable_all()
+    m = ctrl.add_robstride_motor(127, 0xFD, "rs-06")
+    m.enable()
     m.ensure_mode(Mode.MIT, 1000)
-    m.send_mit(0.0, 0.0, 0.5, 0.2, 0.0)
+    for _ in range(40):
+        m.send_mit(0.0, 0.0, 3.0, 0.2, 0.0)
     m.close()
 ```
 
-CLI 示例：
+## 6）POS_VEL
+
+参数映射与有效性（RobStride）：
+- 有效参数：`pos`、`vlim`，以及可选 `kp/loc-kp`。
+- 映射关系：`run_mode=1(Position)`，`vlim -> 0x7017(limit_spd)`，`pos -> 0x7016(loc_ref)`。
+- 无效参数：`vel`、`kd`、`tau`（在该模式下会被忽略，不参与控制）。
+
+### Core CLI
 
 ```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode mit --pos 0 --vel 0 --kp 0.5 --kd 0.2 --tau 0 --loop 20 --dt-ms 50
+$CLI --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode pos-vel --pos 1.0 --vlim 0.8 --loop 1 --dt-ms 20
 ```
 
-### 7.4 VEL
+### Python CLI
 
-Python 示例：
+```bash
+motorbridge-cli run \
+  --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode pos-vel --pos 1.0 --vlim 0.8 \
+  --ensure-mode 1 --ensure-timeout-ms 1500 --ensure-strict 1 \
+  --loop 1 --dt-ms 20
+```
+
+说明：
+- `pos-vel` 建议 `loop=1` 作为“到位指令”。
+- 若需要连续闭环调节，通常 MIT 更稳、更可控。
+
+### Python 代码
 
 ```python
 from motorbridge import Controller, Mode
 
 with Controller("can0") as ctrl:
-    m = ctrl.add_robstride_motor(127, 0xFF, "rs-06")
-    ctrl.enable_all()
+    m = ctrl.add_robstride_motor(127, 0xFD, "rs-06")
+    m.enable()
+    m.ensure_mode(Mode.POS_VEL, 1500)
+    m.send_pos_vel(1.0, 0.8)
+    m.close()
+```
+
+## 7）VEL
+
+### Core CLI
+
+```bash
+$CLI --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode vel --vel 0.3 --loop 40 --dt-ms 50
+```
+
+### Python CLI
+
+```bash
+motorbridge-cli run \
+  --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode vel --vel 0.3 --loop 40 --dt-ms 50
+```
+
+### Python 代码
+
+```python
+from motorbridge import Controller, Mode
+
+with Controller("can0") as ctrl:
+    m = ctrl.add_robstride_motor(127, 0xFD, "rs-06")
+    m.enable()
     m.ensure_mode(Mode.VEL, 1000)
-    m.send_vel(0.3)
+    for _ in range(40):
+        m.send_vel(0.3)
     m.close()
 ```
 
-CLI 示例：
+## 8）读参数（read-param）
+
+### Core CLI
 
 ```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode vel --vel 0.3 --loop 20 --dt-ms 50
+$CLI --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode read-param --param-id 0x7019
 ```
 
-### 7.5 POS_VEL（映射到原生 Position）
-
-Python 示例：
-
-```python
-from motorbridge import Controller, Mode
-
-with Controller("can0") as ctrl:
-    m = ctrl.add_robstride_motor(127, 0xFF, "rs-06")
-    ctrl.enable_all()
-    m.ensure_mode(Mode.POS_VEL, 1000)
-    m.send_pos_vel(1.0, 1.5)  # pos=1.0rad, vlim=1.5rad/s
-    m.close()
-```
-
-CLI 示例：
+### Python CLI
 
 ```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode pos-vel --pos 1.0 --vlim 1.5 --loop 1 --dt-ms 20
+motorbridge-cli robstride-read-param \
+  --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --param-id 0x7019 --type f32 --timeout-ms 200
 ```
 
-## 8. 全部原生模式（run_mode）
-
-按当前仓库源码，RobStride 原生 `run_mode`（`0x7005`）完整是：
-
-- `0 = MIT`
-- `1 = Position`
-- `2 = Velocity`
-
-### 8.1 原生 MIT（run_mode=0）
-
-Python 示例：
+### Python 代码
 
 ```python
 from motorbridge import Controller
 
 with Controller("can0") as ctrl:
-    m = ctrl.add_robstride_motor(127, 0xFF, "rs-06")
-    m.robstride_write_param_i8(0x7005, 0)
-    m.send_mit(0.0, 0.0, 0.5, 0.2, 0.0)
+    m = ctrl.add_robstride_motor(127, 0xFD, "rs-06")
+    print(m.robstride_get_param_f32(0x7019, 200))
     m.close()
 ```
 
-CLI 示例：
+## 9）写参数（write-param）
+
+### Core CLI
 
 ```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode write-param --param-id 0x7005 --param-value 0
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode mit --pos 0 --vel 0 --kp 0.5 --kd 0.2 --tau 0 --loop 20 --dt-ms 50
+$CLI --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode write-param --param-id 0x700A --param-value 0.3
 ```
 
-### 8.2 原生 Position（run_mode=1）
+### Python CLI
 
-Python 示例：
+```bash
+motorbridge-cli robstride-write-param \
+  --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --param-id 0x700A --type f32 --value 0.3 --verify 1 --timeout-ms 200
+```
+
+### Python 代码
 
 ```python
 from motorbridge import Controller
 
 with Controller("can0") as ctrl:
-    m = ctrl.add_robstride_motor(127, 0xFF, "rs-06")
-    m.robstride_write_param_i8(0x7005, 1)
-    m.robstride_write_param_f32(0x7016, 1.0)
-    m.close()
-```
-
-CLI 示例：
-
-```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode write-param --param-id 0x7005 --param-value 1
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode write-param --param-id 0x7016 --param-value 1.0
-```
-
-### 8.3 原生 Velocity（run_mode=2）
-
-Python 示例：
-
-```python
-from motorbridge import Controller
-
-with Controller("can0") as ctrl:
-    m = ctrl.add_robstride_motor(127, 0xFF, "rs-06")
-    m.robstride_write_param_i8(0x7005, 2)
+    m = ctrl.add_robstride_motor(127, 0xFD, "rs-06")
     m.robstride_write_param_f32(0x700A, 0.3)
+    print(m.robstride_get_param_f32(0x700A, 200))
     m.close()
 ```
 
-CLI 示例：
+## 10）改 ID（set-motor-id）
+
+### Core CLI
 
 ```bash
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode write-param --param-id 0x7005 --param-value 2
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode write-param --param-id 0x700A --param-value 0.3
+$CLI --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --set-motor-id 126 --store 1
 ```
 
-## 9. 常用参数 ID（RobStride）
+### Python CLI
 
-- `0x7005`：`run_mode`（i8）
-- `0x700A`：`spd_ref`（f32）
-- `0x7016`：`loc_ref`（f32）
-- `0x7019`：`mechPos`（f32）
-- `0x701B`：`mechVel`（f32）
-- `0x701C`：`VBUS`（f32）
+当前 `motorbridge-cli` 无 RobStride 专用改 ID 子命令。
 
-## 10. 常见问题与排查
+### Python 代码
 
-1. `new_socketcan failed` / `interface is down`
-- 检查 `can0` 是否 up，重新执行第 2 节命令。
+```python
+from motorbridge import Controller
 
-2. `add_robstride_motor failed` / ping 超时
-- 先用扫描确认 ID；优先尝试 `feedback_id=0xFF`。
-- 确认终端电阻、CANH/CANL 线序、波特率一致。
+with Controller("can0") as ctrl:
+    m = ctrl.add_robstride_motor(127, 0xFD, "rs-06")
+    m.robstride_set_device_id(126)
+    m.store_parameters()
+    m.close()
+```
 
-3. Python 能 import，但运行时报找不到 `.so`
-- 确认 `LD_LIBRARY_PATH` 包含 `target/release`。
+## 11）写零点（zero）
 
-4. Python 里 `pos-vel` 仍提示 “not supported for RobStride”
-- 通常是 Python 加载了旧版 ABI（例如 `bindings/python/src/motorbridge/lib/libmotor_abi.so`）。
-- 先重新编译：`cargo build -p motor_abi --release`
-- 再显式指定新版库：
-  - `MOTORBRIDGE_LIB=/home/w0x7ce/Downloads/dm_candrive/rust_dm/target/release/libmotor_abi.so`
+### Core CLI
 
-5. 控制异常或抖动
-- 先降低 `vel`/`kp`/`kd`，再逐步增加。
-- 保留急停链路（`disable`/断使能）。
+```bash
+$CLI --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode zero --zero-exp 1 --store 1
+```
 
-## 11. 参考文件
+### Python CLI
 
-- `bindings/python/src/motorbridge/core.py`
-- `bindings/python/src/motorbridge/cli.py`
-- `bindings/python/examples/robstride_wrapper_demo.py`
-- `motor_cli/ROBSTRIDE_API.zh-CN.md`
-- `bindings/python/README.zh-CN.md`
+```bash
+motorbridge-cli run \
+  --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode zero --zero-exp 1 --store 1
+```
+
+等价别名：
+
+```bash
+motorbridge-cli run \
+  --vendor robstride --channel "$CH" --model "$MODEL" --motor-id "$MID" --feedback-id "$FID" \
+  --mode set-zero --zero-exp 1 --store 1
+```
+
+### Python 代码
+
+```python
+from motorbridge import Controller
+
+with Controller("can0") as ctrl:
+    m = ctrl.add_robstride_motor(127, 0xFD, "rs-06")
+    m.disable()
+    m.set_zero_position()
+    m.store_parameters()
+    m.close()
+```
+
+验证建议：
+
+```bash
+motorbridge-cli robstride-read-param \
+  --channel "$CH" --model "$MODEL" --motor-id 127 --feedback-id "$FID" \
+  --param-id 0x7019 --type f32 --timeout-ms 200
+```
+
+## 12）结论（准确性口径）
+
+- 以 Core CLI（`motor_cli`）为基准最稳。
+- Python CLI/SDK 与 core 大部分功能对齐；RobStride `zero/set-zero` 已支持（`run --mode zero|set-zero --zero-exp 1`），`set-id` 仍建议使用 Core CLI 或 SDK 代码。
+- 需要严格复现时，请优先按本文 Core CLI 命令执行。

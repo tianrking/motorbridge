@@ -14,6 +14,33 @@
 
 > English version: [ROBSTRIDE_API.md](ROBSTRIDE_API.md)
 
+## 0）运行方式速查（不必每次 `cargo run`）
+
+`motor_cli` 有三种常见运行方式：
+
+1. Release 二进制（推荐现场）
+```bash
+./bin/motor_cli --vendor robstride --mode scan --start-id 1 --end-id 255
+```
+
+2. 源码方式（开发调试）
+```bash
+cargo run -p motor_cli --release -- \
+  --vendor robstride --channel can0 --model rs-06 --mode scan --start-id 1 --end-id 255
+```
+
+3. Python 包安装后（不编译 Rust）
+```bash
+python3 -m pip install motorbridge
+motorbridge-cli scan --vendor robstride --channel can0 --model rs-06 --start-id 1 --end-id 255
+```
+
+说明：
+- 本文命令默认写成 `motor_cli ...` 形式；可等价替换为上面三种入口之一。
+- 如果你已 `pip install motorbridge`，优先用 `motorbridge-cli` 即可，不需要每次 `cargo run`。
+- 使用源码目录中的 Python CLI 时，建议加：
+  `LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}`（确保加载当前仓库 ABI 动态库）。
+
 ## 1）通用设备参数
 
 | 参数 | 含义 | 常用值 |
@@ -116,6 +143,14 @@ motor_cli \
 ```bash
 motor_cli \
   --vendor robstride --channel can0 --model rs-06 --mode scan --start-id 1 --end-id 255
+```
+
+联调建议（更快）：
+
+```bash
+motorbridge-cli scan \
+  --vendor robstride --channel can0 --model rs-06 \
+  --start-id 120 --end-id 130 --feedback-ids 0xFD --param-timeout-ms 60
 ```
 
 说明：
@@ -229,8 +264,6 @@ with Controller("can0") as ctrl:
 - 压测前先确认 CAN 接线、终端电阻和接口状态。
 - 长时间控制前先做 ping/读参验证。
 - 始终保留急停路径。
-
-
 
 
 

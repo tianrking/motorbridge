@@ -3,7 +3,7 @@ use crate::device::MotorDevice;
 use crate::error::{MotorError, Result};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -23,6 +23,9 @@ pub struct CoreController {
 }
 
 impl CoreController {
+    // Pace broadcast-like per-motor operations (enable/disable) to avoid burst writes on a busy bus.
+    const DEFAULT_BULK_OP_GAP_MS: u64 = 2;
+
     pub fn new(bus: Arc<dyn CanBus>) -> Self {
         Self::new_internal(bus, PollingMode::Background)
     }
@@ -93,31 +96,51 @@ impl CoreController {
     }
 
     pub fn enable_all(&self) -> Result<()> {
-        let devices = self
+        self.apply_bulk_device_op(|d| d.enable())
+    }
+
+    pub fn disable_all(&self) -> Result<()> {
+        self.apply_bulk_device_op(|d| d.disable())
+    }
+
+    fn sorted_devices(&self) -> Result<Vec<Arc<dyn MotorDevice>>> {
+        let mut devices = self
             .devices
             .lock()
             .map_err(|_| MotorError::Io("devices lock poisoned".to_string()))?
             .values()
             .cloned()
             .collect::<Vec<_>>();
-        for device in devices {
-            device.enable()?;
+        devices.sort_by_key(|d| d.motor_id());
+        Ok(devices)
+    }
+
+    fn apply_bulk_device_op<F>(&self, mut op: F) -> Result<()>
+    where
+        F: FnMut(&Arc<dyn MotorDevice>) -> Result<()>,
+    {
+        let devices = self.sorted_devices()?;
+        let gap = Self::bulk_op_gap();
+        for (idx, device) in devices.iter().enumerate() {
+            op(device)?;
+            // Best-effort drain during bulk ops to keep RX queue fresh when many motors respond.
+            let _ = self.poll_feedback_once_internal();
+            if idx + 1 < devices.len() && !gap.is_zero() {
+                std::thread::sleep(gap);
+            }
         }
         Ok(())
     }
 
-    pub fn disable_all(&self) -> Result<()> {
-        let devices = self
-            .devices
-            .lock()
-            .map_err(|_| MotorError::Io("devices lock poisoned".to_string()))?
-            .values()
-            .cloned()
-            .collect::<Vec<_>>();
-        for device in devices {
-            device.disable()?;
-        }
-        Ok(())
+    fn bulk_op_gap() -> Duration {
+        static GAP: OnceLock<Duration> = OnceLock::new();
+        *GAP.get_or_init(|| {
+            std::env::var("MOTORBRIDGE_BULK_OP_GAP_MS")
+                .ok()
+                .and_then(|s| s.parse::<u64>().ok())
+                .map(Duration::from_millis)
+                .unwrap_or(Duration::from_millis(Self::DEFAULT_BULK_OP_GAP_MS))
+        })
     }
 
     fn start_polling_if_needed(&self) -> Result<()> {

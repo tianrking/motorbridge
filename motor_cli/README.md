@@ -25,17 +25,17 @@ motor_cli -h
 ## Additional Damiao Command/Register Reference
 
 - Detailed Damiao command + register tuning doc (English): `DAMIAO_API.md`
-- ä¸­æ–‡ç‰ˆï¼ˆå¯„å­˜å™¨/æŒ‡ä»¤è¯¦è¡¨ï¼‰: `DAMIAO_API.zh-CN.md`
+- Chinese version (command/register reference): `DAMIAO_API.zh-CN.md`
 
 ## Additional RobStride Command/Parameter Reference
 
 - Detailed RobStride command + parameter guide (English): `ROBSTRIDE_API.md`
-- ä¸­æ–‡ç‰ˆï¼ˆå‚æ•°/èƒ½åŠ›è¾¹ç•Œè¯¦è¡¨ï¼‰: `ROBSTRIDE_API.zh-CN.md`
+- Chinese version (parameter/capability reference): `ROBSTRIDE_API.zh-CN.md`
 
 ## Additional MyActuator Command/Mode Reference
 
 - Detailed MyActuator command + mode guide (English): `MYACTUATOR_API.md`
-- ä¸­æ–‡ç‰ˆï¼ˆå‘½ä»¤/æ¨¡å¼è¯¦è¡¨ï¼‰: `MYACTUATOR_API.zh-CN.md`
+- Chinese version (command/mode reference): `MYACTUATOR_API.zh-CN.md`
 
 ## HighTorque Notes
 
@@ -45,7 +45,7 @@ motor_cli -h
 ## CAN Debugging Entry
 
 - Professional Linux `slcan` + Windows `pcan` troubleshooting: `../docs/en/can_debugging.md`
-- ä¸­æ–‡è°ƒè¯•æ‰‹å†Œï¼š`../docs/zh/can_debugging.md`
+- Chinese troubleshooting guide: `../docs/zh/can_debugging.md`
 
 ## Transport Legend
 
@@ -437,6 +437,5 @@ motor_cli \
 
 - For Damiao ID updates, prefer keeping `--store 1 --verify-id 1`.
 - If scan intermittently misses motors, retry after CAN restart.
-- RobStride `send_pos_vel` is not a CLI mode; use `mit` or `vel`.
+- RobStride supports CLI `--mode pos-vel` (mapped to native Position); in this mode use `--pos/--vlim/[--kp|--loc-kp]`.
 - MyActuator low-voltage protection returns error code `0x0004` in status-1 (`0x9A`) and blocks motion.
-

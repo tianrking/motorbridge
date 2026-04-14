@@ -510,7 +510,7 @@ motor_cli \
 
 - Damiao 改 ID 建议始终使用 `--store 1 --verify-id 1`。
 - 若扫描偶发漏检，重启 CAN 后重试。
-- RobStride 没有 CLI 的 `send_pos_vel` 模式，请用 `mit` 或 `vel`。
+- RobStride 已支持 CLI 的 `--mode pos-vel`（映射到原生 Position）；该模式下仅使用 `--pos/--vlim/[--kp|--loc-kp]`。
 
 ## 已验证能力矩阵（Damiao + RobStride，2026-04）
 
@@ -531,7 +531,6 @@ motor_cli \
 - RobStride 默认 `--feedback-id` 为 `0xFD`，内部会回退探测 `0xFF/0xFE`。
 - RobStride 的 `pos-vel` 下 `--vel/--kd/--tau` 为无效参数，仅告警不报错。
 - MyActuator 若 `0x9A` 返回错误码 `0x0004`（欠压），电机会在线但不转，需要先恢复供电电压。
-
 
 
 

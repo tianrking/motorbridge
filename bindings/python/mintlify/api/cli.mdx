@@ -155,6 +155,34 @@ motorbridge-cli run \
     --kd 0.1
 ```
 
+#### RobStride Position-Velocity Mode
+
+```bash
+motorbridge-cli run \
+    --vendor robstride \
+    --channel can0 \
+    --model rs-00 \
+    --motor-id 127 \
+    --feedback-id 0xFD \
+    --mode pos-vel \
+    --loop 100 \
+    --pos 0.5 \
+    --vlim 1.0
+```
+
+#### RobStride Ping
+
+```bash
+motorbridge-cli run \
+    --vendor robstride \
+    --channel can0 \
+    --model rs-00 \
+    --motor-id 127 \
+    --feedback-id 0xFD \
+    --mode ping \
+    --loop 1
+```
+
 #### RobStride Zero (set-zero alias available)
 
 ```bash
@@ -168,6 +196,38 @@ motorbridge-cli run \
     --zero-exp 1 \
     --store 1 \
     --loop 1
+```
+
+#### MyActuator Position-Velocity Mode
+
+```bash
+motorbridge-cli run \
+    --vendor myactuator \
+    --channel can0 \
+    --model X8 \
+    --motor-id 1 \
+    --feedback-id 0x241 \
+    --mode pos-vel \
+    --loop 100 \
+    --pos 1.0 \
+    --vlim 2.0
+```
+
+#### Hexfellow MIT Mode (CAN-FD required)
+
+```bash
+motorbridge-cli run \
+    --vendor hexfellow \
+    --transport socketcanfd \
+    --channel can0 \
+    --model hexfellow \
+    --motor-id 0x00 \
+    --feedback-id 0x00 \
+    --mode mit \
+    --loop 100 \
+    --pos 0.5 \
+    --kp 2.0 \
+    --kd 0.1
 ```
 
 #### Using Serial Transport
@@ -239,6 +299,18 @@ motorbridge-cli scan --vendor robstride --channel can0 --start-id 1 --end-id 127
 
 ```bash
 motorbridge-cli scan --vendor myactuator --channel can0 --start-id 1 --end-id 32
+```
+
+#### Scan HighTorque
+
+```bash
+motorbridge-cli scan --vendor hightorque --channel can0 --start-id 1 --end-id 127
+```
+
+#### Scan Hexfellow (CAN-FD required)
+
+```bash
+motorbridge-cli scan --vendor hexfellow --transport socketcanfd --channel can0 --start-id 0 --end-id 255
 ```
 
 #### Scan via Serial
@@ -398,8 +470,10 @@ motorbridge-cli robstride-read-param [OPTIONS]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--channel` | `can0` | CAN interface |
-| `--model` | `rs-00` | Motor model |
+| `--transport` | `auto` | Transport: auto, socketcan, socketcanfd |
+| `--model` | `rs-00` | Motor model (fixed to RobStride) |
 | `--motor-id` | `127` | Motor ID |
+| `--feedback-id` | `0xFD` | Feedback ID (RobStride default) |
 | `--param-id` | (required) | Parameter ID to read |
 | `--type` | (required) | Data type: i8, u8, u16, u32, f32 |
 | `--timeout-ms` | `500` | Read timeout |
@@ -410,6 +484,7 @@ motorbridge-cli robstride-read-param [OPTIONS]
 motorbridge-cli robstride-read-param \
     --channel can0 \
     --motor-id 127 \
+    --feedback-id 0xFD \
     --param-id 0x7019 \
     --type f32
 ```
@@ -437,11 +512,13 @@ motorbridge-cli robstride-write-param [OPTIONS]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--channel` | `can0` | CAN interface |
-| `--model` | `rs-00` | Motor model |
+| `--transport` | `auto` | Transport: auto, socketcan, socketcanfd |
+| `--model` | `rs-00` | Motor model (fixed to RobStride) |
 | `--motor-id` | `127` | Motor ID |
+| `--feedback-id` | `0xFD` | Feedback ID (RobStride default) |
 | `--param-id` | (required) | Parameter ID to write |
 | `--type` | (required) | Data type: i8, u8, u16, u32, f32 |
-| `--value` | (required) | Value to write |
+| `--value` | (required) | Value to write (parsed according to `--type`) |
 | `--verify` | `1` | Read back and verify |
 | `--timeout-ms` | `500` | Verify timeout |
 
@@ -451,6 +528,7 @@ motorbridge-cli robstride-write-param [OPTIONS]
 motorbridge-cli robstride-write-param \
     --channel can0 \
     --motor-id 127 \
+    --feedback-id 0xFD \
     --param-id 0x7019 \
     --type f32 \
     --value 2.0 \

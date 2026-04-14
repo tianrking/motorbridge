@@ -398,8 +398,8 @@ if __name__ == "__main__":
 
 | Version | Notes |
 |---------|-------|
-| v0.1.6 and earlier | Requires manual `poll_feedback_once()` |
-| v0.1.7+ | Background polling enabled by default |
+| v0.1.6 and earlier | Requires manual `poll_feedback_once()` after `request_feedback()` |
+| v0.1.7+ | Call `request_feedback()` then `poll_feedback_once()` explicitly in control loop |
 
 ## See Also
 

@@ -99,13 +99,13 @@ motorbridge-cli run [选项]
 
 ### 示例
 
-#### 仅使能电机
+#### 达妙 — 仅使能电机
 
 ```bash
-motorbridge-cli run --vendor damiao --channel can0 --motor-id 0x01 --mode enable --loop 1
+motorbridge-cli run --vendor damiao --channel can0 --motor-id 0x01 --feedback-id 0x11 --mode enable --loop 1
 ```
 
-#### MIT 模式控制
+#### 达妙 — MIT 模式控制
 
 ```bash
 motorbridge-cli run \
@@ -122,7 +122,7 @@ motorbridge-cli run \
     --kd 1.0
 ```
 
-#### 位置-速度模式
+#### 达妙 — 位置-速度模式
 
 ```bash
 motorbridge-cli run \
@@ -137,7 +137,66 @@ motorbridge-cli run \
     --vlim 1.5
 ```
 
-#### RobStride 置零（`set-zero` 为等价别名）
+#### 达妙 — 串口传输
+
+```bash
+motorbridge-cli run \
+    --vendor damiao \
+    --transport dm-serial \
+    --serial-port /dev/ttyACM0 \
+    --serial-baud 921600 \
+    --model 4340P \
+    --motor-id 0x01 \
+    --feedback-id 0x11 \
+    --mode mit \
+    --loop 50
+```
+
+#### RobStride — MIT 模式控制
+
+```bash
+motorbridge-cli run \
+    --vendor robstride \
+    --channel can0 \
+    --model rs-00 \
+    --motor-id 127 \
+    --feedback-id 0xFD \
+    --mode mit \
+    --loop 100 \
+    --pos 0.5 \
+    --kp 2.0 \
+    --kd 0.1
+```
+
+#### RobStride — 位置-速度模式
+
+```bash
+motorbridge-cli run \
+    --vendor robstride \
+    --channel can0 \
+    --model rs-00 \
+    --motor-id 127 \
+    --feedback-id 0xFD \
+    --mode pos-vel \
+    --loop 100 \
+    --pos 0.5 \
+    --vlim 1.0
+```
+
+#### RobStride — Ping 探测
+
+```bash
+motorbridge-cli run \
+    --vendor robstride \
+    --channel can0 \
+    --model rs-00 \
+    --motor-id 127 \
+    --feedback-id 0xFD \
+    --mode ping \
+    --loop 1
+```
+
+#### RobStride — 置零（`set-zero` 为等价别名）
 
 ```bash
 motorbridge-cli run \
@@ -150,6 +209,38 @@ motorbridge-cli run \
     --zero-exp 1 \
     --store 1 \
     --loop 1
+```
+
+#### MyActuator — 位置-速度模式
+
+```bash
+motorbridge-cli run \
+    --vendor myactuator \
+    --channel can0 \
+    --model X8 \
+    --motor-id 1 \
+    --feedback-id 0x241 \
+    --mode pos-vel \
+    --loop 100 \
+    --pos 1.0 \
+    --vlim 2.0
+```
+
+#### Hexfellow — MIT 模式（需要 CAN-FD）
+
+```bash
+motorbridge-cli run \
+    --vendor hexfellow \
+    --transport socketcanfd \
+    --channel can0 \
+    --model hexfellow \
+    --motor-id 0x00 \
+    --feedback-id 0x00 \
+    --mode mit \
+    --loop 100 \
+    --pos 0.5 \
+    --kp 2.0 \
+    --kd 0.1
 ```
 
 ---
@@ -200,6 +291,24 @@ motorbridge-cli scan --vendor damiao --channel can0 --start-id 0x01 --end-id 0x2
 
 ```bash
 motorbridge-cli scan --vendor robstride --channel can0 --start-id 1 --end-id 127 --feedback-ids 0xFD
+```
+
+#### 仅扫描 MyActuator
+
+```bash
+motorbridge-cli scan --vendor myactuator --channel can0 --start-id 1 --end-id 32
+```
+
+#### 仅扫描 HighTorque
+
+```bash
+motorbridge-cli scan --vendor hightorque --channel can0 --start-id 1 --end-id 127
+```
+
+#### 仅扫描 Hexfellow（需要 CAN-FD）
+
+```bash
+motorbridge-cli scan --vendor hexfellow --transport socketcanfd --channel can0 --start-id 0 --end-id 255
 ```
 
 ---

@@ -853,7 +853,7 @@ finally:
 from motorbridge import RegisterSpec
 
 @dataclass(frozen=True)
-class RegisterSpec:
+class RegisterSpec:R
     rid: int          # 寄存器 ID
     variable: str     # 变量名
     description: str  # 人类可读描述
@@ -1051,7 +1051,7 @@ if __name__ == "__main__":
 | 版本 | 说明 |
 |------|------|
 | v0.1.6 及更早 | 需要手动调用 `poll_feedback_once()` |
-| v0.1.7+ | 后台轮询默认启用 |
+| v0.1.7+ | 在控制循环中显式调用 `request_feedback()` + `poll_feedback_once()` |
 
 ---
 

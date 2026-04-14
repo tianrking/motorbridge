@@ -5,6 +5,13 @@
 - Python CLI：`motorbridge-cli` 或 `python -m motorbridge.cli`
 - Python 代码：`from motorbridge import Controller, Mode`
 
+## 通道说明（仅 SocketCAN）
+
+- RobStride 在本手册中只讨论 SocketCAN 路径（`can0`、`can1`）。
+- 不涉及其他传输路径。
+- Linux 下 `--channel` 不要带 `@bitrate`（例如 `can0@1000000` 无效）。
+- 详细排障可参考：`../../docs/zh/can_debugging.md`。
+
 ## 0）前置
 
 ### 0.1 环境

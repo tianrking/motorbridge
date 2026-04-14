@@ -190,6 +190,49 @@ jobs:
           path: bindings/python/dist/*.whl
           if-no-files-found: error
 
+  build-python-wheel-macos:
+    name: build-python-wheel-macos-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            arch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install cibuildwheel
+        run: python -m pip install --upgrade pip cibuildwheel==2.21.3
+
+      - name: Build Python wheels (macOS)
+        env:
+          CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-* cp314-*"
+          CIBW_SKIP: "*musllinux* *i686* *pp*"
+          CIBW_ARCHS_MACOS: ${{ matrix.arch }}
+          CIBW_BUILD_FRONTEND: pip
+          CIBW_ENVIRONMENT_MACOS: MOTORBRIDGE_LIB=/Users/runner/work/motorbridge/motorbridge/target/release/libmotor_abi.dylib
+          CIBW_BEFORE_ALL_MACOS: >
+            curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal &&
+            . $HOME/.cargo/env &&
+            cd /Users/runner/work/motorbridge/motorbridge &&
+            cargo build -p motor_abi --release &&
+            cargo build -p ws_gateway --release
+        run: python -m cibuildwheel --platform macos bindings/python --output-dir bindings/python/dist
+
+      - name: Upload macOS wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-wheel-macos-${{ matrix.arch }}
+          path: bindings/python/dist/*.whl
+          if-no-files-found: error
+
   build-python-wheel-windows:
     name: build-python-wheel-windows-py${{ matrix.python-version }}
     runs-on: windows-latest
@@ -357,6 +400,7 @@ jobs:
     needs:
       - build-abi
       - build-python-wheel-linux
+      - build-python-wheel-macos
       - build-python-wheel-windows
       - build-python-sdist
       - build-motor-cli

@@ -13,5 +13,5 @@ HighTorque vendor crate aligned with the same module layout used by other vendor
 
 - Current HighTorque path is direct CAN native flow (ht_can style frames).
 - Unified API compatibility:
-  - supported: `mit`, `pos_vel`, `vel`
-  - unsupported: `force_pos` (returns unsupported error)
+  - supported: `mit`, `pos_vel`, `vel`, `force_pos`
+  - `pos_vel` and `force_pos` map to native pos+vel+tqe

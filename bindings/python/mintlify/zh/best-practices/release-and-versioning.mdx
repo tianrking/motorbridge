@@ -100,7 +100,7 @@ pip install git+https://github.com/your-org/dm_candrive.git@main
 pip show motorbridge
 
 # 使用 Python
-python3 -c "import motorbridge; print(motorbridge.__version__)"
+python3 -c "import importlib.metadata; print(importlib.metadata.version('motorbridge'))"
 ```
 
 ### 代码中检查
@@ -108,7 +108,8 @@ python3 -c "import motorbridge; print(motorbridge.__version__)"
 ```python
 import motorbridge
 
-print(f"motorbridge 版本: {motorbridge.__version__}")
+import importlib.metadata
+print(f"motorbridge 版本: {importlib.metadata.version('motorbridge')}")
 ```
 
 ---

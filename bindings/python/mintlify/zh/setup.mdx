@@ -22,7 +22,7 @@ title: 安装环境
 
 包会自动安装所需依赖：
 - `ctypes`（标准库）
-- `dataclasses`（标准库，Python 3.9 需回退）
+- `dataclasses`（标准库）
 
 ## 从 PyPI 安装
 
@@ -55,7 +55,7 @@ python3 -c "import motorbridge; print('motorbridge 安装成功')"
 ### 检查版本
 
 ```bash
-python3 -c "import motorbridge; print(motorbridge.__version__)"
+python3 -c "import importlib.metadata; print(importlib.metadata.version('motorbridge'))"
 ```
 
 ### 测试 CLI

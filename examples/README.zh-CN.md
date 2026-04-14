@@ -162,8 +162,8 @@ cargo run -p motor_cli --release -- --vendor all --channel can0 --mode scan --st
 cargo run -p motor_cli --release -- --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --mode vel --vel 0.5 --loop 40 --dt-ms 50
 
 # 3) RobStride ping + 速度
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
-cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode vel --vel 0.3 --loop 40 --dt-ms 50
+cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD --mode ping
+cargo run -p motor_cli --release -- --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD --mode vel --vel 0.3 --loop 40 --dt-ms 50
 
 # 4) MyActuator 位置模式（弧度）
 cargo run -p motor_cli --release -- --vendor myactuator --channel can0 --model X8 --motor-id 1 --feedback-id 0x241 --mode pos --pos 3.1416 --max-speed 5.236 --loop 1 --dt-ms 50

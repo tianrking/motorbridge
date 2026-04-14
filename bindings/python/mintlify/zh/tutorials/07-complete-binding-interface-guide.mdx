@@ -206,7 +206,7 @@ motor = ctrl.add_robstride_motor(
 motor = ctrl.add_myactuator_motor(
     motor_id=1,         # 电机 ID
     feedback_id=0x241,  # 反馈 ID = 0x240 + motor_id
-    model="AK60-6"      # 型号
+    model="X8"          # 型号
 )
 ```
 
@@ -220,7 +220,7 @@ motor = ctrl.add_myactuator_motor(
 motor = ctrl.add_hightorque_motor(
     motor_id=1,         # 电机 ID
     feedback_id=0x01,   # 固定为 0x01
-    model="HT01"        # 型号
+    model="hightorque"  # 型号
 )
 ```
 
@@ -853,7 +853,7 @@ finally:
 from motorbridge import RegisterSpec
 
 @dataclass(frozen=True)
-class RegisterSpec:R
+class RegisterSpec:
     rid: int          # 寄存器 ID
     variable: str     # 变量名
     description: str  # 人类可读描述
@@ -1051,7 +1051,7 @@ if __name__ == "__main__":
 | 版本 | 说明 |
 |------|------|
 | v0.1.6 及更早 | 需要手动调用 `poll_feedback_once()` |
-| v0.1.7+ | 在控制循环中显式调用 `request_feedback()` + `poll_feedback_once()` |
+| v0.1.7+ | 后台轮询默认启用；`poll_feedback_once()` 为可选 |
 
 ---
 

@@ -74,7 +74,7 @@ RobStride:
 
 int main() {
   motorbridge::Controller ctrl("can0");
-  auto motor = ctrl.add_robstride_motor(127, 0xFF, "rs-00");
+  auto motor = ctrl.add_robstride_motor(127, 0xFD, "rs-00");
   auto ids = motor.robstride_ping();
   float pos = motor.robstride_get_param_f32(0x7019);
   ctrl.shutdown();
@@ -191,10 +191,10 @@ export LD_LIBRARY_PATH=$PWD/target/release:${LD_LIBRARY_PATH}
 
 # RobStride wrapper demo: ping
 ./bindings/cpp/build/robstride_wrapper_demo \
-  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --mode ping
+  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD --mode ping
 
 # RobStride wrapper demo: velocity
 ./bindings/cpp/build/robstride_wrapper_demo \
-  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF \
+  --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD \
   --mode vel --vel 0.3 --loop 40 --dt-ms 50
 ```

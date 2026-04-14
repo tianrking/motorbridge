@@ -58,10 +58,10 @@ If a vendor does not support one of these four baseline modes, gateway returns `
 | Vendor | `mit` | `pos_vel` | `vel` | `force_pos` | Parameter Differences | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | damiao | native MIT | native POS_VEL | native VEL | native FORCE_POS | full parameter match | baseline reference |
-| robstride | native MIT | unsupported | native Velocity mode | unsupported | `vel` maps to vendor velocity target | native param read/write via `robstride_*` |
+| robstride | native MIT | maps to native Position (`run_mode=1` + `limit_spd` + `loc_ref`) | native Velocity mode | unsupported | `vel` maps to vendor velocity target; `pos_vel` maps to vendor Position | native param read/write via `robstride_*` |
 | hexfellow | native MIT | native POS_VEL | unsupported | unsupported | `mit` supports `kp/kd/tau`; no standalone `vel` | CAN-FD path |
-| myactuator | unsupported | unsupported | native velocity setpoint | unsupported | `vel` only in baseline set | native strengths: current/position/version/mode-query |
-| hightorque | native MIT (ht_can mapping) | unsupported | native velocity frame | unsupported | `mit/vel` are raw-frame mapped; `kp/kd` are accepted for unified signature but ignored by protocol | current subset: scan/read/mit/vel/stop; `enable/disable` accepted as no-op |
+| myactuator | unsupported | Position setpoint flow | native velocity setpoint | unsupported | `pos_vel` via position setpoint; `vel` in baseline set | native strengths: current/position/version/mode-query |
+| hightorque | native MIT (ht_can mapping) | maps to native pos+vel+tqe | native velocity frame | maps to native pos+vel+tqe | `mit/vel` are raw-frame mapped; `kp/kd` accepted but ignored by protocol; `pos_vel/force_pos` map to pos+vel+tqe | current subset: scan/read/mit/vel/pos-vel/force-pos/stop; `enable/disable` accepted as no-op |
 
 ### Unified Core Ops Support Matrix
 
@@ -79,7 +79,7 @@ If a vendor does not support one of these four baseline modes, gateway returns `
   HighTorque detail: `kp/kd` are currently ignored by protocol path.
 - `pos_vel`: only valid where vendor has equivalent mode.
 - `vel`: sign/scale conversion is vendor-specific internally.
-- `force_pos`: currently Damiao-only in unified path.
+- `force_pos`: Damiao native; HighTorque maps to pos+vel+tqe; others unsupported.
 
 ## WS `capabilities` Response (Draft)
 
@@ -115,13 +115,13 @@ Recommended: client calls `{"op":"capabilities"}` on connect and adapts UI/flows
       },
       "myactuator": {
         "transports": ["auto", "socketcan", "socketcanfd"],
-        "modes": ["vel"],
+        "modes": ["pos_vel", "vel"],
         "ops_unified": ["scan", "enable", "disable", "stop", "state_once", "status", "verify"],
         "ops_vendor_native": ["status", "version", "mode-query"]
       },
       "hightorque": {
         "transports": ["auto", "socketcan"],
-        "modes": ["mit", "vel"],
+        "modes": ["mit", "pos_vel", "vel", "force_pos"],
         "ops_unified": ["scan", "stop", "state_once", "status", "verify"],
         "ops_vendor_native": ["read"]
       }
@@ -146,7 +146,7 @@ cargo run -p ws_gateway --release -- \
 
 ```bash
 cargo run -p ws_gateway --release -- \
-  --bind 0.0.0.0:9002 --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --dt-ms 20
+  --bind 0.0.0.0:9002 --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD --dt-ms 20
 ```
 
 ## Experimental Windows Support (PCAN-USB)

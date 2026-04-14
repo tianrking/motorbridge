@@ -73,7 +73,7 @@
 | `Mode.MIT` | 原生 MIT | 原生 MIT | 原生 MIT（模式 5） | 不支持 | 映射到原生 pos+vel+tqe |
 | `Mode.POS_VEL` | 原生 POS_VEL | 映射到原生 Position（`run_mode=1` + `limit_spd(0x7017)` + `loc_ref(0x7016)`） | 原生 POS_VEL（模式 1） | Position 设定流程 | 映射到原生 pos+vel+tqe |
 | `Mode.VEL` | 原生 VEL | 原生 Velocity | 不支持 | 原生 Velocity 设定流程 | 原生速度命令 |
-| `Mode.FORCE_POS` | 原生 FORCE_POS | 不支持 | 不支持 | 不支持 | 不支持 |
+| `Mode.FORCE_POS` | 原生 FORCE_POS | 不支持 | 不支持 | 不支持 | 映射到原生 pos+vel+tqe |
 
 说明：
 

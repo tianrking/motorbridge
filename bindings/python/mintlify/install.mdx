@@ -18,7 +18,7 @@ This guide covers installing the `motorbridge` Python package on Linux, Windows,
 
 The package automatically installs required dependencies:
 - `ctypes` (standard library)
-- `dataclasses` (standard library, backport for Python 3.9)
+- `dataclasses` (standard library)
 
 ## Install from PyPI
 
@@ -51,7 +51,7 @@ python3 -c "import motorbridge; print('motorbridge installed successfully')"
 ### Check Version
 
 ```bash
-python3 -c "import motorbridge; print(motorbridge.__version__)"
+python3 -c "import importlib.metadata; print(importlib.metadata.version('motorbridge'))"
 ```
 
 ### Test CLI

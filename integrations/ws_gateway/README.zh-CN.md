@@ -58,10 +58,10 @@ WS API 主链路已实现。
 | 厂商 | `mit` | `pos_vel` | `vel` | `force_pos` | 参数差异 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- |
 | damiao | 原生 MIT | 原生 POS_VEL | 原生 VEL | 原生 FORCE_POS | 参数完整对齐 | 基线参考实现 |
-| robstride | 原生 MIT | 不支持 | 原生 Velocity 模式 | 不支持 | `vel` 映射到 vendor velocity target | 参数读写走 `robstride_*` |
+| robstride | 原生 MIT | 映射到原生 Position（`run_mode=1` + `limit_spd` + `loc_ref`） | 原生 Velocity 模式 | 不支持 | `vel` 映射到 vendor velocity target；`pos_vel` 映射到 vendor Position | 参数读写走 `robstride_*` |
 | hexfellow | 原生 MIT | 原生 POS_VEL | 不支持 | 不支持 | `mit` 支持 `kp/kd/tau`，无独立 `vel` | CAN-FD 链路 |
-| myactuator | 不支持 | 不支持 | 原生速度设定 | 不支持 | 基线里仅 `vel` 可用 | 强项是 current/position/version/mode-query |
-| hightorque | 原生 MIT（ht_can 映射） | 不支持 | 原生速度帧 | 不支持 | `mit/vel` 为原生帧映射；`kp/kd` 为统一签名保留但协议侧忽略 | 当前子集 scan/read/mit/vel/stop；`enable/disable` 接受但为 no-op |
+| myactuator | 不支持 | Position 设定流程 | 原生速度设定 | 不支持 | `pos_vel` 通过 position setpoint 实现；基线里 `vel` 可用 | 强项是 current/position/version/mode-query |
+| hightorque | 原生 MIT（ht_can 映射） | 映射到原生 pos+vel+tqe | 原生速度帧 | 映射到原生 pos+vel+tqe | `mit/vel` 为原生帧映射；`kp/kd` 保留但协议侧忽略；`pos_vel/force_pos` 映射到 pos+vel+tqe | 当前子集 scan/read/mit/vel/pos-vel/force-pos/stop；`enable/disable` 接受但为 no-op |
 
 ### 统一核心操作支持矩阵
 
@@ -79,7 +79,7 @@ WS API 主链路已实现。
   HighTorque 细节：当前协议路径会忽略 `kp/kd`。
 - `pos_vel`：仅对具备等价模式的厂商可用。
 - `vel`：方向与量纲转换由厂商适配层内部处理。
-- `force_pos`：当前统一路径仅 Damiao 支持。
+- `force_pos`：Damiao 原生支持；HighTorque 映射到 pos+vel+tqe；其他厂商不支持。
 
 ## WS `capabilities` 响应结构（草案）
 
@@ -115,13 +115,13 @@ WS API 主链路已实现。
       },
       "myactuator": {
         "transports": ["auto", "socketcan", "socketcanfd"],
-        "modes": ["vel"],
+        "modes": ["pos_vel", "vel"],
         "ops_unified": ["scan", "enable", "disable", "stop", "state_once", "status", "verify"],
         "ops_vendor_native": ["status", "version", "mode-query"]
       },
       "hightorque": {
         "transports": ["auto", "socketcan"],
-        "modes": ["mit", "vel"],
+        "modes": ["mit", "pos_vel", "vel", "force_pos"],
         "ops_unified": ["scan", "stop", "state_once", "status", "verify"],
         "ops_vendor_native": ["read"]
       }
@@ -146,7 +146,7 @@ cargo run -p ws_gateway --release -- \
 
 ```bash
 cargo run -p ws_gateway --release -- \
-  --bind 0.0.0.0:9002 --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFF --dt-ms 20
+  --bind 0.0.0.0:9002 --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD --dt-ms 20
 ```
 
 ## Windows 实验支持（PCAN-USB）

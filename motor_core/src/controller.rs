@@ -2,10 +2,10 @@ use crate::bus::CanBus;
 use crate::device::MotorDevice;
 use crate::error::{MotorError, Result};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PollingMode {
@@ -18,6 +18,8 @@ pub struct CoreController {
     devices: Arc<Mutex<HashMap<u16, Arc<dyn MotorDevice>>>>,
     polling_mode: PollingMode,
     recv_lock: Arc<Mutex<()>>,
+    tx_gap_ns: Arc<AtomicU64>,
+    tx_gap_env_override: bool,
     polling_active: Arc<AtomicBool>,
     polling_thread: Mutex<Option<JoinHandle<()>>>,
 }
@@ -25,17 +27,25 @@ pub struct CoreController {
 impl CoreController {
     // Pace broadcast-like per-motor operations (enable/disable) to avoid burst writes on a busy bus.
     const DEFAULT_BULK_OP_GAP_MS: u64 = 2;
+    // Auto pacing for multi-motor continuous TX (small enough to avoid obvious loop-frequency impact).
+    const AUTO_MULTI_MOTOR_TX_GAP_US: u64 = 120;
 
     pub fn new(bus: Arc<dyn CanBus>) -> Self {
         Self::new_internal(bus, PollingMode::Background)
     }
 
     fn new_internal(bus: Arc<dyn CanBus>, polling_mode: PollingMode) -> Self {
+        let (initial_tx_gap_ns, tx_gap_env_override) = Self::resolve_tx_gap_from_env();
+        let tx_gap_ns = Arc::new(AtomicU64::new(initial_tx_gap_ns));
+        let bus: Arc<dyn CanBus> = Arc::new(TxPacedBus::new(bus, Arc::clone(&tx_gap_ns)));
+
         Self {
             bus,
             devices: Arc::new(Mutex::new(HashMap::new())),
             polling_mode,
             recv_lock: Arc::new(Mutex::new(())),
+            tx_gap_ns,
+            tx_gap_env_override,
             polling_active: Arc::new(AtomicBool::new(false)),
             polling_thread: Mutex::new(None),
         }
@@ -47,7 +57,7 @@ impl CoreController {
 
     pub fn add_device(&self, device: Arc<dyn MotorDevice>) -> Result<()> {
         let motor_id = device.motor_id();
-        {
+        let device_count = {
             let mut devices = self
                 .devices
                 .lock()
@@ -58,6 +68,15 @@ impl CoreController {
                 )));
             }
             devices.insert(motor_id, Arc::clone(&device));
+            devices.len()
+        };
+
+        // If user did not pin TX gap via env, enable tiny pacing once controller becomes multi-motor.
+        if !self.tx_gap_env_override && device_count >= 2 {
+            self.tx_gap_ns.store(
+                Duration::from_micros(Self::AUTO_MULTI_MOTOR_TX_GAP_US).as_nanos() as u64,
+                Ordering::Release,
+            );
         }
 
         self.start_polling_if_needed()?;
@@ -141,6 +160,16 @@ impl CoreController {
                 .map(Duration::from_millis)
                 .unwrap_or(Duration::from_millis(Self::DEFAULT_BULK_OP_GAP_MS))
         })
+    }
+
+    fn resolve_tx_gap_from_env() -> (u64, bool) {
+        match std::env::var("MOTORBRIDGE_TX_GAP_US") {
+            Ok(v) => match v.parse::<u64>() {
+                Ok(us) => (Duration::from_micros(us).as_nanos() as u64, true),
+                Err(_) => (0, false),
+            },
+            Err(_) => (0, false),
+        }
     }
 
     fn start_polling_if_needed(&self) -> Result<()> {
@@ -230,6 +259,51 @@ impl CoreController {
             let _ = self.disable_all();
         }
         self.bus.shutdown()
+    }
+}
+
+struct TxPacedBus {
+    inner: Arc<dyn CanBus>,
+    min_gap_ns: Arc<AtomicU64>,
+    last_send: Mutex<Option<Instant>>,
+}
+
+impl TxPacedBus {
+    fn new(inner: Arc<dyn CanBus>, min_gap_ns: Arc<AtomicU64>) -> Self {
+        Self {
+            inner,
+            min_gap_ns,
+            last_send: Mutex::new(None),
+        }
+    }
+}
+
+impl CanBus for TxPacedBus {
+    fn send(&self, frame: crate::bus::CanFrame) -> Result<()> {
+        let gap_ns = self.min_gap_ns.load(Ordering::Acquire);
+        if gap_ns > 0 {
+            let min_gap = Duration::from_nanos(gap_ns);
+            let mut guard = self
+                .last_send
+                .lock()
+                .map_err(|_| MotorError::Io("tx pacing lock poisoned".to_string()))?;
+            if let Some(last) = *guard {
+                let elapsed = last.elapsed();
+                if elapsed < min_gap {
+                    std::thread::sleep(min_gap - elapsed);
+                }
+            }
+            *guard = Some(Instant::now());
+        }
+        self.inner.send(frame)
+    }
+
+    fn recv(&self, timeout: Duration) -> Result<Option<crate::bus::CanFrame>> {
+        self.inner.recv(timeout)
+    }
+
+    fn shutdown(&self) -> Result<()> {
+        self.inner.shutdown()
     }
 }
 

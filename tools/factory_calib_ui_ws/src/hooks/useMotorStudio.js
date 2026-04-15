@@ -68,6 +68,16 @@ export function useMotorStudio() {
     percent: 0,
   });
   const [scanFoundFx, setScanFoundFx] = useState({ visible: false, message: '', seq: 0 });
+  const [armBulkBusy, setArmBulkBusy] = useState(false);
+  const [armSelfCheckBusy, setArmSelfCheckBusy] = useState(false);
+  const [armSelfCheckProgress, setArmSelfCheckProgress] = useState({
+    active: false,
+    done: 0,
+    total: 4,
+    label: '',
+    percent: 0,
+  });
+  const [armSelfCheckReport, setArmSelfCheckReport] = useState(null);
 
   const [vendors, setVendors] = useState(DEFAULT_VENDOR_CONFIG);
   const [hits, setHits] = useState(() => {
@@ -114,7 +124,7 @@ export function useMotorStudio() {
     setTargetFor,
   } = useGatewayBridge({ wsUrl, channel, pushLog, setStateSnapshot });
 
-  const canAction = connected && !scanBusy;
+  const canAction = connected && !scanBusy && !armBulkBusy;
 
   useEffect(() => {
     if (newCardKeys.size === 0) return undefined;
@@ -336,8 +346,12 @@ export function useMotorStudio() {
     return setIdForOp({ h, controls, vendors, setTargetFor, sendCmd, closeBusQuietly, pushLog });
   };
 
-  const controlMotor = (h, action, controlOverride = null) =>
-    controlMotorOp({
+  const controlMotor = (h, action, controlOverride = null, options = {}) => {
+    if (armBulkBusy && !options.allowDuringBulk) {
+      pushLog(`control ${action} blocked: robot-arm bulk operation in progress`, 'info');
+      return Promise.resolve(false);
+    }
+    return controlMotorOp({
       h,
       action,
       controls,
@@ -350,6 +364,7 @@ export function useMotorStudio() {
       closeBusQuietly,
       pushLog,
     });
+  };
 
   const zeroMotor = (h) =>
     zeroMotorOp({
@@ -389,49 +404,189 @@ export function useMotorStudio() {
     pushLog,
   });
 
-  const enableAllRobotArm = async () => {
-    pushLog('robot-arm enable-all start', 'info');
-    for (const row of robotArmJointRows) {
-      await controlMotor(row.hit, 'enable');
-      await sleep(35);
+  const runRobotArmBulk = async (name, fn) => {
+    if (armBulkBusy) {
+      pushLog(`robot-arm ${name} blocked: bulk operation in progress`, 'info');
+      return false;
     }
-    pushLog('robot-arm enable-all done', 'ok');
+    setArmBulkBusy(true);
+    try {
+      return await fn();
+    } finally {
+      setArmBulkBusy(false);
+    }
   };
 
-  const disableAllRobotArm = async () => {
-    pushLog('robot-arm disable-all start', 'info');
-    for (const row of robotArmJointRows) {
-      await controlMotor(row.hit, 'disable');
-      await sleep(35);
-    }
-    pushLog('robot-arm disable-all done', 'ok');
-  };
+  const enableAllRobotArm = async () =>
+    runRobotArmBulk('enable-all', async () => {
+      pushLog('robot-arm enable-all start', 'info');
+      let okCount = 0;
+      for (const row of robotArmJointRows) {
+        const ok = await controlMotor(row.hit, 'enable', null, { allowDuringBulk: true });
+        if (ok) okCount += 1;
+        await sleep(60);
+      }
+      const failCount = robotArmJointRows.length - okCount;
+      pushLog(
+        `robot-arm enable-all done ok=${okCount} fail=${failCount}`,
+        failCount > 0 ? 'err' : 'ok',
+      );
+      return failCount === 0;
+    });
 
-  const zeroAllRobotArm = async () => {
-    pushLog('robot-arm zero-all start', 'info');
-    for (const row of robotArmJointRows) {
-      await zeroMotor(row.hit);
-      await sleep(45);
-    }
-    pushLog('robot-arm zero-all done', 'ok');
-  };
+  const disableAllRobotArm = async () =>
+    runRobotArmBulk('disable-all', async () => {
+      pushLog('robot-arm disable-all start', 'info');
+      let okCount = 0;
+      for (const row of robotArmJointRows) {
+        const ok = await controlMotor(row.hit, 'disable', null, { allowDuringBulk: true });
+        if (ok) okCount += 1;
+        await sleep(60);
+      }
+      const failCount = robotArmJointRows.length - okCount;
+      pushLog(
+        `robot-arm disable-all done ok=${okCount} fail=${failCount}`,
+        failCount > 0 ? 'err' : 'ok',
+      );
+      return failCount === 0;
+    });
 
-  const resetPoseRobotArm = async () => {
-    pushLog('robot-arm reset-pose start target=0.0rad', 'info');
-    for (const row of robotArmJointRows) {
-      const key = motorKey(row.hit);
-      setControls((prev) => ({
-        ...prev,
-        [key]: {
-          ...(prev[key] || defaultControlsForHit(row.hit)),
-          mode: 'pos_vel',
-          target: '0.0',
-        },
-      }));
-      await controlMotor(row.hit, 'move', { mode: 'pos_vel', target: '0.0' });
-      await sleep(35);
+  const zeroAllRobotArm = async () =>
+    runRobotArmBulk('zero-all', async () => {
+      pushLog('robot-arm zero-all start', 'info');
+      let okCount = 0;
+      for (const row of robotArmJointRows) {
+        const ok = await zeroMotor(row.hit);
+        if (ok) okCount += 1;
+        await sleep(70);
+      }
+      const failCount = robotArmJointRows.length - okCount;
+      pushLog(`robot-arm zero-all done ok=${okCount} fail=${failCount}`, failCount > 0 ? 'err' : 'ok');
+      return failCount === 0;
+    });
+
+  const resetPoseRobotArm = async () =>
+    runRobotArmBulk('reset-pose', async () => {
+      pushLog('robot-arm reset-pose start target=0.0rad', 'info');
+      let okCount = 0;
+      for (const row of robotArmJointRows) {
+        const key = motorKey(row.hit);
+        setControls((prev) => ({
+          ...prev,
+          [key]: {
+            ...(prev[key] || defaultControlsForHit(row.hit)),
+            mode: 'pos_vel',
+            target: '0.0',
+          },
+        }));
+        const ok = await controlMotor(
+          row.hit,
+          'move',
+          { mode: 'pos_vel', target: '0.0' },
+          { allowDuringBulk: true },
+        );
+        if (ok) okCount += 1;
+        await sleep(60);
+      }
+      const failCount = robotArmJointRows.length - okCount;
+      pushLog(`robot-arm reset-pose done ok=${okCount} fail=${failCount}`, failCount > 0 ? 'err' : 'ok');
+      return failCount === 0;
+    });
+
+  const runRobotArmSelfCheck = async () => {
+    if (armSelfCheckBusy) return;
+    setArmSelfCheckBusy(true);
+    setArmSelfCheckReport(null);
+    const steps = [];
+    const updateStep = (done, label) =>
+      setArmSelfCheckProgress({
+        active: true,
+        done,
+        total: 4,
+        label,
+        percent: Math.floor((done / 4) * 100),
+      });
+
+    try {
+      updateStep(0, 'self-check: start');
+
+      // 1) connection check
+      const connOk = Boolean(connected);
+      steps.push({ step: 'connection', ok: connOk, reason: connOk ? '' : 'ws disconnected' });
+      if (!connOk) {
+        setArmSelfCheckReport({
+          ok: false,
+          summary: 'FAILED',
+          reason: 'ws disconnected',
+          onlineCount: 0,
+          total: 7,
+          paramOkCount: 0,
+          paramFailCount: 0,
+          steps,
+          at: Date.now(),
+        });
+        return;
+      }
+      updateStep(1, 'self-check: scan joints');
+
+      // 2) scan 7 joints
+      const scan = await scanRobotArmAll();
+      const onlineCount = Number(scan?.onlineCount ?? 0);
+      const total = Number(scan?.total ?? 7);
+      const scanOk = onlineCount === total;
+      steps.push({
+        step: 'scan',
+        ok: scanOk,
+        reason: scanOk ? '' : `online ${onlineCount}/${total}`,
+      });
+
+      updateStep(2, 'self-check: summarize online');
+      await sleep(80);
+
+      // 3) online summary
+      const onlineOk = onlineCount > 0;
+      steps.push({
+        step: 'online-summary',
+        ok: onlineOk,
+        reason: onlineOk ? `online ${onlineCount}/${total}` : 'no online joints',
+      });
+
+      // 4) read-back parameter verification
+      updateStep(3, 'self-check: read params');
+      const paramRet = await readRobotArmControlParams();
+      let paramOkCount = 0;
+      let paramFailCount = 0;
+      Object.values(paramRet || {}).forEach((x) => {
+        if (x?.ok) paramOkCount += 1;
+        else paramFailCount += 1;
+      });
+      const paramOk = paramFailCount === 0 && paramOkCount > 0;
+      steps.push({
+        step: 'param-readback',
+        ok: paramOk,
+        reason: `ok=${paramOkCount}, fail=${paramFailCount}`,
+      });
+
+      updateStep(4, 'self-check: done');
+      const allOk = steps.every((x) => x.ok);
+      setArmSelfCheckReport({
+        ok: allOk,
+        summary: allOk ? 'PASSED' : 'FAILED',
+        reason: allOk ? 'all checks passed' : steps.filter((x) => !x.ok).map((x) => x.reason).join('; '),
+        onlineCount,
+        total,
+        paramOkCount,
+        paramFailCount,
+        steps,
+        at: Date.now(),
+      });
+      pushLog(`robot-arm self-check ${allOk ? 'passed' : 'failed'} online=${onlineCount}/${total} params_ok=${paramOkCount} params_fail=${paramFailCount}`, allOk ? 'ok' : 'err');
+    } finally {
+      setArmSelfCheckBusy(false);
+      setTimeout(() => {
+        setArmSelfCheckProgress((prev) => ({ ...prev, active: false }));
+      }, 700);
     }
-    pushLog('robot-arm reset-pose done', 'ok');
   };
 
   const readDamiaoControlParams = async (h, timeoutMs = 1000, { closeBusAfter = true } = {}) => {
@@ -636,6 +791,10 @@ export function useMotorStudio() {
     robotArmModel,
     armScanBusy,
     armScanProgress,
+    armBulkBusy,
+    armSelfCheckBusy,
+    armSelfCheckProgress,
+    armSelfCheckReport,
     setRobotArmModel,
     robotArmJointRows,
     cardRefs,
@@ -657,6 +816,7 @@ export function useMotorStudio() {
     ensureRobotArmCards,
     scanRobotArmJoint,
     scanRobotArmAll,
+    runRobotArmSelfCheck,
     enableAllRobotArm,
     disableAllRobotArm,
     zeroAllRobotArm,

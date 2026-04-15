@@ -132,7 +132,7 @@ export function useRobotArmStudio({
   const scanRobotArmAll = async () => {
     if (armScanBusy) {
       pushLog('robot-arm scan ignored: previous scan still running', 'err');
-      return;
+      return null;
     }
 
     setArmScanBusy(true);
@@ -190,6 +190,7 @@ export function useRobotArmStudio({
         label: 'robot-arm scan done',
         percent: 100,
       });
+      return { total: ROBOT_ARM_JOINTS.length, onlineCount };
     } finally {
       setArmScanBusy(false);
       setTimeout(() => {

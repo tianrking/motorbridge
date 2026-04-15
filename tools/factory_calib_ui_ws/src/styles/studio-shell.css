@@ -377,6 +377,31 @@
   line-height: 1.4;
 }
 
+.helpCmdBlock {
+  margin-top: 8px;
+  border: 1px solid #dbe5ff;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff, #f6f9ff);
+  padding: 8px 10px;
+}
+
+.helpCmdBlock b {
+  display: block;
+  color: #27488a;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.helpCmdBlock pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #17315e;
+}
+
 @media (max-width: 1200px) {
   .hero {
     flex-direction: column;

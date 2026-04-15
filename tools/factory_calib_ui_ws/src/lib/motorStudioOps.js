@@ -120,7 +120,7 @@ export async function controlMotorOp({
         setControls((prev) => ({ ...prev, [motorKey(h)]: { ...(prev[motorKey(h)] || c), enabled } }));
       }
       await closeBusQuietly();
-      return;
+      return true;
     }
 
     let op = 'pos_vel';
@@ -143,8 +143,10 @@ export async function controlMotorOp({
     pushLog(`move ${h.vendor} ${toHex(h.esc_id)} mode=${c.mode} target=${target.toFixed(3)} ok`, 'ok');
     setHits((prev) => mergeHitsByVendor(prev, [{ ...h, updated_at_ms: Date.now() }]));
     await closeBusQuietly();
+    return true;
   } catch (e) {
     pushLog(`control ${action} error: ${e.message || e}`, 'err');
+    return false;
   }
 }
 

@@ -4,10 +4,14 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import URDFLoader from 'urdf-loader';
 
 const URDF_PATH = '/resources/arm01/urdf/reBot-DevArm_description_fixend.urdf';
+const DEFAULT_CAMERA_POS = new THREE.Vector3(1.15, 0.95, 1.2);
+const DEFAULT_TARGET = new THREE.Vector3(0, 0.35, 0);
 
-export function ArmUrdfViewer({ jointTargets }) {
+export function ArmUrdfViewer({ jointTargets, resetViewSeq = 0 }) {
   const hostRef = React.useRef(null);
   const robotRef = React.useRef(null);
+  const cameraRef = React.useRef(null);
+  const controlsRef = React.useRef(null);
   const [status, setStatus] = React.useState('loading');
 
   React.useEffect(() => {
@@ -24,13 +28,15 @@ export function ArmUrdfViewer({ jointTargets }) {
     scene.background = new THREE.Color(0xf7fbff);
 
     const camera = new THREE.PerspectiveCamera(48, (host.clientWidth || 640) / (host.clientHeight || 400), 0.01, 20);
-    camera.position.set(1.15, 0.95, 1.2);
+    camera.position.copy(DEFAULT_CAMERA_POS);
+    cameraRef.current = camera;
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(0, 0.35, 0);
+    controls.target.copy(DEFAULT_TARGET);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.update();
+    controlsRef.current = controls;
 
     const hemi = new THREE.HemisphereLight(0xffffff, 0x8ca6db, 1.0);
     scene.add(hemi);
@@ -96,8 +102,19 @@ export function ArmUrdfViewer({ jointTargets }) {
       });
       if (renderer.domElement.parentElement === host) host.removeChild(renderer.domElement);
       robotRef.current = null;
+      cameraRef.current = null;
+      controlsRef.current = null;
     };
   }, []);
+
+  React.useEffect(() => {
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls) return;
+    camera.position.copy(DEFAULT_CAMERA_POS);
+    controls.target.copy(DEFAULT_TARGET);
+    controls.update();
+  }, [resetViewSeq]);
 
   React.useEffect(() => {
     const robot = robotRef.current;

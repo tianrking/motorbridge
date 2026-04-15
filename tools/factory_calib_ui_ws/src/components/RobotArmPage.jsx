@@ -42,11 +42,16 @@ export function RobotArmPage({
   robotArmModel,
   armScanBusy,
   armScanProgress,
+  armBulkBusy,
+  armSelfCheckBusy,
+  armSelfCheckProgress,
+  armSelfCheckReport,
   setRobotArmModel,
   robotArmJointRows,
   ensureRobotArmCards,
   scanRobotArmJoint,
   scanRobotArmAll,
+  runRobotArmSelfCheck,
   enableAllRobotArm,
   disableAllRobotArm,
   zeroAllRobotArm,
@@ -74,6 +79,7 @@ export function RobotArmPage({
   });
   const [limitWarn, setLimitWarn] = React.useState('');
   const [limitToast, setLimitToast] = React.useState({ visible: false, message: '', seq: 0 });
+  const [urdfResetSeq, setUrdfResetSeq] = React.useState(0);
   const [firstUseOpen, setFirstUseOpen] = React.useState(false);
   const [zeroConfirm, setZeroConfirm] = React.useState({
     open: false,
@@ -176,6 +182,15 @@ export function RobotArmPage({
     if (liveMoveTimerRef.current) clearTimeout(liveMoveTimerRef.current);
   }, []);
 
+  React.useEffect(() => {
+    if (!armBulkBusy) return;
+    pendingLiveMoveRef.current = null;
+    if (liveMoveTimerRef.current) {
+      clearTimeout(liveMoveTimerRef.current);
+      liveMoveTimerRef.current = null;
+    }
+  }, [armBulkBusy]);
+
   const clampTargetForRow = React.useCallback(
     (row, rawText) => {
       const lim = jointLimit(row.joint);
@@ -188,7 +203,7 @@ export function RobotArmPage({
 
   const scheduleLiveMove = React.useCallback(
     (row, targetText) => {
-      if (!liveMove || !connected) return;
+      if (!liveMove || !connected || armBulkBusy) return;
       const hit = row?.hit;
       if (!hit) return;
       pendingLiveMoveRef.current = { row, targetText };
@@ -215,7 +230,7 @@ export function RobotArmPage({
         controlMotor(pending.row.hit, 'move', { target: String(checked.clamped) });
       }, 80);
     },
-    [liveMove, connected, controlMotor, clampTargetForRow, t, patchControl, showLimitToast],
+    [liveMove, connected, armBulkBusy, controlMotor, clampTargetForRow, t, patchControl, showLimitToast],
   );
 
   const onSliderTargetChange = React.useCallback(
@@ -411,6 +426,9 @@ export function RobotArmPage({
     await zeroAllRobotArm();
   }, [askZeroConfirm, showLimitToast, t, zeroAllRobotArm, zeroSafety]);
 
+  const armToolbarBusy = armBulkBusy || armScanBusy || armSelfCheckBusy || paramBusy;
+  const perJointBusy = armBulkBusy || paramBusy;
+
   return (
     <section className="card glass">
       {limitToast.visible && (
@@ -479,28 +497,35 @@ export function RobotArmPage({
           {t('arm_first_use_btn')}
         </button>
         <button onClick={ensureRobotArmCards}>{t('arm_prepare_cards')}</button>
-        <button className="primary" disabled={!canAction || armScanBusy} onClick={scanRobotArmAll}>
+        <button className="primary" disabled={!canAction || armToolbarBusy} onClick={scanRobotArmAll}>
           {t('arm_scan_all')}
         </button>
-        <button disabled={!canAction} onClick={enableAllRobotArm}>
+        <button
+          className="ghostBtn"
+          disabled={!canAction || armToolbarBusy}
+          onClick={runRobotArmSelfCheck}
+        >
+          {t('arm_self_check')}
+        </button>
+        <button disabled={!canAction || armToolbarBusy} onClick={enableAllRobotArm}>
           {t('arm_enable_all')}
         </button>
-        <button disabled={!canAction} onClick={disableAllRobotArm}>
+        <button disabled={!canAction || armToolbarBusy} onClick={disableAllRobotArm}>
           {t('arm_disable_all')}
         </button>
-        <button disabled={!canAction} onClick={onZeroAllSafe} title={t('arm_zero_all_guard_hint')}>
+        <button disabled={!canAction || armToolbarBusy} onClick={onZeroAllSafe} title={t('arm_zero_all_guard_hint')}>
           {t('arm_zero_all')}
         </button>
-        <button disabled={!canAction} onClick={resetPoseRobotArm}>
+        <button disabled={!canAction || armToolbarBusy} onClick={resetPoseRobotArm}>
           {t('arm_reset_pose')}
         </button>
-        <button disabled={!canAction || paramBusy} onClick={readParams}>
+        <button disabled={!canAction || armToolbarBusy} onClick={readParams}>
           {t('arm_read_params')}
         </button>
-        <button disabled={!canAction || paramBusy || !paramPanelOpen} onClick={writeParams}>
+        <button disabled={!canAction || armToolbarBusy || !paramPanelOpen} onClick={writeParams}>
           {t('arm_write_params')}
         </button>
-        <button disabled={!canAction || paramBusy} onClick={applyDefaultTemplate}>
+        <button disabled={!canAction || armToolbarBusy} onClick={applyDefaultTemplate}>
           {t('arm_apply_default_template')}
         </button>
       </div>
@@ -512,16 +537,16 @@ export function RobotArmPage({
             <span className="tip">{t('arm_params_hint')}</span>
           </div>
           <div className="row toolbar compactToolbar">
-            <button disabled={!canAction || paramBusy} onClick={readParams}>
+            <button disabled={!canAction || armToolbarBusy} onClick={readParams}>
               {t('arm_read_params')}
             </button>
-            <button className="primary" disabled={!canAction || paramBusy} onClick={writeParams}>
+            <button className="primary" disabled={!canAction || armToolbarBusy} onClick={writeParams}>
               {t('arm_write_params')}
             </button>
-            <button disabled={!canAction || paramBusy} onClick={applyDefaultTemplate}>
+            <button disabled={!canAction || armToolbarBusy} onClick={applyDefaultTemplate}>
               {t('arm_apply_default_template')}
             </button>
-            <button className="ghostBtn" disabled={paramBusy} onClick={() => setParamPanelOpen(false)}>
+            <button className="ghostBtn" disabled={armToolbarBusy} onClick={() => setParamPanelOpen(false)}>
               {t('close')}
             </button>
           </div>
@@ -626,6 +651,34 @@ export function RobotArmPage({
           <div className="scanProgressTrack">
             <div className="scanProgressFill" style={{ width: `${armScanProgress?.percent || 0}%` }} />
           </div>
+        </div>
+      )}
+
+      {armBulkBusy && <div className="tip">{t('arm_bulk_busy')}</div>}
+      {(armSelfCheckBusy || armSelfCheckProgress?.active) && (
+        <div className="scanProgressWrap">
+          <div className="scanProgressText">
+            <span>{armSelfCheckProgress?.label || t('arm_self_check_running')}</span>
+            <span>
+              {armSelfCheckProgress?.done || 0}/{Math.max(1, armSelfCheckProgress?.total || 4)} ({armSelfCheckProgress?.percent || 0}%)
+            </span>
+          </div>
+          <div className="scanProgressTrack">
+            <div className="scanProgressFill" style={{ width: `${armSelfCheckProgress?.percent || 0}%` }} />
+          </div>
+        </div>
+      )}
+      {armSelfCheckReport && (
+        <div className={`armSelfCheckCard ${armSelfCheckReport.ok ? 'ok' : 'err'}`}>
+          <div className="sectionTitle">
+            <h2>{t('arm_self_check_result')}</h2>
+            <span className="chip">{armSelfCheckReport.ok ? t('arm_self_check_pass') : t('arm_self_check_fail')}</span>
+          </div>
+          <div className="armMeta">
+            <span>{t('arm_self_check_online')}: {armSelfCheckReport.onlineCount}/{armSelfCheckReport.total}</span>
+            <span>{t('arm_self_check_param')}: ok={armSelfCheckReport.paramOkCount}, fail={armSelfCheckReport.paramFailCount}</span>
+          </div>
+          <div className="tip">{t('arm_self_check_reason')}: {armSelfCheckReport.reason}</div>
         </div>
       )}
       {!zeroSafety.ok && (
@@ -773,6 +826,7 @@ export function RobotArmPage({
                     <input
                       type="checkbox"
                       checked={liveMove}
+                      disabled={perJointBusy}
                       onChange={(e) => setUiPref('armSliderLiveMove', e.target.checked)}
                     />
                     <span>{t('arm_live_move')}</span>
@@ -787,6 +841,7 @@ export function RobotArmPage({
                   <input
                     className="armPosInput"
                     value={activeRow.control.target}
+                    disabled={perJointBusy}
                     onChange={(e) => onSliderTargetChange(e.target.value)}
                   />
                 </div>
@@ -794,15 +849,15 @@ export function RobotArmPage({
               </div>
 
               <div className="row toolbar compactToolbar">
-                <button disabled={!connected} onClick={() => controlMotor(activeRow.hit, 'enable')}>
+                <button disabled={!connected || perJointBusy} onClick={() => controlMotor(activeRow.hit, 'enable')}>
                   {t('enable')}
                 </button>
-                <button disabled={!connected} onClick={() => controlMotor(activeRow.hit, 'disable')}>
+                <button disabled={!connected || perJointBusy} onClick={() => controlMotor(activeRow.hit, 'disable')}>
                   {t('disable')}
                 </button>
                 <button
                   className="primary"
-                  disabled={!connected}
+                  disabled={!connected || perJointBusy}
                   onClick={() => {
                     const checked = clampTargetForRow(activeRow, activeRow.control.target);
                     if (checked.clipped) {
@@ -824,10 +879,10 @@ export function RobotArmPage({
                 >
                   {t('move')}
                 </button>
-                <button disabled={!connected} onClick={() => controlMotor(activeRow.hit, 'stop')}>
+                <button disabled={!connected || perJointBusy} onClick={() => controlMotor(activeRow.hit, 'stop')}>
                   {t('stop')}
                 </button>
-                <button disabled={!connected} onClick={() => refreshMotorState(activeRow.hit)}>
+                <button disabled={!connected || perJointBusy} onClick={() => refreshMotorState(activeRow.hit)}>
                   {t('refresh_state')}
                 </button>
               </div>
@@ -837,10 +892,15 @@ export function RobotArmPage({
           <div className="armSimPanel">
             <div className="sectionTitle armPaneTitle">
               <h2>{t('arm_sim_title')}</h2>
-              <span className="tip">{t('arm_ws_bridge_hint')}</span>
+              <div className="row compactToolbar">
+                <span className="tip">{t('arm_ws_bridge_hint')}</span>
+                <button className="ghostBtn small" onClick={() => setUrdfResetSeq((v) => v + 1)}>
+                  {t('arm_reset_view')}
+                </button>
+              </div>
             </div>
             <p className="tip">{t('arm_sim_desc')}</p>
-            <ArmUrdfViewer jointTargets={jointTargets} />
+            <ArmUrdfViewer jointTargets={jointTargets} resetViewSeq={urdfResetSeq} />
           </div>
         </div>
       </div>

@@ -485,6 +485,24 @@
     linear-gradient(180deg, #ffffff, #f8faff);
 }
 
+.armSelfCheckCard {
+  margin-top: 10px;
+  border: 1px solid #dbe4fb;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.armSelfCheckCard.ok {
+  border-color: #bfe9d5;
+  background: linear-gradient(180deg, #f4fff9, #ffffff);
+}
+
+.armSelfCheckCard.err {
+  border-color: #f2c6d1;
+  background: linear-gradient(180deg, #fff6f8, #ffffff);
+}
+
 .armParamTableWrap {
   margin-top: 8px;
   overflow: auto;

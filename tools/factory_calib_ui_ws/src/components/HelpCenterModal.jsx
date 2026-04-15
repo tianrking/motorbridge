@@ -28,6 +28,47 @@ export function HelpCenterModal({ open, page, onClose }) {
     t('help_troubleshoot_4'),
   ];
   const quickStartItems = [t('help_quick_1'), t('help_quick_2'), t('help_quick_3'), t('help_quick_4')];
+  const setupByPlatform = [
+    {
+      name: t('help_platform_linux'),
+      installCmd: 'python3 -m pip install -U motorbridge',
+      gatewayCmd: `motorbridge-gateway -- \\
+  --bind 0.0.0.0:9002 --vendor damiao --transport auto \\
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
+    },
+    {
+      name: t('help_platform_macos'),
+      installCmd: 'python3 -m pip install -U motorbridge',
+      gatewayCmd: `motorbridge-gateway -- \\
+  --bind 0.0.0.0:9002 --vendor damiao --transport auto \\
+  --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
+    },
+    {
+      name: t('help_platform_windows'),
+      installCmd: 'py -m pip install -U motorbridge',
+      gatewayCmd: `motorbridge-gateway -- --bind 0.0.0.0:9002 --vendor damiao --transport auto --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
+    },
+  ];
+  const dmSerialByPlatform = [
+    {
+      name: t('help_platform_linux'),
+      gatewayCmd: `motorbridge-gateway -- \\
+  --bind 0.0.0.0:9002 --vendor damiao --transport dm-serial \\
+  --serial-port /dev/ttyACM0 --serial-baud 921600 \\
+  --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
+    },
+    {
+      name: t('help_platform_macos'),
+      gatewayCmd: `motorbridge-gateway -- \\
+  --bind 0.0.0.0:9002 --vendor damiao --transport dm-serial \\
+  --serial-port /dev/tty.usbmodem14101 --serial-baud 921600 \\
+  --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
+    },
+    {
+      name: t('help_platform_windows'),
+      gatewayCmd: `motorbridge-gateway -- --bind 0.0.0.0:9002 --vendor damiao --transport dm-serial --serial-port COM3 --serial-baud 921600 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
+    },
+  ];
   const glossaryItems = [
     { k: 'ESC', v: t('help_glossary_esc') },
     { k: 'MST', v: t('help_glossary_mst') },
@@ -58,6 +99,36 @@ export function HelpCenterModal({ open, page, onClose }) {
               <b>{t('help_metric_flow_title')}</b>
               <span>{t('help_metric_flow_desc')}</span>
             </div>
+          </section>
+
+          <section className="helpCenterSection">
+            <h3>{t('help_center_setup_title')}</h3>
+            <ul className="helpList">
+              <li>{t('help_setup_1')}</li>
+              <li>{t('help_setup_2')}</li>
+            </ul>
+            {setupByPlatform.map((item) => (
+              <div key={item.name} className="helpCmdBlock">
+                <b>{item.name}</b>
+                <pre>{`${t('help_setup_install_cmd')}\n${item.installCmd}`}</pre>
+                <pre>{`${t('help_setup_gateway_cmd')}\n${item.gatewayCmd}`}</pre>
+              </div>
+            ))}
+            <p className="tip">{t('help_setup_3')}</p>
+          </section>
+
+          <section className="helpCenterSection">
+            <h3>{t('help_center_dmserial_title')}</h3>
+            <ul className="helpList">
+              <li>{t('help_dmserial_1')}</li>
+              <li>{t('help_dmserial_2')}</li>
+            </ul>
+            {dmSerialByPlatform.map((item) => (
+              <div key={`dm-${item.name}`} className="helpCmdBlock">
+                <b>{item.name}</b>
+                <pre>{`${t('help_dmserial_gateway_cmd')}\n${item.gatewayCmd}`}</pre>
+              </div>
+            ))}
           </section>
 
           <section className="helpCenterSection">

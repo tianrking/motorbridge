@@ -119,11 +119,16 @@ export default function App() {
           robotArmModel={studio.robotArmModel}
           armScanBusy={studio.armScanBusy}
           armScanProgress={studio.armScanProgress}
+          armBulkBusy={studio.armBulkBusy}
+          armSelfCheckBusy={studio.armSelfCheckBusy}
+          armSelfCheckProgress={studio.armSelfCheckProgress}
+          armSelfCheckReport={studio.armSelfCheckReport}
           setRobotArmModel={studio.setRobotArmModel}
           robotArmJointRows={studio.robotArmJointRows}
           ensureRobotArmCards={studio.ensureRobotArmCards}
           scanRobotArmJoint={studio.scanRobotArmJoint}
           scanRobotArmAll={studio.scanRobotArmAll}
+          runRobotArmSelfCheck={studio.runRobotArmSelfCheck}
           enableAllRobotArm={studio.enableAllRobotArm}
           disableAllRobotArm={studio.disableAllRobotArm}
           zeroAllRobotArm={studio.zeroAllRobotArm}

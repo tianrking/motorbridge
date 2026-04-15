@@ -9,10 +9,14 @@ flowchart TB
   CORE --> DAMIAO["motor_vendors/damiao"]
   CORE --> ROBSTRIDE["motor_vendors/robstride"]
   CORE --> MYACT["motor_vendors/myactuator"]
+  CORE --> HIGHTORQUE["motor_vendors/hightorque"]
+  CORE --> HEXFELLOW["motor_vendors/hexfellow"]
   CORE --> TEMPLATE["motor_vendors/template（接入模板）"]
   DAMIAO --> CAN["CAN 总线后端"]
   ROBSTRIDE --> CAN
   MYACT --> CAN
+  HIGHTORQUE --> CAN
+  HEXFELLOW --> CAN
   CAN --> LNX["Linux：SocketCAN"]
   CAN --> WIN["Windows（实验）：PEAK PCAN"]
   CAN --> HW["真实电机硬件"]
@@ -50,6 +54,9 @@ motorbridge/
 ├── motor_vendors/
 │   ├── damiao/                  # 生产可用实现
 │   ├── robstride/               # 生产可用实现（扩展 ID / 参数协议）
+│   ├── myactuator/              # 生产可用实现（RMD 协议）
+│   ├── hightorque/              # 生产可用实现（ht_can 协议）
+│   ├── hexfellow/               # 生产可用实现（CANopen over CAN-FD）
 │   └── template/                # 新厂商模板
 ├── motor_cli/                   # Rust CLI
 ├── motor_abi/                   # C ABI (cdylib + staticlib)

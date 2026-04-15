@@ -60,7 +60,7 @@ Common control/state APIs:
 | `MIT` | `Mit` | mode `5` | `Mit` | not available | mapped to native pos+vel+tqe |
 | `POS_VEL` | `PosVel` | mode `1` | mapped to `Position` (`run_mode=1`, `limit_spd=0x7017`, `loc_ref=0x7016`) | `Position` setpoint flow | mapped to native pos+vel+tqe |
 | `VEL` | `Vel` | not available | `Velocity` | `Velocity` setpoint flow | mapped to native velocity command |
-| `FORCE_POS` | `ForcePos` | not available | not available | not available | not available |
+| `FORCE_POS` | `ForcePos` | not available | not available | not available | mapped to native pos+vel+tqe |
 
 Behavior rule:
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_VENDOR_CONFIG } from '../lib/constants';
-import { defaultControlsForHit, motorKey, ts } from '../lib/utils';
+import { defaultControlsForHit, motorKey, toHex, ts } from '../lib/utils';
 import { runScanOp } from '../lib/motorScanOps';
 import {
   controlMotorOp,
@@ -8,6 +8,7 @@ import {
   refreshMotorStateOp,
   setIdForOp,
   verifyHitOp,
+  zeroMotorOp,
 } from '../lib/motorStudioOps';
 import { useGatewayBridge } from './useGatewayBridge';
 import { useRobotArmStudio } from './useRobotArmStudio';
@@ -39,6 +40,19 @@ function loadJson(key, fallback) {
     return fallback;
   }
 }
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const DAMIAO_CTRL_PARAM_RID = {
+  ctrlMode: 10,
+  currentBw: 24,
+  velKp: 25,
+  velKi: 26,
+  posKp: 27,
+  posKi: 28,
+};
 
 export function useMotorStudio() {
   const { t } = useI18n();
@@ -211,7 +225,9 @@ export function useMotorStudio() {
     const ok =
       typeof window === 'undefined'
         ? true
-        : window.confirm(t('confirm_delete_card', { vendor: hit.vendor, esc: hit.esc_id, mst: hit.mst_id }));
+        : window.confirm(
+            t('confirm_delete_card', { vendor: hit.vendor, esc: toHex(hit.esc_id), mst: toHex(hit.mst_id) }),
+          );
     if (!ok) return;
 
     const key = motorKey(hit);
@@ -313,7 +329,9 @@ export function useMotorStudio() {
     const ok =
       typeof window === 'undefined'
         ? true
-        : window.confirm(t('confirm_set_id', { vendor: h.vendor, esc: h.esc_id, mst: h.mst_id }));
+        : window.confirm(
+            t('confirm_set_id', { vendor: h.vendor, esc: toHex(h.esc_id), mst: toHex(h.mst_id) }),
+          );
     if (!ok) return Promise.resolve(false);
     return setIdForOp({ h, controls, vendors, setTargetFor, sendCmd, closeBusQuietly, pushLog });
   };
@@ -324,6 +342,19 @@ export function useMotorStudio() {
       action,
       controls,
       controlOverride,
+      vendors,
+      setTargetFor,
+      sendCmd,
+      setHits,
+      setControls,
+      closeBusQuietly,
+      pushLog,
+    });
+
+  const zeroMotor = (h) =>
+    zeroMotorOp({
+      h,
+      controls,
       vendors,
       setTargetFor,
       sendCmd,
@@ -340,6 +371,8 @@ export function useMotorStudio() {
 
   const {
     robotArmModel,
+    armScanBusy,
+    armScanProgress,
     setRobotArmModel,
     robotArmJointRows,
     ensureRobotArmCards,
@@ -355,6 +388,207 @@ export function useMotorStudio() {
     probeMotor,
     pushLog,
   });
+
+  const enableAllRobotArm = async () => {
+    pushLog('robot-arm enable-all start', 'info');
+    for (const row of robotArmJointRows) {
+      await controlMotor(row.hit, 'enable');
+      await sleep(35);
+    }
+    pushLog('robot-arm enable-all done', 'ok');
+  };
+
+  const disableAllRobotArm = async () => {
+    pushLog('robot-arm disable-all start', 'info');
+    for (const row of robotArmJointRows) {
+      await controlMotor(row.hit, 'disable');
+      await sleep(35);
+    }
+    pushLog('robot-arm disable-all done', 'ok');
+  };
+
+  const zeroAllRobotArm = async () => {
+    pushLog('robot-arm zero-all start', 'info');
+    for (const row of robotArmJointRows) {
+      await zeroMotor(row.hit);
+      await sleep(45);
+    }
+    pushLog('robot-arm zero-all done', 'ok');
+  };
+
+  const resetPoseRobotArm = async () => {
+    pushLog('robot-arm reset-pose start target=0.0rad', 'info');
+    for (const row of robotArmJointRows) {
+      const key = motorKey(row.hit);
+      setControls((prev) => ({
+        ...prev,
+        [key]: {
+          ...(prev[key] || defaultControlsForHit(row.hit)),
+          mode: 'pos_vel',
+          target: '0.0',
+        },
+      }));
+      await controlMotor(row.hit, 'move', { mode: 'pos_vel', target: '0.0' });
+      await sleep(35);
+    }
+    pushLog('robot-arm reset-pose done', 'ok');
+  };
+
+  const readDamiaoControlParams = async (h, timeoutMs = 1000, { closeBusAfter = true } = {}) => {
+    if (!h || String(h.vendor) !== 'damiao') {
+      throw new Error('read control params is damiao-only');
+    }
+
+    await setTargetFor(h.vendor, h.model || vendors[h.vendor].model, h.esc_id, h.mst_id);
+    try {
+      const ctrlModeRet = await sendCmd(
+        'get_register_u32',
+        { rid: DAMIAO_CTRL_PARAM_RID.ctrlMode, timeout_ms: timeoutMs },
+        3000,
+      );
+      const currentBwRet = await sendCmd(
+        'get_register_f32',
+        { rid: DAMIAO_CTRL_PARAM_RID.currentBw, timeout_ms: timeoutMs },
+        3000,
+      );
+      const velKpRet = await sendCmd(
+        'get_register_f32',
+        { rid: DAMIAO_CTRL_PARAM_RID.velKp, timeout_ms: timeoutMs },
+        3000,
+      );
+      const velKiRet = await sendCmd(
+        'get_register_f32',
+        { rid: DAMIAO_CTRL_PARAM_RID.velKi, timeout_ms: timeoutMs },
+        3000,
+      );
+      const posKpRet = await sendCmd(
+        'get_register_f32',
+        { rid: DAMIAO_CTRL_PARAM_RID.posKp, timeout_ms: timeoutMs },
+        3000,
+      );
+      const posKiRet = await sendCmd(
+        'get_register_f32',
+        { rid: DAMIAO_CTRL_PARAM_RID.posKi, timeout_ms: timeoutMs },
+        3000,
+      );
+
+      const all = [ctrlModeRet, currentBwRet, velKpRet, velKiRet, posKpRet, posKiRet];
+      const failed = all.find((x) => !x?.ok);
+      if (failed) throw new Error(failed.error || 'read register failed');
+
+      return {
+        ctrlMode: Number(ctrlModeRet.data?.value ?? Number.NaN),
+        currentBw: Number(currentBwRet.data?.value ?? Number.NaN),
+        velKp: Number(velKpRet.data?.value ?? Number.NaN),
+        velKi: Number(velKiRet.data?.value ?? Number.NaN),
+        posKp: Number(posKpRet.data?.value ?? Number.NaN),
+        posKi: Number(posKiRet.data?.value ?? Number.NaN),
+      };
+    } finally {
+      if (closeBusAfter) await closeBusQuietly();
+    }
+  };
+
+  const writeDamiaoControlParams = async (h, values, { store = true, closeBusAfter = true } = {}) => {
+    if (!h || String(h.vendor) !== 'damiao') {
+      throw new Error('write control params is damiao-only');
+    }
+    await setTargetFor(h.vendor, h.model || vendors[h.vendor].model, h.esc_id, h.mst_id);
+    try {
+      const seq = [
+        ['write_register_u32', { rid: DAMIAO_CTRL_PARAM_RID.ctrlMode, value: Number(values.ctrlMode) }],
+        ['write_register_f32', { rid: DAMIAO_CTRL_PARAM_RID.currentBw, value: Number(values.currentBw) }],
+        ['write_register_f32', { rid: DAMIAO_CTRL_PARAM_RID.velKp, value: Number(values.velKp) }],
+        ['write_register_f32', { rid: DAMIAO_CTRL_PARAM_RID.velKi, value: Number(values.velKi) }],
+        ['write_register_f32', { rid: DAMIAO_CTRL_PARAM_RID.posKp, value: Number(values.posKp) }],
+        ['write_register_f32', { rid: DAMIAO_CTRL_PARAM_RID.posKi, value: Number(values.posKi) }],
+      ];
+
+      for (const [op, payload] of seq) {
+        const ret = await sendCmd(op, payload, 3000);
+        if (!ret?.ok) throw new Error(ret?.error || `${op} failed`);
+      }
+
+      if (store) {
+        const stored = await sendCmd('store_parameters', { vendor: h.vendor }, 4000);
+        if (!stored?.ok) throw new Error(stored?.error || 'store_parameters failed');
+      }
+    } finally {
+      if (closeBusAfter) await closeBusQuietly();
+    }
+  };
+
+  const readRobotArmControlParams = async ({ onProgress } = {}) => {
+    const rows = robotArmJointRows.filter((x) => String(x.hit?.vendor) === 'damiao');
+    if (rows.length === 0) {
+      pushLog('robot-arm read params skipped: no damiao joints', 'err');
+      return {};
+    }
+    onProgress?.({ active: true, done: 0, total: rows.length, label: 'reading params...', percent: 0 });
+    const result = {};
+    try {
+      for (let i = 0; i < rows.length; i += 1) {
+        const row = rows[i];
+        try {
+          const values = await readDamiaoControlParams(row.hit, 1000, { closeBusAfter: false });
+          result[row.key] = { ok: true, values };
+          pushLog(`robot-arm read params ok joint=${row.joint}`, 'ok');
+        } catch (e) {
+          result[row.key] = { ok: false, error: e.message || String(e) };
+          pushLog(`robot-arm read params failed joint=${row.joint}: ${e.message || e}`, 'err');
+        }
+        const done = i + 1;
+        onProgress?.({
+          active: true,
+          done,
+          total: rows.length,
+          label: `reading params joint ${row.joint} (${done}/${rows.length})`,
+          percent: Math.floor((done / rows.length) * 100),
+        });
+        await sleep(10);
+      }
+      onProgress?.({ active: false, done: rows.length, total: rows.length, label: 'read done', percent: 100 });
+      return result;
+    } finally {
+      await closeBusQuietly();
+    }
+  };
+
+  const writeRobotArmControlParams = async (rowsWithValues = [], { onProgress } = {}) => {
+    const rows = rowsWithValues.filter((x) => x?.hit && String(x.hit.vendor) === 'damiao');
+    if (rows.length === 0) {
+      pushLog('robot-arm write params skipped: no damiao joints', 'err');
+      return {};
+    }
+    onProgress?.({ active: true, done: 0, total: rows.length, label: 'writing params...', percent: 0 });
+    const result = {};
+    try {
+      for (let i = 0; i < rows.length; i += 1) {
+        const row = rows[i];
+        try {
+          await writeDamiaoControlParams(row.hit, row.values, { store: true, closeBusAfter: false });
+          pushLog(`robot-arm write params ok joint=${row.joint}`, 'ok');
+          result[row.key] = { ok: true };
+        } catch (e) {
+          pushLog(`robot-arm write params failed joint=${row.joint}: ${e.message || e}`, 'err');
+          result[row.key] = { ok: false, error: e.message || String(e) };
+        }
+        const done = i + 1;
+        onProgress?.({
+          active: true,
+          done,
+          total: rows.length,
+          label: `writing params joint ${row.joint} (${done}/${rows.length})`,
+          percent: Math.floor((done / rows.length) * 100),
+        });
+        await sleep(10);
+      }
+      onProgress?.({ active: false, done: rows.length, total: rows.length, label: 'write done', percent: 100 });
+      return result;
+    } finally {
+      await closeBusQuietly();
+    }
+  };
 
   const selectedHits = useMemo(() => hits.filter((h) => selected.has(motorKey(h))), [hits, selected]);
   const activeMotor = useMemo(() => hits.find((h) => motorKey(h) === activeMotorKey) || null, [hits, activeMotorKey]);
@@ -400,6 +634,8 @@ export function useMotorStudio() {
     manualDraft,
     setManualDraft,
     robotArmModel,
+    armScanBusy,
+    armScanProgress,
     setRobotArmModel,
     robotArmJointRows,
     cardRefs,
@@ -414,11 +650,18 @@ export function useMotorStudio() {
     clearOfflineMotors,
     patchControl,
     controlMotor,
+    zeroMotor,
     verifyHit,
     setIdFor,
     refreshMotorState,
     ensureRobotArmCards,
     scanRobotArmJoint,
     scanRobotArmAll,
+    enableAllRobotArm,
+    disableAllRobotArm,
+    zeroAllRobotArm,
+    resetPoseRobotArm,
+    readRobotArmControlParams,
+    writeRobotArmControlParams,
   };
 }

@@ -30,7 +30,7 @@ cargo build -p motor_cli --release
 ## 通用参数
 
 - `--vendor damiao|robstride|hightorque|myactuator|hexfellow|all`
-- `--transport auto|socketcan|socketcanfd|dm-serial`（`socketcanfd` 与 `dm-serial` 仅 Damiao）
+- `--transport auto|socketcan|socketcanfd|dm-serial`（`dm-serial` 仅 Damiao；`socketcanfd` 用于 Hexfellow）
 - `--channel can0`
 - `--serial-port /dev/ttyACM0 --serial-baud 921600`（配合 `--transport dm-serial`）
 - `--motor-id <id>`

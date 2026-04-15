@@ -9,7 +9,7 @@
   - Windows: `can0@1000000`（映射到 PCAN 通道）
 - 仅当你使用 Damiao 私有转接板串口桥时，才使用：
   - `--transport dm-serial --serial-port <tty> --serial-baud <baud>`
-- `dm-serial` 仅支持 `--vendor damiao`，不用于 RobStride / MyActuator / HighTorque。
+- `dm-serial` 仅支持 `--vendor damiao`，不用于 RobStride / MyActuator / HighTorque / Hexfellow。
 
 ## 2. 链路选择
 

@@ -37,6 +37,14 @@ export function useRobotArmStudio({
   probeMotor,
   pushLog,
 }) {
+  const [armScanBusy, setArmScanBusy] = useState(false);
+  const [armScanProgress, setArmScanProgress] = useState({
+    active: false,
+    done: 0,
+    total: 7,
+    label: '',
+    percent: 0,
+  });
   const [robotArmModel, setRobotArmModelState] = useState(() =>
     normalizeRobotArmModel(loadJson(LS_ROBOT_ARM_MODEL_KEY, ROBOT_ARM_MODELS[0].key)),
   );
@@ -122,21 +130,78 @@ export function useRobotArmStudio({
   };
 
   const scanRobotArmAll = async () => {
+    if (armScanBusy) {
+      pushLog('robot-arm scan ignored: previous scan still running', 'err');
+      return;
+    }
+
+    setArmScanBusy(true);
+    setArmScanProgress({
+      active: true,
+      done: 0,
+      total: ROBOT_ARM_JOINTS.length,
+      label: 'robot-arm scanning...',
+      percent: 0,
+    });
+
     ensureRobotArmCards();
     const profile = normalizeRobotArmModel(robotArmModel);
     pushLog(`robot-arm scan start profile=${profile} joints=1..7`, 'info');
     let onlineCount = 0;
-    for (const j of ROBOT_ARM_JOINTS) {
-      const hit = buildRobotArmHit(j, profile);
-      const ok = await probeMotor(hit);
-      if (ok) onlineCount += 1;
-      await sleep(40);
+    try {
+      for (let i = 0; i < ROBOT_ARM_JOINTS.length; i += 1) {
+        const j = ROBOT_ARM_JOINTS[i];
+        const step = i + 1;
+        const hit = buildRobotArmHit(j, profile);
+
+        let tick = 0;
+        const basePercent = Math.floor((i / ROBOT_ARM_JOINTS.length) * 100);
+        const progressTimer = setInterval(() => {
+          tick += 1;
+          const inStep = Math.min(12, tick);
+          setArmScanProgress({
+            active: true,
+            done: i,
+            total: ROBOT_ARM_JOINTS.length,
+            label: `robot-arm scanning joint ${j.joint} (${step}/7)`,
+            percent: Math.min(99, basePercent + inStep),
+          });
+        }, 120);
+
+        const ok = await probeMotor(hit);
+        if (ok) onlineCount += 1;
+        clearInterval(progressTimer);
+
+        setArmScanProgress({
+          active: true,
+          done: step,
+          total: ROBOT_ARM_JOINTS.length,
+          label: `robot-arm scanning joint ${j.joint} (${step}/7)`,
+          percent: Math.floor((step / ROBOT_ARM_JOINTS.length) * 100),
+        });
+        await sleep(40);
+      }
+
+      pushLog(`robot-arm scan done online=${onlineCount}/7`, 'ok');
+      setArmScanProgress({
+        active: true,
+        done: ROBOT_ARM_JOINTS.length,
+        total: ROBOT_ARM_JOINTS.length,
+        label: 'robot-arm scan done',
+        percent: 100,
+      });
+    } finally {
+      setArmScanBusy(false);
+      setTimeout(() => {
+        setArmScanProgress((prev) => ({ ...prev, active: false }));
+      }, 500);
     }
-    pushLog(`robot-arm scan done online=${onlineCount}/7`, 'ok');
   };
 
   return {
     robotArmModel,
+    armScanBusy,
+    armScanProgress,
     setRobotArmModel,
     robotArmJointRows,
     ensureRobotArmCards,

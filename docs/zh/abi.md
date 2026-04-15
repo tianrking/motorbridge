@@ -60,7 +60,7 @@ ABI 对外保持一套统一控制接口。
 | `MIT` | `Mit` | 模式 `5` | `Mit` | 不支持 | 映射到原生 pos+vel+tqe |
 | `POS_VEL` | `PosVel` | 模式 `1` | 映射到 `Position`（`run_mode=1`，`limit_spd=0x7017`，`loc_ref=0x7016`） | `Position` 设定流程 | 映射到原生 pos+vel+tqe |
 | `VEL` | `Vel` | 不支持 | `Velocity` | `Velocity` 设定流程 | 映射到原生速度命令 |
-| `FORCE_POS` | `ForcePos` | 不支持 | 不支持 | 不支持 | 不支持 |
+| `FORCE_POS` | `ForcePos` | 不支持 | 不支持 | 不支持 | 映射到原生 pos+vel+tqe |
 
 行为约定：
 

@@ -214,7 +214,7 @@ Main improvement opportunities:
 ## 8) WS Gateway JSON Examples
 
 ```json
-{"op":"set_target","vendor":"robstride","channel":"can0","model":"rs-06","motor_id":127,"feedback_id":255}
+{"op":"set_target","vendor":"robstride","channel":"can0","model":"rs-06","motor_id":127,"feedback_id":253}
 {"op":"robstride_ping","timeout_ms":200}
 {"op":"robstride_read_param","param_id":28697,"type":"f32","timeout_ms":200}
 {"op":"robstride_write_param","param_id":28682,"type":"f32","value":0.3,"verify":true}

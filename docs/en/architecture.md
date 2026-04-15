@@ -9,10 +9,14 @@ flowchart TB
   CORE --> DAMIAO["motor_vendors/damiao"]
   CORE --> ROBSTRIDE["motor_vendors/robstride"]
   CORE --> MYACT["motor_vendors/myactuator"]
+  CORE --> HIGHTORQUE["motor_vendors/hightorque"]
+  CORE --> HEXFELLOW["motor_vendors/hexfellow"]
   CORE --> TEMPLATE["motor_vendors/template (onboarding scaffold)"]
   DAMIAO --> CAN["CAN Bus Backend"]
   ROBSTRIDE --> CAN
   MYACT --> CAN
+  HIGHTORQUE --> CAN
+  HEXFELLOW --> CAN
   CAN --> LNX["Linux: SocketCAN"]
   CAN --> WIN["Windows (experimental): PEAK PCAN"]
   CAN --> HW["Physical Motors"]
@@ -50,6 +54,9 @@ motorbridge/
 ├── motor_vendors/
 │   ├── damiao/                  # Production implementation
 │   ├── robstride/               # Production implementation (extended CAN ID / params)
+│   ├── myactuator/              # Production implementation (RMD protocol)
+│   ├── hightorque/              # Production implementation (ht_can protocol)
+│   ├── hexfellow/               # Production implementation (CANopen over CAN-FD)
 │   └── template/                # Scaffold for new vendors
 ├── motor_cli/                   # Rust CLI
 ├── motor_abi/                   # C ABI (cdylib + staticlib)

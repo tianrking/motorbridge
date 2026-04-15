@@ -44,6 +44,7 @@ export function MotorDetailPanel({
   activeControl,
   patchControl,
   controlMotor,
+  zeroMotor,
   probeMotor,
   setIdFor,
   verifyHit,
@@ -99,12 +100,20 @@ export function MotorDetailPanel({
         <button disabled={!connected} onClick={() => controlMotor(activeMotor, 'enable')}>{t('enable')}</button>
         <button disabled={!connected} onClick={() => controlMotor(activeMotor, 'disable')}>{t('disable')}</button>
         <button className="primary" disabled={!connected} onClick={() => controlMotor(activeMotor, 'move')}>{t('move')}</button>
+        <button
+          disabled={!connected}
+          onClick={() => zeroMotor(activeMotor)}
+          title={activeControl.enabled ? '' : t('zero_requires_enable')}
+        >
+          {t('zero_set')}
+        </button>
         <button disabled={!connected} onClick={() => controlMotor(activeMotor, 'stop')}>{t('stop')}</button>
         <button disabled={!connected} onClick={() => probeMotor(activeMotor)}>{t('probe')}</button>
         <button disabled={!connected || !SET_ID_VENDORS.has(activeMotor.vendor)} onClick={() => setIdFor(activeMotor)}>{t('set_id')}</button>
         <button disabled={!connected} onClick={() => verifyHit(activeMotor)}>{t('verify')}</button>
         <button disabled={!connected} onClick={() => refreshMotorState(activeMotor)}>{t('refresh_state')}</button>
       </div>
+      {connected && !activeControl.enabled && <div className="tip">{t('zero_requires_enable')}</div>}
       {!connected && <div className="tip">{t('connect_ws_first')}</div>}
     </>
   );

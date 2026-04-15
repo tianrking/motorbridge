@@ -19,6 +19,11 @@
   color: #4c5f90;
 }
 
+.langBox span {
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
+}
+
 .langBox select {
   min-width: 102px;
   border-radius: 8px;
@@ -251,6 +256,127 @@
   max-width: 260px;
 }
 
+.helpPanel {
+  margin-top: 10px;
+  border: 1px solid #d9e2fb;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(89, 138, 255, 0.1) 0%, rgba(89, 138, 255, 0) 62%),
+    linear-gradient(180deg, #ffffff, #f9fbff);
+}
+
+.helpList {
+  margin: 0;
+  padding-left: 18px;
+  color: #2e4478;
+  line-height: 1.45;
+}
+
+.helpList li {
+  margin-bottom: 6px;
+}
+
+.helpCenterMask {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  background: rgba(9, 16, 32, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.helpCenterCard {
+  width: min(980px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid #d8e2fb;
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(89, 138, 255, 0.12) 0%, rgba(89, 138, 255, 0) 62%),
+    linear-gradient(180deg, #ffffff, #f8fbff);
+  box-shadow: 0 22px 50px rgba(7, 20, 50, 0.34);
+  padding: 14px;
+}
+
+.helpCenterBody {
+  max-height: calc(100vh - 220px);
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.helpCenterSection {
+  border: 1px solid #dbe4fb;
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px;
+  margin-top: 10px;
+}
+
+.helpCenterSection h3 {
+  margin: 0 0 8px;
+  color: #2c4477;
+}
+
+.helpCenterOverview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.helpMetricCard {
+  border: 1px solid #dbe5ff;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, #ffffff, #f4f8ff);
+}
+
+.helpMetricCard b {
+  display: block;
+  color: #28498a;
+  margin-bottom: 4px;
+}
+
+.helpMetricCard span {
+  font-size: 12px;
+  color: #4b6298;
+}
+
+.helpStepList {
+  margin: 0;
+  padding-left: 20px;
+  color: #294472;
+  line-height: 1.45;
+}
+
+.helpStepList li {
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.helpGlossaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.helpGlossaryItem {
+  border: 1px solid #dde6fb;
+  border-radius: 10px;
+  background: #fbfdff;
+  padding: 8px;
+}
+
+.helpGlossaryItem p {
+  margin: 8px 0 0;
+  color: #3a507f;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 @media (max-width: 1200px) {
   .hero {
     flex-direction: column;
@@ -263,6 +389,14 @@
 
   .connCompactGrid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .helpCenterOverview {
+    grid-template-columns: 1fr;
+  }
+
+  .helpGlossaryGrid {
+    grid-template-columns: 1fr;
   }
 }
 

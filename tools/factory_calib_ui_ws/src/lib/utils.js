@@ -48,6 +48,7 @@ export function defaultControlsForHit(hit) {
   const mode = hit.vendor === 'damiao' ? 'pos_vel' : (hit.vendor === 'robstride' ? 'mit' : 'vel');
   return {
     mode,
+    enabled: false,
     target: '0.0',
     vlim: '1.0',
     kp: '30.0',

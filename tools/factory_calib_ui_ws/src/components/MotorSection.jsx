@@ -19,6 +19,7 @@ export function MotorSection({
   activeControl,
   patchControl,
   controlMotor,
+  zeroMotor,
   probeMotor,
   setIdFor,
   verifyHit,
@@ -103,6 +104,7 @@ export function MotorSection({
                 activeControl={activeControl}
                 patchControl={patchControl}
                 controlMotor={controlMotor}
+                zeroMotor={zeroMotor}
                 probeMotor={probeMotor}
                 setIdFor={setIdFor}
                 verifyHit={verifyHit}

@@ -6,6 +6,7 @@ import { ScanWorkspace } from './components/ScanWorkspace';
 import { MotorSection } from './components/MotorSection';
 import { StateLogsPanel } from './components/StateLogsPanel';
 import { RobotArmPage } from './components/RobotArmPage';
+import { HelpCenterModal } from './components/HelpCenterModal';
 import { useMotorStudio } from './hooks/useMotorStudio';
 import { useI18n } from './i18n';
 
@@ -13,6 +14,7 @@ export default function App() {
   const { t } = useI18n();
   const studio = useMotorStudio();
   const [page, setPage] = React.useState('general');
+  const [helpOpen, setHelpOpen] = React.useState(false);
 
   return (
     <div className="app shell">
@@ -41,8 +43,13 @@ export default function App() {
           <button className={page === 'robot_arm' ? 'primary' : ''} onClick={() => setPage('robot_arm')}>
             {t('page_robot_arm')}
           </button>
+          <button className="ghostBtn" onClick={() => setHelpOpen(true)}>
+            {t('help_show')}
+          </button>
         </div>
       </section>
+
+      <HelpCenterModal open={helpOpen} page={page} onClose={() => setHelpOpen(false)} />
 
       <ConnectionPanel
         wsUrl={studio.wsUrl}
@@ -96,6 +103,7 @@ export default function App() {
             activeControl={studio.activeControl}
             patchControl={studio.patchControl}
             controlMotor={studio.controlMotor}
+            zeroMotor={studio.zeroMotor}
             probeMotor={studio.probeMotor}
             setIdFor={studio.setIdFor}
             verifyHit={studio.verifyHit}
@@ -109,11 +117,19 @@ export default function App() {
           connected={studio.connected}
           canAction={studio.canAction}
           robotArmModel={studio.robotArmModel}
+          armScanBusy={studio.armScanBusy}
+          armScanProgress={studio.armScanProgress}
           setRobotArmModel={studio.setRobotArmModel}
           robotArmJointRows={studio.robotArmJointRows}
           ensureRobotArmCards={studio.ensureRobotArmCards}
           scanRobotArmJoint={studio.scanRobotArmJoint}
           scanRobotArmAll={studio.scanRobotArmAll}
+          enableAllRobotArm={studio.enableAllRobotArm}
+          disableAllRobotArm={studio.disableAllRobotArm}
+          zeroAllRobotArm={studio.zeroAllRobotArm}
+          resetPoseRobotArm={studio.resetPoseRobotArm}
+          readRobotArmControlParams={studio.readRobotArmControlParams}
+          writeRobotArmControlParams={studio.writeRobotArmControlParams}
           patchControl={studio.patchControl}
           controlMotor={studio.controlMotor}
           refreshMotorState={studio.refreshMotorState}

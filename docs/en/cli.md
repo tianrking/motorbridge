@@ -30,7 +30,7 @@ cargo build -p motor_cli --release
 ## Common
 
 - `--vendor damiao|robstride|hightorque|myactuator|hexfellow|all`
-- `--transport auto|socketcan|socketcanfd|dm-serial` (`socketcanfd` and `dm-serial` are Damiao-only)
+- `--transport auto|socketcan|socketcanfd|dm-serial` (`dm-serial` is Damiao-only; `socketcanfd` required for Hexfellow)
 - `--channel can0`
 - `--serial-port /dev/ttyACM0 --serial-baud 921600` (used with `--transport dm-serial`)
 - `--motor-id <id>`

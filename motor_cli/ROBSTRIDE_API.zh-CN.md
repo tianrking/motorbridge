@@ -48,7 +48,7 @@ motorbridge-cli scan --vendor robstride --channel can0 --model rs-06 --start-id 
 | `channel` | CAN 接口名 | `can0` |
 | `model` | RobStride 型号字符串 | `rs-00`、`rs-06` |
 | `motor-id` | 设备 ID | 如 `127` |
-| `feedback-id` | 命令帧里的主机/反馈 ID | 常用 `0xFF` |
+| `feedback-id` | 命令帧里的主机/反馈 ID | 常用 `0xFD` |
 | `loop` | 周期控制发送次数 | `20`~`100` |
 | `dt-ms` | 周期发送间隔 | `20`~`50` |
 
@@ -249,7 +249,7 @@ with Controller("can0") as ctrl:
 ## 8）WS 网关 JSON 示例
 
 ```json
-{"op":"set_target","vendor":"robstride","channel":"can0","model":"rs-06","motor_id":127,"feedback_id":255}
+{"op":"set_target","vendor":"robstride","channel":"can0","model":"rs-06","motor_id":127,"feedback_id":253}
 {"op":"robstride_ping","timeout_ms":200}
 {"op":"robstride_read_param","param_id":28697,"type":"f32","timeout_ms":200}
 {"op":"robstride_write_param","param_id":28682,"type":"f32","value":0.3,"verify":true}

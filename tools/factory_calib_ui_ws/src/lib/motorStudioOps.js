@@ -96,6 +96,7 @@ export async function controlMotorOp({
   setTargetFor,
   sendCmd,
   setHits,
+  setControls,
   closeBusQuietly,
   pushLog,
 }) {
@@ -114,6 +115,10 @@ export async function controlMotorOp({
       const ret = await sendCmd(action, { vendor: h.vendor }, 6000);
       if (!ret.ok) throw new Error(ret.error || `${action} failed`);
       pushLog(`${action} ${h.vendor} ${toHex(h.esc_id)} ok`, 'ok');
+      if (action === 'enable' || action === 'disable') {
+        const enabled = action === 'enable';
+        setControls((prev) => ({ ...prev, [motorKey(h)]: { ...(prev[motorKey(h)] || c), enabled } }));
+      }
       await closeBusQuietly();
       return;
     }
@@ -143,6 +148,47 @@ export async function controlMotorOp({
   }
 }
 
+export async function zeroMotorOp({
+  h,
+  controls,
+  vendors,
+  setTargetFor,
+  sendCmd,
+  setHits,
+  closeBusQuietly,
+  pushLog,
+}) {
+  const c = controls[motorKey(h)] || defaultControlsForHit(h);
+  if (!c.enabled) {
+    pushLog(`zero blocked ${h.vendor} ${toHex(h.esc_id)}: enable first`, 'err');
+    return false;
+  }
+
+  try {
+    await setTargetFor(h.vendor, h.model || vendors[h.vendor].model, h.esc_id, h.mst_id);
+
+    const zeroRet = await sendCmd('set_zero_position', { vendor: h.vendor }, 6000);
+    if (!zeroRet.ok) throw new Error(zeroRet.error || 'set_zero_position failed');
+
+    const storeRet = await sendCmd('store_parameters', { vendor: h.vendor }, 6000);
+    if (!storeRet.ok) {
+      pushLog(
+        `zero ${h.vendor} ${toHex(h.esc_id)} ok, but store failed: ${storeRet.error || 'unknown'}`,
+        'err',
+      );
+    } else {
+      pushLog(`zero+store ${h.vendor} ${toHex(h.esc_id)} ok`, 'ok');
+    }
+
+    setHits((prev) => mergeHitsByVendor(prev, [{ ...h, updated_at_ms: Date.now() }]));
+    await closeBusQuietly();
+    return true;
+  } catch (e) {
+    pushLog(`zero error: ${e.message || e}`, 'err');
+    return false;
+  }
+}
+
 export async function refreshMotorStateOp({ h, vendors, setTargetFor, sendCmd, setHits, pushLog }) {
   try {
     await setTargetFor(h.vendor, h.model || vendors[h.vendor].model, h.esc_id, h.mst_id);
@@ -158,6 +204,8 @@ export async function refreshMotorStateOp({ h, vendors, setTargetFor, sendCmd, s
           pos: Number(d.pos ?? h.pos ?? Number.NaN),
           vel: Number(d.vel ?? h.vel ?? Number.NaN),
           torq: Number(d.torq ?? h.torq ?? Number.NaN),
+          online: true,
+          last_check_ms: Date.now(),
           updated_at_ms: Date.now(),
         },
       ]),
@@ -165,7 +213,65 @@ export async function refreshMotorStateOp({ h, vendors, setTargetFor, sendCmd, s
 
     pushLog(`state refreshed ${h.vendor} ${toHex(h.esc_id)}`, 'ok');
   } catch (e) {
+    setHits((prev) =>
+      mergeHitsByVendor(prev, [
+        {
+          ...h,
+          online: false,
+          last_check_ms: Date.now(),
+          updated_at_ms: Date.now(),
+        },
+      ]),
+    );
     pushLog(`state refresh failed: ${e.message || e}`, 'err');
+  }
+}
+
+export async function checkOnlineOnceOp({
+  h,
+  vendors,
+  setTargetFor,
+  sendCmd,
+  setHits,
+  pushLog,
+  silent = true,
+}) {
+  try {
+    await setTargetFor(h.vendor, h.model || vendors[h.vendor].model, h.esc_id, h.mst_id);
+    const ret = await sendCmd('state_once', {}, 1200);
+    if (!ret.ok) throw new Error(ret.error || 'state_once failed');
+
+    const d = ret.data || {};
+    setHits((prev) =>
+      mergeHitsByVendor(prev, [
+        {
+          ...h,
+          status: Number(d.status_code ?? h.status ?? Number.NaN),
+          pos: Number(d.pos ?? h.pos ?? Number.NaN),
+          vel: Number(d.vel ?? h.vel ?? Number.NaN),
+          torq: Number(d.torq ?? h.torq ?? Number.NaN),
+          online: true,
+          last_check_ms: Date.now(),
+          updated_at_ms: Date.now(),
+        },
+      ]),
+    );
+
+    if (!silent) pushLog(`online check ${h.vendor} ${toHex(h.esc_id)} online`, 'ok');
+    return true;
+  } catch (e) {
+    setHits((prev) =>
+      mergeHitsByVendor(prev, [
+        {
+          ...h,
+          online: false,
+          last_check_ms: Date.now(),
+          updated_at_ms: Date.now(),
+        },
+      ]),
+    );
+    if (!silent) pushLog(`online check ${h.vendor} ${toHex(h.esc_id)} offline`, 'err');
+    return false;
   }
 }
 

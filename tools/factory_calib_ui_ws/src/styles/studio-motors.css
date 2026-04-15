@@ -415,3 +415,190 @@
 .armLiveToggle input {
   accent-color: #4f7cff;
 }
+
+.armTopToolbar {
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.armTopToolbar .miniField {
+  min-width: 240px;
+  max-width: 300px;
+  margin-right: 2px;
+}
+
+.armTopToolbar .miniField label,
+.armTopToolbar button {
+  white-space: nowrap;
+}
+
+.firstUseBtn {
+  position: relative;
+  border-color: #7f56d9;
+  color: #ffffff;
+  font-weight: 700;
+  background:
+    linear-gradient(135deg, #6d5efc 0%, #20b2ff 50%, #19c37d 100%);
+  box-shadow:
+    0 8px 18px rgba(83, 93, 255, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition: transform 140ms ease, box-shadow 180ms ease, filter 140ms ease;
+}
+
+.firstUseBtn:hover {
+  transform: translateY(-1px);
+  filter: saturate(1.08);
+  box-shadow:
+    0 12px 24px rgba(63, 97, 255, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.firstUseBtn:active {
+  transform: translateY(0);
+}
+
+.firstUseBtn::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fff8b0;
+  transform: translateY(-50%);
+  box-shadow: 0 0 0 5px rgba(255, 248, 176, 0.2);
+}
+
+.firstUseBtn {
+  padding-left: 22px;
+}
+
+.armParamPanel {
+  margin-top: 10px;
+  border: 1px solid #d9e2fb;
+  border-radius: 14px;
+  padding: 12px;
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(89, 138, 255, 0.12) 0%, rgba(89, 138, 255, 0) 62%),
+    linear-gradient(180deg, #ffffff, #f8faff);
+}
+
+.armParamTableWrap {
+  margin-top: 8px;
+  overflow: auto;
+}
+
+.armParamTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.armParamTable th,
+.armParamTable td {
+  border: 1px solid #dfe7fb;
+  padding: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.armParamTable th {
+  background: #f3f7ff;
+  color: #365293;
+  font-weight: 700;
+}
+
+.armParamTable input,
+.armParamTable select {
+  width: 100%;
+  min-width: 88px;
+}
+
+.errText {
+  color: #c62828;
+  font-weight: 600;
+}
+
+.warnText {
+  color: #b54708;
+  font-weight: 600;
+}
+
+.armLimitToast {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1200;
+  max-width: min(520px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #f5c389;
+  background: #fff6eb;
+  color: #8a3f00;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+}
+
+.armDialogMask {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(13, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.armDialogCard {
+  width: min(560px, calc(100vw - 32px));
+  border-radius: 14px;
+  border: 1px solid #d9e2fb;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+  padding: 16px;
+}
+
+.armDialogCard h3 {
+  margin: 0 0 10px;
+  color: #203764;
+}
+
+.armDialogCard p {
+  margin: 0 0 12px;
+  color: #3a4f81;
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.armGuideList {
+  margin: 0 0 12px;
+  padding-left: 18px;
+  color: #2f4679;
+}
+
+.armGuideList li {
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.dangerBtn {
+  background: #d92d20;
+  border-color: #d92d20;
+  color: #fff;
+}
+
+.dangerBtn:hover {
+  background: #b42318;
+  border-color: #b42318;
+}
+
+@media (max-width: 1200px) {
+  .armTopToolbar {
+    flex-wrap: wrap;
+  }
+}

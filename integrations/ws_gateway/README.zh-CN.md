@@ -141,13 +141,19 @@ cargo build -p ws_gateway --release
 
 ```bash
 cargo run -p ws_gateway --release -- \
-  --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+  --bind 127.0.0.1:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 ```
 
 ```bash
 cargo run -p ws_gateway --release -- \
-  --bind 0.0.0.0:9002 --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD --dt-ms 20
+  --bind 127.0.0.1:9002 --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD --dt-ms 20
 ```
+
+安全说明：
+
+- 默认推荐使用 `127.0.0.1:9002`（本机回环）。
+- 若绑定到非回环地址（例如 `0.0.0.0:9002`），必须设置环境变量 `MOTORBRIDGE_WS_TOKEN`。
+- WS 客户端需在握手请求中带上 `x-motorbridge-token: <token>` 或 `Authorization: Bearer <token>`。
 
 ## Windows 实验支持（PCAN-USB）
 
@@ -157,7 +163,7 @@ cargo run -p ws_gateway --release -- \
 - Windows 启动网关时可使用 `can0@1000000`：
 
 ```bash
-cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+cargo run -p ws_gateway --release -- --bind 127.0.0.1:9002 --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 ```
 
 Windows 电机验证命令：

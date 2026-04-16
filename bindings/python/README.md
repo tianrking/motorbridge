@@ -48,13 +48,17 @@ Packaging note:
   `.../site-packages/motorbridge/bin/ws_gateway` (or `ws_gateway.exe` on Windows).
 
 - Gateway launch command (added to PATH by pip):
-  - `motorbridge-gateway -- --bind 0.0.0.0:9002 ...`
+  - `motorbridge-gateway -- --bind 127.0.0.1:9002 ...`
+- Security note:
+  - keep loopback bind (`127.0.0.1`) for local usage.
+  - if you bind to non-loopback addresses (`0.0.0.0` or host IP), export `MOTORBRIDGE_WS_TOKEN` before launch.
+  - clients must pass the token in `x-motorbridge-token` or `Authorization: Bearer ...`.
 - macOS runtime note (only if you see dynamic library load errors):
   - Resolve binary path generically:
     `GW="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent/'bin'/'ws_gateway')")"`
   - Use package-local `lib` directory (no machine-specific absolute path):
     `PKG_DIR="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent)")"`
-    `DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`
+    `DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" --bind 127.0.0.1:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`
 
 
 - High-level API: `Controller`, `Motor`, `Mode`
@@ -226,6 +230,7 @@ Local wheel build (Windows):
 ```bash
 python -m pip install --user wheel
 set MOTORBRIDGE_LIB=%CD%\\target\\release\\motor_abi.dll
+set MOTORBRIDGE_WS_GATEWAY_BIN=%CD%\\target\\release\\ws_gateway.exe
 python -m pip wheel --no-build-isolation bindings/python -w bindings/python/dist
 python -m pip install bindings/python/dist/motorbridge-*.whl
 ```

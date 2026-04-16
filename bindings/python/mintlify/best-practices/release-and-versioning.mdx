@@ -223,6 +223,8 @@ For maintainers releasing new versions:
 
 4. **Build package:**
    ```bash
+   MOTORBRIDGE_LIB=../../target/release/libmotor_abi.so \
+   MOTORBRIDGE_WS_GATEWAY_BIN=../../target/release/ws_gateway \
    python -m build
    ```
 
@@ -280,7 +282,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build
-        run: python -m build
+        run: |
+          MOTORBRIDGE_LIB=../../target/release/libmotor_abi.so \
+          MOTORBRIDGE_WS_GATEWAY_BIN=../../target/release/ws_gateway \
+          python -m build
 
       - name: Publish to PyPI
         run: twine upload dist/*

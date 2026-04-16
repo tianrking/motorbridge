@@ -40,7 +40,7 @@ python3 bindings/python/examples/quad_vendor_pos_binding_demo.py --channel can0 
 
 ```bash
 cd /home/w0x7ce/Downloads/dm_candrive/rust_dm
-cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 50
+cargo run -p ws_gateway --release -- --bind 127.0.0.1:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 50
 ```
 
 ## 2) 启动本目录静态服务

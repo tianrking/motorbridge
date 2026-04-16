@@ -45,13 +45,17 @@
 - 高层 API: `Controller`、`Motor`、`Mode`
 - CLI: `motorbridge-cli`
 - 网关启动命令（pip 安装后进入 PATH）：
-  - `motorbridge-gateway -- --bind 0.0.0.0:9002 ...`
+  - `motorbridge-gateway -- --bind 127.0.0.1:9002 ...`
+- 安全说明：
+  - 本地使用建议保持回环地址 `127.0.0.1`。
+  - 若绑定到非回环地址（`0.0.0.0` 或网卡 IP），启动前必须设置 `MOTORBRIDGE_WS_TOKEN`。
+  - 客户端需在握手中携带 token：`x-motorbridge-token` 或 `Authorization: Bearer ...`。
 - macOS 运行说明（仅当出现动态库加载错误时需要）：
   - 通用方式获取网关路径（不写死本机路径）：
     `GW="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent/'bin'/'ws_gateway')")"`
   - 使用包内 `lib` 目录设置动态库路径：
     `PKG_DIR="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent)")"`
-    `DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`
+    `DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" --bind 127.0.0.1:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`
 - Controller 构造入口：
   - `Controller(channel=\"can0\")`（SocketCAN/PCAN 路径）
   - `Controller.from_socketcanfd(channel=\"can0\")`（CAN-FD 路径，Hexfellow 必须使用）
@@ -266,6 +270,7 @@ Windows 本地 wheel 构建：
 ```bash
 python -m pip install --user wheel
 set MOTORBRIDGE_LIB=%CD%\\target\\release\\motor_abi.dll
+set MOTORBRIDGE_WS_GATEWAY_BIN=%CD%\\target\\release\\ws_gateway.exe
 python -m pip wheel --no-build-isolation bindings/python -w bindings/python/dist
 python -m pip install bindings/python/dist/motorbridge-*.whl
 ```

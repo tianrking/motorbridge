@@ -33,40 +33,40 @@ export function HelpCenterModal({ open, page, onClose }) {
       name: t('help_platform_linux'),
       installCmd: 'python3 -m pip install -U motorbridge',
       gatewayCmd: `motorbridge-gateway -- \\
-  --bind 0.0.0.0:9002 --vendor damiao --transport auto \\
+  --bind 127.0.0.1:9002 --vendor damiao --transport auto \\
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
     },
     {
       name: t('help_platform_macos'),
       installCmd: 'python3 -m pip install -U motorbridge',
       gatewayCmd: `motorbridge-gateway -- \\
-  --bind 0.0.0.0:9002 --vendor damiao --transport auto \\
+  --bind 127.0.0.1:9002 --vendor damiao --transport auto \\
   --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
     },
     {
       name: t('help_platform_windows'),
       installCmd: 'py -m pip install -U motorbridge',
-      gatewayCmd: `motorbridge-gateway -- --bind 0.0.0.0:9002 --vendor damiao --transport auto --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
+      gatewayCmd: `motorbridge-gateway -- --bind 127.0.0.1:9002 --vendor damiao --transport auto --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
     },
   ];
   const dmSerialByPlatform = [
     {
       name: t('help_platform_linux'),
       gatewayCmd: `motorbridge-gateway -- \\
-  --bind 0.0.0.0:9002 --vendor damiao --transport dm-serial \\
+  --bind 127.0.0.1:9002 --vendor damiao --transport dm-serial \\
   --serial-port /dev/ttyACM0 --serial-baud 921600 \\
   --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
     },
     {
       name: t('help_platform_macos'),
       gatewayCmd: `motorbridge-gateway -- \\
-  --bind 0.0.0.0:9002 --vendor damiao --transport dm-serial \\
+  --bind 127.0.0.1:9002 --vendor damiao --transport dm-serial \\
   --serial-port /dev/tty.usbmodem14101 --serial-baud 921600 \\
   --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
     },
     {
       name: t('help_platform_windows'),
-      gatewayCmd: `motorbridge-gateway -- --bind 0.0.0.0:9002 --vendor damiao --transport dm-serial --serial-port COM3 --serial-baud 921600 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
+      gatewayCmd: `motorbridge-gateway -- --bind 127.0.0.1:9002 --vendor damiao --transport dm-serial --serial-port COM3 --serial-baud 921600 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20`,
     },
   ];
   const glossaryItems = [

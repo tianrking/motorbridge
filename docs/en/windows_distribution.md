@@ -45,6 +45,7 @@ Expected output:
 ```bash
 python -m pip install --user wheel
 set MOTORBRIDGE_LIB=%CD%\\target\\release\\motor_abi.dll
+set MOTORBRIDGE_WS_GATEWAY_BIN=%CD%\\target\\release\\ws_gateway.exe
 python -m pip wheel --no-build-isolation bindings/python -w bindings/python/dist
 ```
 

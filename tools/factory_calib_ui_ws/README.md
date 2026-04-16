@@ -19,8 +19,14 @@ npm install
 Default WS bind in all examples:
 
 ```bash
---bind 0.0.0.0:9002
+--bind 127.0.0.1:9002
 ```
+
+Security note:
+
+- Keep `127.0.0.1:9002` for local setup.
+- If you must expose `ws_gateway` on LAN/WAN (`0.0.0.0` or a host IP), set `MOTORBRIDGE_WS_TOKEN` before starting gateway.
+- The UI client must then send token header (`x-motorbridge-token` or `Authorization: Bearer ...`) during WS handshake.
 
 ### A. Damiao over `dm-serial`
 
@@ -30,7 +36,7 @@ Ubuntu:
 
 ```bash
 motorbridge-gateway -- \
-  --bind 0.0.0.0:9002 \
+  --bind 127.0.0.1:9002 \
   --vendor damiao --transport dm-serial \
   --serial-port /dev/ttyACM0 --serial-baud 921600 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -40,7 +46,7 @@ macOS:
 
 ```bash
 motorbridge-gateway -- \
-  --bind 0.0.0.0:9002 \
+  --bind 127.0.0.1:9002 \
   --vendor damiao --transport dm-serial \
   --serial-port /dev/cu.usbmodemXXXX --serial-baud 921600 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -52,7 +58,7 @@ If macOS reports dynamic-library loading errors, use package-local fallback:
 GW="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent/'bin'/'ws_gateway')")"
 PKG_DIR="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent)")"
 DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" \
-  --bind 0.0.0.0:9002 --vendor damiao --transport dm-serial \
+  --bind 127.0.0.1:9002 --vendor damiao --transport dm-serial \
   --serial-port /dev/cu.usbmodemXXXX --serial-baud 921600 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 ```
@@ -61,7 +67,7 @@ Windows (PowerShell):
 
 ```powershell
 motorbridge-gateway -- `
-  --bind 0.0.0.0:9002 `
+  --bind 127.0.0.1:9002 `
   --vendor damiao --transport dm-serial `
   --serial-port COM3 --serial-baud 921600 `
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -75,7 +81,7 @@ Ubuntu (SocketCAN):
 
 ```bash
 motorbridge-gateway -- \
-  --bind 0.0.0.0:9002 \
+  --bind 127.0.0.1:9002 \
   --vendor damiao --transport auto \
   --channel can0 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -85,7 +91,7 @@ macOS (PCBUSB runtime):
 
 ```bash
 motorbridge-gateway -- \
-  --bind 0.0.0.0:9002 \
+  --bind 127.0.0.1:9002 \
   --vendor damiao --transport auto \
   --channel can0 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -95,7 +101,7 @@ Windows (PCAN backend):
 
 ```powershell
 motorbridge-gateway -- `
-  --bind 0.0.0.0:9002 `
+  --bind 127.0.0.1:9002 `
   --vendor damiao --transport auto `
   --channel can0@1000000 `
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20

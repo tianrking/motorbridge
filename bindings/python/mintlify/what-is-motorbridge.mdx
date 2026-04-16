@@ -305,13 +305,13 @@ Control motors over WebSocket (useful for browser/remote apps):
 
 ```bash
 # Start gateway (installed with pip wheel)
-motorbridge-gateway -- --bind 0.0.0.0:9002
+motorbridge-gateway -- --bind 127.0.0.1:9002
 ```
 
 From source tree, you can still run:
 
 ```bash
-cargo run -p ws_gateway -- --bind 0.0.0.0:9002
+cargo run -p ws_gateway -- --bind 127.0.0.1:9002
 ```
 
 ### Motor Calibration

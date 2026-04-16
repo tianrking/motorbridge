@@ -174,7 +174,7 @@ python3 examples/python/four_vendor_pos_sync.py \
   --pos 1.57 --damiao-model-by-id "0x01=4340P,0x07=4310" --stagger-ms 50
 
 # 6) Web HMI (one slider drives 4 motors to same angle via ws_gateway)
-cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+cargo run -p ws_gateway --release -- --bind 127.0.0.1:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 python3 -m http.server 18080
 # open: http://127.0.0.1:18080/examples/web/ws_quad_sync_hmi.html
 ```

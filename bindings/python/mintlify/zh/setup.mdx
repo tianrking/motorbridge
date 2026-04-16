@@ -92,7 +92,7 @@ Ubuntu:
 
 ```bash
 motorbridge-gateway \
-  --bind 0.0.0.0:9002 \
+  --bind 127.0.0.1:9002 \
   --vendor damiao --transport dm-serial \
   --serial-port /dev/ttyACM0 --serial-baud 921600 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -102,7 +102,7 @@ macOS:
 
 ```bash
 motorbridge-gateway \
-  --bind 0.0.0.0:9002 \
+  --bind 127.0.0.1:9002 \
   --vendor damiao --transport dm-serial \
   --serial-port /dev/cu.usbmodemXXXX --serial-baud 921600 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -112,7 +112,7 @@ Windows (PowerShell):
 
 ```powershell
 motorbridge-gateway `
-  --bind 0.0.0.0:9002 `
+  --bind 127.0.0.1:9002 `
   --vendor damiao --transport dm-serial `
   --serial-port COM3 --serial-baud 921600 `
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -124,7 +124,7 @@ Ubuntu (SocketCAN):
 
 ```bash
 motorbridge-gateway \
-  --bind 0.0.0.0:9002 \
+  --bind 127.0.0.1:9002 \
   --vendor damiao --transport auto \
   --channel can0 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -134,7 +134,7 @@ macOS (PCBUSB runtime):
 
 ```bash
 motorbridge-gateway \
-  --bind 0.0.0.0:9002 \
+  --bind 127.0.0.1:9002 \
   --vendor damiao --transport auto \
   --channel can0 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -144,7 +144,7 @@ Windows (PCAN backend):
 
 ```powershell
 motorbridge-gateway `
-  --bind 0.0.0.0:9002 `
+  --bind 127.0.0.1:9002 `
   --vendor damiao --transport auto `
   --channel can0@1000000 `
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -154,13 +154,14 @@ motorbridge-gateway `
 - `dm-serial` 仅用于 Damiao。
 - CAN 路径下，Linux 需先 `ip link set can0 up`；Windows 需安装 PCAN 驱动/`PCANBasic.dll`；macOS 需安装 PCBUSB 运行时。
 - CLI 与 Gateway 现已在启动前给出平台依赖提示。
+- 本地建议保持 `127.0.0.1`。如需绑定非回环地址，必须设置 `MOTORBRIDGE_WS_TOKEN`，并在客户端握手中携带（`x-motorbridge-token` 或 `Authorization: Bearer ...`）。
 
 仅 macOS（如果出现动态库加载失败）可使用：
 
 ```bash
 GW="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent/'bin'/'ws_gateway')")"
 PKG_DIR="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent)")"
-DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" --bind 127.0.0.1:9002 --vendor damiao --channel can0 --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 ```
 
 ## 预发布版本（TestPyPI）

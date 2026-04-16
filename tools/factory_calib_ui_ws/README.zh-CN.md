@@ -26,8 +26,14 @@ npm install
 以下示例统一使用：
 
 ```bash
---bind 0.0.0.0:9002
+--bind 127.0.0.1:9002
 ```
+
+安全说明：
+
+- 本地联调建议保持 `127.0.0.1:9002`。
+- 若需暴露到局域网/公网（`0.0.0.0` 或具体网卡 IP），启动网关前必须设置 `MOTORBRIDGE_WS_TOKEN`。
+- UI 侧在 WS 握手时需携带 token（`x-motorbridge-token` 或 `Authorization: Bearer ...`）。
 
 ### A. Damiao 串口桥（`dm-serial`）
 
@@ -37,7 +43,7 @@ Ubuntu：
 
 ```bash
 motorbridge-gateway -- \
-  --bind 0.0.0.0:9002 \
+  --bind 127.0.0.1:9002 \
   --vendor damiao --transport dm-serial \
   --serial-port /dev/ttyACM0 --serial-baud 921600 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -47,7 +53,7 @@ macOS：
 
 ```bash
 motorbridge-gateway -- \
-  --bind 0.0.0.0:9002 \
+  --bind 127.0.0.1:9002 \
   --vendor damiao --transport dm-serial \
   --serial-port /dev/cu.usbmodemXXXX --serial-baud 921600 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -59,7 +65,7 @@ motorbridge-gateway -- \
 GW="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent/'bin'/'ws_gateway')")"
 PKG_DIR="$(python3 -c "import motorbridge, pathlib; print(pathlib.Path(motorbridge.__file__).resolve().parent)")"
 DYLD_LIBRARY_PATH="$PKG_DIR/lib:${DYLD_LIBRARY_PATH:-}" "$GW" \
-  --bind 0.0.0.0:9002 --vendor damiao --transport dm-serial \
+  --bind 127.0.0.1:9002 --vendor damiao --transport dm-serial \
   --serial-port /dev/cu.usbmodemXXXX --serial-baud 921600 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 ```
@@ -68,7 +74,7 @@ Windows（PowerShell）：
 
 ```powershell
 motorbridge-gateway -- `
-  --bind 0.0.0.0:9002 `
+  --bind 127.0.0.1:9002 `
   --vendor damiao --transport dm-serial `
   --serial-port COM3 --serial-baud 921600 `
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -82,7 +88,7 @@ Ubuntu（SocketCAN）：
 
 ```bash
 motorbridge-gateway -- \
-  --bind 0.0.0.0:9002 \
+  --bind 127.0.0.1:9002 \
   --vendor damiao --transport auto \
   --channel can0 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -92,7 +98,7 @@ macOS（PCBUSB 运行时）：
 
 ```bash
 motorbridge-gateway -- \
-  --bind 0.0.0.0:9002 \
+  --bind 127.0.0.1:9002 \
   --vendor damiao --transport auto \
   --channel can0 \
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
@@ -102,7 +108,7 @@ Windows（PCAN 后端）：
 
 ```powershell
 motorbridge-gateway -- `
-  --bind 0.0.0.0:9002 `
+  --bind 127.0.0.1:9002 `
   --vendor damiao --transport auto `
   --channel can0@1000000 `
   --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20

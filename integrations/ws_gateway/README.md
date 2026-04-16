@@ -141,13 +141,19 @@ cargo build -p ws_gateway --release
 
 ```bash
 cargo run -p ws_gateway --release -- \
-  --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+  --bind 127.0.0.1:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 ```
 
 ```bash
 cargo run -p ws_gateway --release -- \
-  --bind 0.0.0.0:9002 --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD --dt-ms 20
+  --bind 127.0.0.1:9002 --vendor robstride --channel can0 --model rs-06 --motor-id 127 --feedback-id 0xFD --dt-ms 20
 ```
+
+Security note:
+
+- `127.0.0.1:9002` is the default and recommended bind for local use.
+- If you bind to non-loopback addresses (for example `0.0.0.0:9002`), you must set `MOTORBRIDGE_WS_TOKEN`.
+- WebSocket clients must provide this token via header `x-motorbridge-token: <token>` or `Authorization: Bearer <token>`.
 
 ## Experimental Windows Support (PCAN-USB)
 
@@ -157,7 +163,7 @@ Linux remains the primary target. Windows support is experimental and currently 
 - Use `can0@1000000` as the channel value on Windows:
 
 ```bash
-cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+cargo run -p ws_gateway --release -- --bind 127.0.0.1:9002 --vendor damiao --channel can0@1000000 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 ```
 
 Quick Windows motor validation commands:

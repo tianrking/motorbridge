@@ -174,7 +174,7 @@ jobs:
           CIBW_SKIP: "*musllinux* *i686* *pp*"
           CIBW_ARCHS_LINUX: ${{ matrix.arch }}
           CIBW_BUILD_FRONTEND: pip
-          CIBW_ENVIRONMENT_LINUX: MOTORBRIDGE_LIB=/project/target/release/libmotor_abi.so
+          CIBW_ENVIRONMENT_LINUX: MOTORBRIDGE_LIB=/project/target/release/libmotor_abi.so MOTORBRIDGE_WS_GATEWAY_BIN=/project/target/release/ws_gateway
           CIBW_BEFORE_ALL_LINUX: >
             curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal &&
             . $HOME/.cargo/env &&
@@ -217,7 +217,7 @@ jobs:
           CIBW_SKIP: "*musllinux* *i686* *pp*"
           CIBW_ARCHS_MACOS: ${{ matrix.arch }}
           CIBW_BUILD_FRONTEND: pip
-          CIBW_ENVIRONMENT_MACOS: MOTORBRIDGE_LIB=/Users/runner/work/motorbridge/motorbridge/target/release/libmotor_abi.dylib
+          CIBW_ENVIRONMENT_MACOS: MOTORBRIDGE_LIB=/Users/runner/work/motorbridge/motorbridge/target/release/libmotor_abi.dylib MOTORBRIDGE_WS_GATEWAY_BIN=/Users/runner/work/motorbridge/motorbridge/target/release/ws_gateway
           CIBW_BEFORE_ALL_MACOS: >
             curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal &&
             . $HOME/.cargo/env &&
@@ -264,6 +264,7 @@ jobs:
         shell: pwsh
         env:
           MOTORBRIDGE_LIB: ${{ github.workspace }}\\target\\release\\motor_abi.dll
+          MOTORBRIDGE_WS_GATEWAY_BIN: ${{ github.workspace }}\\target\\release\\ws_gateway.exe
         run: |
           if (Test-Path bindings/python/dist) { Remove-Item bindings/python/dist -Recurse -Force }
           if (Test-Path bindings/python/build) { Remove-Item bindings/python/build -Recurse -Force }

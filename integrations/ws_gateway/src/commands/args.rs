@@ -28,7 +28,11 @@ Optional defaults (only used when WS message omits target fields):\n\
   --vendor damiao|robstride|hexfellow|myactuator|hightorque\n\
   --transport auto|socketcan|socketcanfd|dm-serial\n\
   --channel can0 --serial-port /dev/ttyACM0 --serial-baud 921600\n\
-  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20\n"
+  --model auto --motor-id 0x01 --feedback-id 0x11 --dt-ms 20\n\
+\n\
+Security:\n\
+  Non-loopback bind requires env MOTORBRIDGE_WS_TOKEN\n\
+  Client headers: x-motorbridge-token or Authorization: Bearer <token>\n"
             );
             std::process::exit(0);
         }

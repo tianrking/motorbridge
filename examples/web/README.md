@@ -17,7 +17,7 @@ Default targets:
 
 ```bash
 # terminal A: start gateway
-cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+cargo run -p ws_gateway --release -- --bind 127.0.0.1:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 
 # terminal B: serve static files from repo root
 python3 -m http.server 18080
@@ -51,7 +51,7 @@ Default targets:
 
 ```bash
 # terminal A: start gateway
-cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+cargo run -p ws_gateway --release -- --bind 127.0.0.1:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 
 # terminal B: serve static files from repo root
 python3 -m http.server 18080

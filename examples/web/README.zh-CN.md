@@ -54,7 +54,7 @@ python3 bindings/python/examples/quad_vendor_binding_ws_demo.py --bind 127.0.0.1
 
 ```bash
 # 终端 A：启动网关
-cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+cargo run -p ws_gateway --release -- --bind 127.0.0.1:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 
 # 终端 B：在仓库根目录启动静态服务
 python3 -m http.server 18080
@@ -87,7 +87,7 @@ http://127.0.0.1:18080/examples/web/ws_quad_sync_hmi.html
 
 ```bash
 # 终端 A：启动网关
-cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+cargo run -p ws_gateway --release -- --bind 127.0.0.1:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 
 # 终端 B：在仓库根目录启动静态服务
 python3 -m http.server 18080

@@ -59,7 +59,7 @@ python3 examples/python/four_vendor_pos_sync.py \
 Web 上位机（单拖杆同步四电机角度）：
 
 ```bash
-cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
+cargo run -p ws_gateway --release -- --bind 127.0.0.1:9002 --vendor damiao --channel can0 --model 4340P --motor-id 0x01 --feedback-id 0x11 --dt-ms 20
 python3 -m http.server 18080
 # 浏览器打开 http://127.0.0.1:18080/examples/web/ws_quad_sync_hmi.html
 ```

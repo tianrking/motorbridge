@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { MotorCards } from './MotorCards';
 import { MotorDetailPanel } from './MotorDetailPanel';
 import { useI18n } from '../i18n';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function MotorSection({
   hits,
@@ -50,13 +51,12 @@ export function MotorSection({
   }, [hits, search, vendorFilter, onlineFilter]);
 
   return (
-    <section className="card glass">
-      <div className="sectionTitle">
-        <h2>{t('section_motors')}</h2>
-        <button className="ghostBtn small" onClick={onToggleCollapsed}>
-          {collapsed ? t('expand') : t('collapse')}
-        </button>
-      </div>
+    <CollapsibleSection
+      title={t('section_motors')}
+      collapsed={collapsed}
+      onToggleCollapsed={onToggleCollapsed}
+      collapsedHint={`${hits.length} ${t('detected')}`}
+    >
 
       {!collapsed && (
         <>
@@ -114,8 +114,6 @@ export function MotorSection({
           </div>
         </>
       )}
-
-      {collapsed && <div className="tip">{hits.length} {t('detected')}</div>}
-    </section>
+    </CollapsibleSection>
   );
 }

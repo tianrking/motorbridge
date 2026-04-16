@@ -4,18 +4,18 @@
 
 ## P0 低风险先做
 
-- [ ] 删除重复 URDF 资源目录（二选一保留）
+- [x] 删除重复 URDF 资源目录（二选一保留）
   - `public/resources/arm01/`
   - `public/urdf/reBot-DevArm_description_fixend/`
   - 目标：去除字节级重复资源，减小体积与维护成本
 
-- [ ] 提取通用基础能力（机械抽离）
-  - [ ] `usePersistedState(key, defaultValue)`（替代多处 localStorage effect）
-  - [ ] `<ProgressBar />` 组件（统一进度条 JSX）
-  - [ ] `<CollapsibleSection />` 组件（统一可折叠区域）
-  - [ ] `bulkOp(rows, fn, gapMs)` 工具（统一批量 enable/disable/zero）
+- [x] 提取通用基础能力（机械抽离）
+  - [x] `usePersistedState(key, defaultValue)`（替代多处 localStorage effect）
+  - [x] `<ProgressBar />` 组件（统一进度条 JSX）
+  - [x] `<CollapsibleSection />` 组件（统一可折叠区域）
+  - [x] `bulkOp(rows, fn, gapMs)` 工具（统一批量 enable/disable/zero）
 
-- [ ] 加入 Error Boundary（防止组件异常导致整页白屏）
+- [x] 加入 Error Boundary（防止组件异常导致整页白屏）
 
 ## P1 核心结构重构
 
@@ -62,4 +62,3 @@
 4. `RobotArmPage` 拆分（高影响）
 5. 常量与 vendor 聚合（中风险）
 6. TypeScript/测试/规范化（后置）
-

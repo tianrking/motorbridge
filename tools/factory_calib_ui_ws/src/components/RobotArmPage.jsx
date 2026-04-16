@@ -3,6 +3,7 @@ import { useI18n } from '../i18n';
 import { ROBOT_ARM_MODELS } from '../lib/robotArm';
 import { parseNum, toHex } from '../lib/utils';
 import { ArmUrdfViewer } from './ArmUrdfViewer';
+import { ProgressBar } from './ProgressBar';
 
 function numText(v, digits = 3) {
   return Number.isFinite(v) ? Number(v).toFixed(digits) : '-';
@@ -551,19 +552,7 @@ export function RobotArmPage({
             </button>
           </div>
           {paramInfo && <div className="tip">{paramInfo}</div>}
-          {(paramBusy || paramProgress?.active) && (
-            <div className="scanProgressWrap">
-              <div className="scanProgressText">
-                <span>{paramProgress?.label || t('scanning')}</span>
-                <span>
-                  {paramProgress?.done || 0}/{Math.max(1, paramProgress?.total || 1)} ({paramProgress?.percent || 0}%)
-                </span>
-              </div>
-              <div className="scanProgressTrack">
-                <div className="scanProgressFill" style={{ width: `${paramProgress?.percent || 0}%` }} />
-              </div>
-            </div>
-          )}
+          <ProgressBar active={paramBusy || paramProgress?.active} progress={paramProgress} />
           <div className="armParamTableWrap">
             <table className="armParamTable">
               <thead>
@@ -640,34 +629,14 @@ export function RobotArmPage({
         </div>
       )}
 
-      {(armScanBusy || armScanProgress?.active) && (
-        <div className="scanProgressWrap">
-          <div className="scanProgressText">
-            <span>{armScanProgress?.label || t('scanning')}</span>
-            <span>
-              {armScanProgress?.done || 0}/{Math.max(1, armScanProgress?.total || 7)} ({armScanProgress?.percent || 0}%)
-            </span>
-          </div>
-          <div className="scanProgressTrack">
-            <div className="scanProgressFill" style={{ width: `${armScanProgress?.percent || 0}%` }} />
-          </div>
-        </div>
-      )}
+      <ProgressBar active={armScanBusy || armScanProgress?.active} progress={armScanProgress} />
 
       {armBulkBusy && <div className="tip">{t('arm_bulk_busy')}</div>}
-      {(armSelfCheckBusy || armSelfCheckProgress?.active) && (
-        <div className="scanProgressWrap">
-          <div className="scanProgressText">
-            <span>{armSelfCheckProgress?.label || t('arm_self_check_running')}</span>
-            <span>
-              {armSelfCheckProgress?.done || 0}/{Math.max(1, armSelfCheckProgress?.total || 4)} ({armSelfCheckProgress?.percent || 0}%)
-            </span>
-          </div>
-          <div className="scanProgressTrack">
-            <div className="scanProgressFill" style={{ width: `${armSelfCheckProgress?.percent || 0}%` }} />
-          </div>
-        </div>
-      )}
+      <ProgressBar
+        active={armSelfCheckBusy || armSelfCheckProgress?.active}
+        progress={armSelfCheckProgress}
+        fallbackLabel={t('arm_self_check_running')}
+      />
       {armSelfCheckReport && (
         <div className={`armSelfCheckCard ${armSelfCheckReport.ok ? 'ok' : 'err'}`}>
           <div className="sectionTitle">

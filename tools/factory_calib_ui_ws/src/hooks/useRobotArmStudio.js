@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { defaultControlsForHit, motorKey } from '../lib/utils';
+import { sleep } from '../lib/async';
 import {
   ROBOT_ARM_JOINTS,
   ROBOT_ARM_MODELS,
@@ -8,24 +9,9 @@ import {
   isProfileJointHit,
   normalizeRobotArmModel,
 } from '../lib/robotArm';
+import { usePersistedState } from './usePersistedState';
 
 const LS_ROBOT_ARM_MODEL_KEY = 'factory_calib_ui_ws_robot_arm_model_v1';
-
-function loadJson(key, fallback) {
-  try {
-    if (typeof window === 'undefined') return fallback;
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw);
-    return parsed ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 export function useRobotArmStudio({
   hits,
@@ -45,18 +31,11 @@ export function useRobotArmStudio({
     label: '',
     percent: 0,
   });
-  const [robotArmModel, setRobotArmModelState] = useState(() =>
-    normalizeRobotArmModel(loadJson(LS_ROBOT_ARM_MODEL_KEY, ROBOT_ARM_MODELS[0].key)),
+  const [robotArmModel, setRobotArmModelState] = usePersistedState(
+    LS_ROBOT_ARM_MODEL_KEY,
+    ROBOT_ARM_MODELS[0].key,
+    (cached, fallback) => normalizeRobotArmModel(cached || fallback),
   );
-
-  useEffect(() => {
-    try {
-      if (typeof window === 'undefined') return;
-      window.localStorage.setItem(LS_ROBOT_ARM_MODEL_KEY, JSON.stringify(robotArmModel));
-    } catch {
-      // ignore localStorage failures
-    }
-  }, [robotArmModel]);
 
   const setRobotArmModel = (nextRaw) => {
     const next = normalizeRobotArmModel(nextRaw);

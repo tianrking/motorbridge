@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_VENDOR_CONFIG } from '../lib/constants';
 import { defaultControlsForHit, motorKey, toHex, ts } from '../lib/utils';
+import { bulkOp, sleep } from '../lib/async';
 import { runScanOp } from '../lib/motorScanOps';
 import {
   controlMotorOp,
@@ -12,6 +13,7 @@ import {
 } from '../lib/motorStudioOps';
 import { useGatewayBridge } from './useGatewayBridge';
 import { useRobotArmStudio } from './useRobotArmStudio';
+import { usePersistedState } from './usePersistedState';
 import { useI18n } from '../i18n';
 
 const LS_HITS_KEY = 'factory_calib_ui_ws_hits_v1';
@@ -28,22 +30,6 @@ const DEFAULT_UI_PREFS = {
   sectionLogsCollapsed: true,
   armSliderLiveMove: false,
 };
-
-function loadJson(key, fallback) {
-  try {
-    if (typeof window === 'undefined') return fallback;
-    const raw = window.localStorage.getItem(key);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw);
-    return parsed ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 const DAMIAO_CTRL_PARAM_RID = {
   ctrlMode: 10,
@@ -80,20 +66,20 @@ export function useMotorStudio() {
   const [armSelfCheckReport, setArmSelfCheckReport] = useState(null);
 
   const [vendors, setVendors] = useState(DEFAULT_VENDOR_CONFIG);
-  const [hits, setHits] = useState(() => {
-    const cached = loadJson(LS_HITS_KEY, []);
-    return Array.isArray(cached) ? cached : [];
-  });
-  const [controls, setControls] = useState(() => {
-    const cached = loadJson(LS_CONTROLS_KEY, {});
-    return cached && typeof cached === 'object' ? cached : {};
-  });
+  const [hits, setHits] = usePersistedState(LS_HITS_KEY, [], (cached) => (Array.isArray(cached) ? cached : []));
+  const [controls, setControls] = usePersistedState(
+    LS_CONTROLS_KEY,
+    {},
+    (cached) => (cached && typeof cached === 'object' ? cached : {}),
+  );
   const [selected, setSelected] = useState(new Set());
-  const [activeMotorKey, setActiveMotorKey] = useState(() => loadJson(LS_ACTIVE_MOTOR_KEY, ''));
-  const [uiPrefs, setUiPrefs] = useState(() => {
-    const cached = loadJson(LS_UI_PREFS_KEY, DEFAULT_UI_PREFS);
-    return { ...DEFAULT_UI_PREFS, ...(cached || {}) };
-  });
+  const [activeMotorKey, setActiveMotorKey] = usePersistedState(LS_ACTIVE_MOTOR_KEY, '', (cached) =>
+    typeof cached === 'string' ? cached : '',
+  );
+  const [uiPrefs, setUiPrefs] = usePersistedState(LS_UI_PREFS_KEY, DEFAULT_UI_PREFS, (cached) => ({
+    ...DEFAULT_UI_PREFS,
+    ...(cached && typeof cached === 'object' ? cached : {}),
+  }));
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [newCardKeys, setNewCardKeys] = useState(new Set());
@@ -137,42 +123,6 @@ export function useMotorStudio() {
     const timer = setTimeout(() => setScanFoundFx((prev) => ({ ...prev, visible: false })), 1400);
     return () => clearTimeout(timer);
   }, [scanFoundFx]);
-
-  useEffect(() => {
-    try {
-      if (typeof window === 'undefined') return;
-      window.localStorage.setItem(LS_HITS_KEY, JSON.stringify(hits));
-    } catch {
-      // ignore localStorage failures
-    }
-  }, [hits]);
-
-  useEffect(() => {
-    try {
-      if (typeof window === 'undefined') return;
-      window.localStorage.setItem(LS_CONTROLS_KEY, JSON.stringify(controls));
-    } catch {
-      // ignore localStorage failures
-    }
-  }, [controls]);
-
-  useEffect(() => {
-    try {
-      if (typeof window === 'undefined') return;
-      window.localStorage.setItem(LS_UI_PREFS_KEY, JSON.stringify(uiPrefs));
-    } catch {
-      // ignore localStorage failures
-    }
-  }, [uiPrefs]);
-
-  useEffect(() => {
-    try {
-      if (typeof window === 'undefined') return;
-      window.localStorage.setItem(LS_ACTIVE_MOTOR_KEY, JSON.stringify(activeMotorKey || ''));
-    } catch {
-      // ignore localStorage failures
-    }
-  }, [activeMotorKey]);
 
   useEffect(() => {
     if (!activeMotorKey) return;
@@ -420,13 +370,11 @@ export function useMotorStudio() {
   const enableAllRobotArm = async () =>
     runRobotArmBulk('enable-all', async () => {
       pushLog('robot-arm enable-all start', 'info');
-      let okCount = 0;
-      for (const row of robotArmJointRows) {
-        const ok = await controlMotor(row.hit, 'enable', null, { allowDuringBulk: true });
-        if (ok) okCount += 1;
-        await sleep(60);
-      }
-      const failCount = robotArmJointRows.length - okCount;
+      const { okCount, failCount } = await bulkOp(
+        robotArmJointRows,
+        (row) => controlMotor(row.hit, 'enable', null, { allowDuringBulk: true }),
+        60,
+      );
       pushLog(
         `robot-arm enable-all done ok=${okCount} fail=${failCount}`,
         failCount > 0 ? 'err' : 'ok',
@@ -437,13 +385,11 @@ export function useMotorStudio() {
   const disableAllRobotArm = async () =>
     runRobotArmBulk('disable-all', async () => {
       pushLog('robot-arm disable-all start', 'info');
-      let okCount = 0;
-      for (const row of robotArmJointRows) {
-        const ok = await controlMotor(row.hit, 'disable', null, { allowDuringBulk: true });
-        if (ok) okCount += 1;
-        await sleep(60);
-      }
-      const failCount = robotArmJointRows.length - okCount;
+      const { okCount, failCount } = await bulkOp(
+        robotArmJointRows,
+        (row) => controlMotor(row.hit, 'disable', null, { allowDuringBulk: true }),
+        60,
+      );
       pushLog(
         `robot-arm disable-all done ok=${okCount} fail=${failCount}`,
         failCount > 0 ? 'err' : 'ok',
@@ -454,13 +400,7 @@ export function useMotorStudio() {
   const zeroAllRobotArm = async () =>
     runRobotArmBulk('zero-all', async () => {
       pushLog('robot-arm zero-all start', 'info');
-      let okCount = 0;
-      for (const row of robotArmJointRows) {
-        const ok = await zeroMotor(row.hit);
-        if (ok) okCount += 1;
-        await sleep(70);
-      }
-      const failCount = robotArmJointRows.length - okCount;
+      const { okCount, failCount } = await bulkOp(robotArmJointRows, (row) => zeroMotor(row.hit), 70);
       pushLog(`robot-arm zero-all done ok=${okCount} fail=${failCount}`, failCount > 0 ? 'err' : 'ok');
       return failCount === 0;
     });

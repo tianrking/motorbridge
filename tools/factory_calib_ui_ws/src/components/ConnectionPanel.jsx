@@ -1,5 +1,6 @@
 import React from 'react';
 import { useI18n } from '../i18n';
+import { CollapsibleSection } from './CollapsibleSection';
 
 export function ConnectionPanel({
   wsUrl,
@@ -20,13 +21,12 @@ export function ConnectionPanel({
   const transportText = String(targetTransport || 'auto').trim() || 'auto';
   const serialText = String(targetSerialPort || '').trim() || t('serial_port_gateway_managed');
   return (
-    <section className="card glass">
-      <div className="sectionTitle">
-        <h2>{t('section_connection')}</h2>
-        <button className="ghostBtn small" onClick={onToggleCollapsed}>
-          {collapsed ? t('expand') : t('collapse')}
-        </button>
-      </div>
+    <CollapsibleSection
+      title={t('section_connection')}
+      collapsed={collapsed}
+      onToggleCollapsed={onToggleCollapsed}
+      collapsedHint={t('websocket_can')}
+    >
 
       {!collapsed && (
         <>
@@ -60,8 +60,6 @@ export function ConnectionPanel({
           </div>
         </>
       )}
-
-      {collapsed && <div className="tip">{t('websocket_can')}</div>}
-    </section>
+    </CollapsibleSection>
   );
 }

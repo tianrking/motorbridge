@@ -1,6 +1,8 @@
 import React from 'react';
 import { VENDORS, VENDOR_LABELS } from '../lib/constants';
 import { useI18n } from '../i18n';
+import { ProgressBar } from './ProgressBar';
+import { CollapsibleSection } from './CollapsibleSection';
 
 function setVendorField(setVendors, vendor, field, value) {
   setVendors((prev) => ({
@@ -29,13 +31,11 @@ export function ScanWorkspace({
 }) {
   const { t } = useI18n();
   return (
-    <section className="card glass">
-      <div className="sectionTitle">
-        <h2>{t('section_scan')}</h2>
-        <button className="ghostBtn small" onClick={onToggleScanCollapsed}>
-          {scanCollapsed ? t('expand') : t('collapse')}
-        </button>
-      </div>
+    <CollapsibleSection
+      title={t('section_scan')}
+      collapsed={scanCollapsed}
+      onToggleCollapsed={onToggleScanCollapsed}
+    >
 
       {!connected && <div className="offlineBanner">{t('ws_disconnected_scan')}</div>}
 
@@ -113,19 +113,7 @@ export function ScanWorkspace({
             <button onClick={clearDevices}>{t('clear_list')}</button>
           </div>
 
-          {(scanBusy || scanProgress.active) && (
-            <div className="scanProgressWrap">
-              <div className="scanProgressText">
-                <span>{scanProgress.label || t('scanning')}</span>
-                <span>
-                  {scanProgress.done}/{Math.max(1, scanProgress.total)} ({scanProgress.percent}%)
-                </span>
-              </div>
-              <div className="scanProgressTrack">
-                <div className="scanProgressFill" style={{ width: `${scanProgress.percent}%` }} />
-              </div>
-            </div>
-          )}
+          <ProgressBar active={scanBusy || scanProgress.active} progress={scanProgress} />
 
           {scanFoundFx?.visible && (
             <>
@@ -197,6 +185,6 @@ export function ScanWorkspace({
           </>
         )}
       </div>
-    </section>
+    </CollapsibleSection>
   );
 }

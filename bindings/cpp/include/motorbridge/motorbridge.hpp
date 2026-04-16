@@ -121,7 +121,10 @@ struct ControllerHandle {
   explicit ControllerHandle(MotorController* p) : ptr(p) {}
 
   ~ControllerHandle() {
-    if (ptr) motor_controller_free(ptr);
+    if (ptr) {
+      motor_controller_shutdown(ptr);
+      motor_controller_free(ptr);
+    }
   }
 };
 }  // namespace detail
@@ -149,51 +152,70 @@ class Motor {
   Motor(const Motor&) = delete;
   Motor& operator=(const Motor&) = delete;
 
-  void enable() { check_rc(motor_handle_enable(ptr_), "enable"); }
-  void disable() { check_rc(motor_handle_disable(ptr_), "disable"); }
-  void clear_error() { check_rc(motor_handle_clear_error(ptr_), "clear_error"); }
+  void close() {
+    if (ptr_) {
+      motor_handle_free(ptr_);
+      ptr_ = nullptr;
+    }
+  }
+
+  void enable() { require_open(); check_rc(motor_handle_enable(ptr_), "enable"); }
+  void disable() { require_open(); check_rc(motor_handle_disable(ptr_), "disable"); }
+  void clear_error() { require_open(); check_rc(motor_handle_clear_error(ptr_), "clear_error"); }
   void set_zero_position() {
+    require_open();
     check_rc(motor_handle_set_zero_position(ptr_), "set_zero_position");
   }
   void ensure_mode(Mode mode, uint32_t timeout_ms = 1000) {
+    require_open();
     check_rc(motor_handle_ensure_mode(ptr_, static_cast<uint32_t>(mode), timeout_ms), "ensure_mode");
   }
   void send_mit(float pos, float vel, float kp, float kd, float tau) {
+    require_open();
     check_rc(motor_handle_send_mit(ptr_, pos, vel, kp, kd, tau), "send_mit");
   }
   void send_pos_vel(float pos, float vlim) {
+    require_open();
     check_rc(motor_handle_send_pos_vel(ptr_, pos, vlim), "send_pos_vel");
   }
-  void send_vel(float vel) { check_rc(motor_handle_send_vel(ptr_, vel), "send_vel"); }
+  void send_vel(float vel) { require_open(); check_rc(motor_handle_send_vel(ptr_, vel), "send_vel"); }
   void send_force_pos(float pos, float vlim, float ratio) {
+    require_open();
     check_rc(motor_handle_send_force_pos(ptr_, pos, vlim, ratio), "send_force_pos");
   }
-  void request_feedback() { check_rc(motor_handle_request_feedback(ptr_), "request_feedback"); }
+  void request_feedback() { require_open(); check_rc(motor_handle_request_feedback(ptr_), "request_feedback"); }
   void set_can_timeout_ms(uint32_t timeout_ms) {
+    require_open();
     check_rc(motor_handle_set_can_timeout_ms(ptr_, timeout_ms), "set_can_timeout_ms");
   }
   void store_parameters() {
+    require_open();
     check_rc(motor_handle_store_parameters(ptr_), "store_parameters");
   }
 
   void write_register_f32(uint8_t rid, float value) {
+    require_open();
     check_rc(motor_handle_write_register_f32(ptr_, rid, value), "write_register_f32");
   }
   void write_register_u32(uint8_t rid, uint32_t value) {
+    require_open();
     check_rc(motor_handle_write_register_u32(ptr_, rid, value), "write_register_u32");
   }
   float get_register_f32(uint8_t rid, uint32_t timeout_ms = 1000) {
+    require_open();
     float out = 0.0f;
     check_rc(motor_handle_get_register_f32(ptr_, rid, timeout_ms, &out), "get_register_f32");
     return out;
   }
   uint32_t get_register_u32(uint8_t rid, uint32_t timeout_ms = 1000) {
+    require_open();
     uint32_t out = 0;
     check_rc(motor_handle_get_register_u32(ptr_, rid, timeout_ms, &out), "get_register_u32");
     return out;
   }
 
   std::pair<uint8_t, uint8_t> robstride_ping() {
+    require_open();
     uint8_t device_id = 0;
     uint8_t responder_id = 0;
     check_rc(motor_handle_robstride_ping(ptr_, &device_id, &responder_id), "robstride_ping");
@@ -201,52 +223,85 @@ class Motor {
   }
 
   void robstride_set_device_id(uint8_t new_device_id) {
+    require_open();
     check_rc(motor_handle_robstride_set_device_id(ptr_, new_device_id), "robstride_set_device_id");
   }
 
   void robstride_write_param_i8(uint16_t param_id, int8_t value) {
+    require_open();
     check_rc(motor_handle_robstride_write_param_i8(ptr_, param_id, value), "robstride_write_param_i8");
   }
   void robstride_write_param_u8(uint16_t param_id, uint8_t value) {
+    require_open();
     check_rc(motor_handle_robstride_write_param_u8(ptr_, param_id, value), "robstride_write_param_u8");
   }
   void robstride_write_param_u16(uint16_t param_id, uint16_t value) {
+    require_open();
     check_rc(motor_handle_robstride_write_param_u16(ptr_, param_id, value), "robstride_write_param_u16");
   }
   void robstride_write_param_u32(uint16_t param_id, uint32_t value) {
+    require_open();
     check_rc(motor_handle_robstride_write_param_u32(ptr_, param_id, value), "robstride_write_param_u32");
   }
   void robstride_write_param_f32(uint16_t param_id, float value) {
+    require_open();
     check_rc(motor_handle_robstride_write_param_f32(ptr_, param_id, value), "robstride_write_param_f32");
   }
 
   int8_t robstride_get_param_i8(uint16_t param_id, uint32_t timeout_ms = 1000) {
+    require_open();
     int8_t out = 0;
     check_rc(motor_handle_robstride_get_param_i8(ptr_, param_id, timeout_ms, &out), "robstride_get_param_i8");
     return out;
   }
   uint8_t robstride_get_param_u8(uint16_t param_id, uint32_t timeout_ms = 1000) {
+    require_open();
     uint8_t out = 0;
     check_rc(motor_handle_robstride_get_param_u8(ptr_, param_id, timeout_ms, &out), "robstride_get_param_u8");
     return out;
   }
   uint16_t robstride_get_param_u16(uint16_t param_id, uint32_t timeout_ms = 1000) {
+    require_open();
     uint16_t out = 0;
     check_rc(motor_handle_robstride_get_param_u16(ptr_, param_id, timeout_ms, &out), "robstride_get_param_u16");
     return out;
   }
   uint32_t robstride_get_param_u32(uint16_t param_id, uint32_t timeout_ms = 1000) {
+    require_open();
     uint32_t out = 0;
     check_rc(motor_handle_robstride_get_param_u32(ptr_, param_id, timeout_ms, &out), "robstride_get_param_u32");
     return out;
   }
   float robstride_get_param_f32(uint16_t param_id, uint32_t timeout_ms = 1000) {
+    require_open();
     float out = 0.0f;
     check_rc(motor_handle_robstride_get_param_f32(ptr_, param_id, timeout_ms, &out), "robstride_get_param_f32");
     return out;
   }
 
+  float damiao_get_param_f32(uint16_t param_id, uint32_t timeout_ms = 1000) {
+    require_open();
+    float out = 0.0f;
+    check_rc(motor_handle_damiao_get_param_f32(ptr_, param_id, timeout_ms, &out), "damiao_get_param_f32");
+    return out;
+  }
+  uint32_t damiao_get_param_u32(uint16_t param_id, uint32_t timeout_ms = 1000) {
+    require_open();
+    uint32_t out = 0;
+    check_rc(motor_handle_damiao_get_param_u32(ptr_, param_id, timeout_ms, &out), "damiao_get_param_u32");
+    return out;
+  }
+  void damiao_write_param_f32(uint16_t param_id, float value) {
+    require_open();
+    check_rc(motor_handle_damiao_write_param_f32(ptr_, param_id, value), "damiao_write_param_f32");
+  }
+  void damiao_write_param_u32(uint16_t param_id, uint32_t value) {
+    require_open();
+    check_rc(motor_handle_damiao_write_param_u32(ptr_, param_id, value), "damiao_write_param_u32");
+  }
+
   std::optional<State> get_state() const {
+    require_open();
     MotorState st{};
     check_rc(motor_handle_get_state(ptr_, &st), "get_state");
     if (!st.has_value) return std::nullopt;
@@ -259,6 +314,10 @@ class Motor {
 
   Motor(std::shared_ptr<detail::ControllerHandle> controller, MotorHandle* ptr)
       : controller_(std::move(controller)), ptr_(ptr) {}
+
+  void require_open() const {
+    if (!ptr_) throw Error("motor handle is closed");
+  }
 
   std::shared_ptr<detail::ControllerHandle> controller_;
   MotorHandle* ptr_;
@@ -297,13 +356,21 @@ class Controller {
   Controller& operator=(const Controller&) = delete;
   ~Controller() = default;
 
-  void enable_all() { check_rc(motor_controller_enable_all(handle_->ptr), "enable_all"); }
-  void disable_all() { check_rc(motor_controller_disable_all(handle_->ptr), "disable_all"); }
+  void close() {
+    if (handle_ && handle_->ptr) {
+      motor_controller_free(handle_->ptr);
+      handle_->ptr = nullptr;
+    }
+  }
+
+  void enable_all() { require_open(); check_rc(motor_controller_enable_all(handle_->ptr), "enable_all"); }
+  void disable_all() { require_open(); check_rc(motor_controller_disable_all(handle_->ptr), "disable_all"); }
   void poll_feedback_once() {
+    require_open();
     check_rc(motor_controller_poll_feedback_once(handle_->ptr), "poll_feedback_once");
   }
-  void shutdown() { check_rc(motor_controller_shutdown(handle_->ptr), "shutdown"); }
-  void close_bus() { check_rc(motor_controller_close_bus(handle_->ptr), "close_bus"); }
+  void shutdown() { require_open(); check_rc(motor_controller_shutdown(handle_->ptr), "shutdown"); }
+  void close_bus() { require_open(); check_rc(motor_controller_close_bus(handle_->ptr), "close_bus"); }
 
   Motor add_damiao_motor(uint16_t motor_id, uint16_t feedback_id, const std::string& model) {
     MotorHandle* m = motor_controller_add_damiao_motor(handle_->ptr, motor_id, feedback_id, model.c_str());
@@ -352,6 +419,10 @@ class Controller {
  private:
   explicit Controller(MotorController* raw) {
     handle_ = std::make_shared<detail::ControllerHandle>(raw);
+  }
+
+  void require_open() const {
+    if (!handle_ || !handle_->ptr) throw Error("controller is closed");
   }
 
   std::shared_ptr<detail::ControllerHandle> handle_;

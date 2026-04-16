@@ -180,6 +180,15 @@ class Abi:
         lib.motor_handle_get_state.argtypes = [c_void_p, POINTER(CState)]
         lib.motor_handle_get_state.restype = c_int32
 
+        lib.motor_handle_damiao_get_param_f32.argtypes = [c_void_p, c_uint16, c_uint32, POINTER(c_float)]
+        lib.motor_handle_damiao_get_param_f32.restype = c_int32
+        lib.motor_handle_damiao_get_param_u32.argtypes = [c_void_p, c_uint16, c_uint32, POINTER(c_uint32)]
+        lib.motor_handle_damiao_get_param_u32.restype = c_int32
+        lib.motor_handle_damiao_write_param_f32.argtypes = [c_void_p, c_uint16, c_float]
+        lib.motor_handle_damiao_write_param_f32.restype = c_int32
+        lib.motor_handle_damiao_write_param_u32.argtypes = [c_void_p, c_uint16, c_uint32]
+        lib.motor_handle_damiao_write_param_u32.restype = c_int32
+
 
 _abi_singleton: Abi | None = None
 

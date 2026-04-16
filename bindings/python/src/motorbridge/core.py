@@ -280,6 +280,32 @@ class Motor:
         )
         return float(out.value)
 
+    def damiao_get_param_f32(self, param_id: int, timeout_ms: int = 1000) -> float:
+        out = c_float(0.0)
+        _ok(
+            self._abi.lib.motor_handle_damiao_get_param_f32(
+                self._ptr, param_id, timeout_ms, ctypes.byref(out)
+            ),
+            "damiao_get_param_f32",
+        )
+        return float(out.value)
+
+    def damiao_get_param_u32(self, param_id: int, timeout_ms: int = 1000) -> int:
+        out = c_uint32(0)
+        _ok(
+            self._abi.lib.motor_handle_damiao_get_param_u32(
+                self._ptr, param_id, timeout_ms, ctypes.byref(out)
+            ),
+            "damiao_get_param_u32",
+        )
+        return int(out.value)
+
+    def damiao_write_param_f32(self, param_id: int, value: float) -> None:
+        _ok(self._abi.lib.motor_handle_damiao_write_param_f32(self._ptr, param_id, value), "damiao_write_param_f32")
+
+    def damiao_write_param_u32(self, param_id: int, value: int) -> None:
+        _ok(self._abi.lib.motor_handle_damiao_write_param_u32(self._ptr, param_id, value), "damiao_write_param_u32")
+
     def get_state(self) -> MotorState | None:
         st = CState()
         _ok(self._abi.lib.motor_handle_get_state(self._ptr, ctypes.byref(st)), "get_state")

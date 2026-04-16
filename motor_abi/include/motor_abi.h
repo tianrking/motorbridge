@@ -94,6 +94,11 @@ int32_t motor_handle_robstride_get_param_f32(MotorHandle* motor, uint16_t param_
 
 int32_t motor_handle_get_state(MotorHandle* motor, MotorState* out_state);
 
+int32_t motor_handle_damiao_get_param_f32(MotorHandle* motor, uint16_t param_id, uint32_t timeout_ms, float* out_value);
+int32_t motor_handle_damiao_get_param_u32(MotorHandle* motor, uint16_t param_id, uint32_t timeout_ms, uint32_t* out_value);
+int32_t motor_handle_damiao_write_param_f32(MotorHandle* motor, uint16_t param_id, float value);
+int32_t motor_handle_damiao_write_param_u32(MotorHandle* motor, uint16_t param_id, uint32_t value);
+
 #ifdef __cplusplus
 }
 #endif

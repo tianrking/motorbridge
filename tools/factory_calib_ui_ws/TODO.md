@@ -19,40 +19,40 @@
 
 ## P1 核心结构重构
 
-- [ ] 拆分 `src/hooks/useMotorStudio.js`（当前 God Hook）
-  - [ ] `useConnectionState`：WS 连接与配置
-  - [ ] `useScanState`：扫描相关状态与流程
-  - [ ] `useMotorControl`：电机控制操作
-  - [ ] `useRobotArm`：机械臂批量流程
-  - [ ] `usePreferences`：UI 偏好与持久化
-  - [ ] 引入 Context，减少 App 层 60+ props 透传
+- [x] 拆分 `src/hooks/useMotorStudio.js`（当前 God Hook）
+  - [x] `useConnectionState`：WS 连接与配置
+  - [x] `useScanState`：扫描相关状态与流程
+  - [x] `useMotorControl`：电机控制操作
+  - [x] `useRobotArm`：机械臂批量流程
+  - [x] `usePreferences`：UI 偏好与持久化
+  - [x] 引入 Context，减少 App 层 60+ props 透传
 
-- [ ] 拆分 `src/components/RobotArmPage.jsx`（当前巨型组件）
-  - [ ] `JointList`
-  - [ ] `JointControlPanel`
-  - [ ] `ParamTable`
-  - [ ] `SelfCheckReport`
-  - [ ] `ZeroConfirmDialog`
+- [x] 拆分 `src/components/RobotArmPage.jsx`（当前巨型组件）
+  - [x] `JointList`
+  - [x] `JointControlPanel`
+  - [x] `ParamTable`
+  - [x] `SelfCheckReport`
+  - [x] `ZeroConfirmDialog`
 
 ## P2 可维护性收口
 
-- [ ] 硬编码常量集中管理
-  - [ ] WS URL 默认值（`ws://127.0.0.1:9002`）
-  - [ ] 默认通道（`can0`）
-  - [ ] 前端端口（`18110`）
-  - [ ] 超时常量（3000~12000）
-  - [ ] 达妙寄存器 ID（10, 24-28）
-  - [ ] 关节限位配置迁移到独立模块（如 `robotArm.js`）
+- [x] 硬编码常量集中管理
+  - [x] WS URL 默认值（`ws://127.0.0.1:9002`）
+  - [x] 默认通道（`can0`）
+  - [x] 前端端口（`18110`）
+  - [x] 超时常量（3000~12000）
+  - [x] 达妙寄存器 ID（10, 24-28）
+  - [x] 关节限位配置迁移到独立模块（如 `robotArm.js`）
 
-- [ ] Vendor 逻辑聚合
-  - [ ] 把达妙/RobStride 逻辑从页面与 hook 内联 if 分支抽到 vendor 模块
-  - [ ] 统一模型候选、扫描 payload、寄存器映射
+- [x] Vendor 逻辑聚合
+  - [x] 把达妙/RobStride 逻辑从页面与 hook 内联 if 分支抽到 vendor 模块
+  - [x] 统一模型候选、扫描 payload、寄存器映射
 
 ## P3 工程化增强（后置）
 
-- [ ] TypeScript 迁移（逐步）
-- [ ] 测试基建（Vitest/Jest + 核心 hook/组件测试）
-- [ ] ESLint + Prettier 统一规范
+- [x] TypeScript 迁移（逐步）
+- [x] 测试基建（Vitest/Jest + 核心 hook/组件测试）
+- [x] ESLint + Prettier 统一规范
 
 ## 执行顺序（建议）
 

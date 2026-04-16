@@ -3,6 +3,7 @@ import { VENDORS, VENDOR_LABELS } from '../lib/constants';
 import { useI18n } from '../i18n';
 import { ProgressBar } from './ProgressBar';
 import { CollapsibleSection } from './CollapsibleSection';
+import { useMotorStudioContext } from '../hooks/useMotorStudioContext';
 
 function setVendorField(setVendors, vendor, field, value) {
   setVendors((prev) => ({
@@ -11,30 +12,31 @@ function setVendorField(setVendors, vendor, field, value) {
   }));
 }
 
-export function ScanWorkspace({
-  vendors,
-  setVendors,
-  connected,
-  canAction,
-  scanBusy,
-  scanProgress,
-  scanFoundFx,
-  runScan,
-  clearDevices,
-  manualDraft,
-  setManualDraft,
-  addManualCard,
-  scanCollapsed,
-  onToggleScanCollapsed,
-  manualCollapsed,
-  onToggleManualCollapsed,
-}) {
+export function ScanWorkspace() {
   const { t } = useI18n();
+  const {
+    vendors,
+    setVendors,
+    connected,
+    canAction,
+    scanBusy,
+    scanProgress,
+    scanFoundFx,
+    runScan,
+    clearDevices,
+    manualDraft,
+    setManualDraft,
+    addManualCard,
+    uiPrefs,
+    toggleUiPref,
+  } = useMotorStudioContext();
+  const scanCollapsed = uiPrefs.sectionScanCollapsed;
+  const manualCollapsed = uiPrefs.sectionManualCollapsed;
   return (
     <CollapsibleSection
       title={t('section_scan')}
       collapsed={scanCollapsed}
-      onToggleCollapsed={onToggleScanCollapsed}
+      onToggleCollapsed={() => toggleUiPref('sectionScanCollapsed')}
     >
 
       {!connected && <div className="offlineBanner">{t('ws_disconnected_scan')}</div>}
@@ -136,7 +138,7 @@ export function ScanWorkspace({
       <div className="manualCard">
         <div className="sectionTitle">
           <h2>{t('section_manual')}</h2>
-          <button className="ghostBtn small" onClick={onToggleManualCollapsed}>
+          <button className="ghostBtn small" onClick={() => toggleUiPref('sectionManualCollapsed')}>
             {manualCollapsed ? t('expand') : t('collapse')}
           </button>
         </div>

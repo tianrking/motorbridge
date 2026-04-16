@@ -9,6 +9,7 @@ import {
   toHex,
 } from './utils';
 import { VENDORS } from './constants';
+import { buildScanPayloadExtras, getVendorModels, getVendorScanDefaults } from './vendors';
 
 export async function runScanOp({
   connected,
@@ -59,7 +60,7 @@ export async function runScanOp({
       const startId = parseNum(cfg.startId, 1);
       const endId = parseNum(cfg.endId, 16);
       const count = Math.max(1, endId - startId + 1);
-      const models = vendor === 'damiao' ? damiaoModelCandidates(cfg.model) : [cfg.model || vendor];
+      const models = getVendorModels(vendor, cfg.model, damiaoModelCandidates);
       for (const model of models) phases.push({ vendor, model, count });
     }
 
@@ -74,7 +75,7 @@ export async function runScanOp({
       const timeout = Math.max(120, parseNum(scanTimeoutMs, 500));
       pushLog(`scan start ${vendor}:${toHex(startId)}..${toHex(endId)}`);
 
-      const models = vendor === 'damiao' ? damiaoModelCandidates(cfg.model) : [cfg.model || vendor];
+      const models = getVendorModels(vendor, cfg.model, damiaoModelCandidates);
       let vendorHits = [];
 
       for (const model of models) {
@@ -102,12 +103,7 @@ export async function runScanOp({
         updateProgress(false);
         progressTimer = setInterval(() => updateProgress(false), 160);
 
-        const defaultFid =
-          vendor === 'robstride'
-            ? parseNum(cfg.feedbackId, 0xFF)
-            : vendor === 'damiao'
-              ? parseNum(cfg.feedbackBase, 0x10) + (startId & 0x0f)
-              : 0;
+        const defaultFid = getVendorScanDefaults(vendor, cfg, startId);
 
         await setTargetFor(vendor, model, startId, defaultFid);
 
@@ -117,8 +113,7 @@ export async function runScanOp({
           end_id: endId,
           timeout_ms: timeout,
         };
-        if (vendor === 'damiao') scanPayload.feedback_base = parseNum(cfg.feedbackBase, 0x10);
-        if (vendor === 'robstride') scanPayload.feedback_ids = [parseNum(cfg.feedbackId, 0xFF)];
+        Object.assign(scanPayload, buildScanPayloadExtras(vendor, cfg));
 
         const rangeCount = Math.max(1, endId - startId + 1);
         const scanWaitMs = Math.min(180000, Math.max(30000, rangeCount * timeout * 4));

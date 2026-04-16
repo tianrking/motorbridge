@@ -24,7 +24,7 @@ export function useGatewayBridge({ wsUrl, channel, pushLog, setStateSnapshot }) 
   const reconnectDelayMs = (attempt) => {
     const base = 600;
     const max = 5000;
-    const exp = Math.min(max, base * (2 ** Math.max(0, attempt)));
+    const exp = Math.min(max, base * 2 ** Math.max(0, attempt));
     return exp + Math.floor(Math.random() * 300);
   };
 
@@ -45,7 +45,11 @@ export function useGatewayBridge({ wsUrl, channel, pushLog, setStateSnapshot }) 
       clientRef.current = new WsGatewayClient({
         onEvent: (msg, lvl = 'info') => {
           const text = String(msg || '');
-          if (text.startsWith('ws msg:') || text.startsWith('async ws message:') || text.startsWith('tx:')) {
+          if (
+            text.startsWith('ws msg:') ||
+            text.startsWith('async ws message:') ||
+            text.startsWith('tx:')
+          ) {
             return;
           }
           pushLog(msg, lvl);
@@ -79,8 +83,8 @@ export function useGatewayBridge({ wsUrl, channel, pushLog, setStateSnapshot }) 
                   },
                 },
                 null,
-                2,
-              ),
+                2
+              )
             );
             return;
           }
@@ -170,7 +174,7 @@ export function useGatewayBridge({ wsUrl, channel, pushLog, setStateSnapshot }) 
         motor_id: motorId,
         feedback_id: feedbackId,
       },
-      10000,
+      10000
     );
     if (!ret.ok) throw new Error(ret.error || 'set_target failed');
   };

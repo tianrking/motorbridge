@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { defaultControlsForHit, motorKey } from '../lib/utils';
 import { sleep } from '../lib/async';
 import {
@@ -34,7 +34,7 @@ export function useRobotArmStudio({
   const [robotArmModel, setRobotArmModelState] = usePersistedState(
     LS_ROBOT_ARM_MODEL_KEY,
     ROBOT_ARM_MODELS[0].key,
-    (cached, fallback) => normalizeRobotArmModel(cached || fallback),
+    (cached, fallback) => normalizeRobotArmModel(cached || fallback)
   );
 
   const setRobotArmModel = (nextRaw) => {
@@ -45,7 +45,7 @@ export function useRobotArmStudio({
         const j = ROBOT_ARM_JOINTS.find((x) => isProfileJointHit(h, next, x));
         if (!j) return h;
         return { ...h, arm_profile: next, joint: j.joint };
-      }),
+      })
     );
   };
 
@@ -72,7 +72,12 @@ export function useRobotArmStudio({
             online: old.online ?? false,
           };
         } else {
-          merged.push({ ...h, model: defaultMotorModel, model_guess: defaultMotorModel, arm_profile: profile });
+          merged.push({
+            ...h,
+            model: defaultMotorModel,
+            model_guess: defaultMotorModel,
+            arm_profile: profile,
+          });
         }
       }
       return merged;
@@ -99,7 +104,7 @@ export function useRobotArmStudio({
         const control = controls[key] || defaultControlsForHit(hit);
         return { joint: j.joint, hit, control, key };
       }),
-    [hits, controls, robotArmModel],
+    [hits, controls, robotArmModel]
   );
 
   const scanRobotArmJoint = async (jointNumber) => {

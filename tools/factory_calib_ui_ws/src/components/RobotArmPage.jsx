@@ -1,33 +1,20 @@
 import React from 'react';
 import { useI18n } from '../i18n';
-import { ROBOT_ARM_MODELS } from '../lib/robotArm';
-import { parseNum, toHex } from '../lib/utils';
+import {
+  REBOT_ARM_DAMIAO_DEFAULT_TEMPLATE,
+  REBOT_ARM_JOINT_LIMITS,
+  ROBOT_ARM_MODELS,
+  ZERO_SAFE_EPS_RAD,
+} from '../lib/robotArm';
+import { parseNum } from '../lib/utils';
 import { ArmUrdfViewer } from './ArmUrdfViewer';
 import { ProgressBar } from './ProgressBar';
-
-function numText(v, digits = 3) {
-  return Number.isFinite(v) ? Number(v).toFixed(digits) : '-';
-}
-
-const REBOT_ARM_DAMIAO_DEFAULT_TEMPLATE = {
-  1: { ctrlMode: '2', currentBw: '1000', velKp: '0.0125', velKi: '0.004', posKp: '150', posKi: '0.5' },
-  2: { ctrlMode: '2', currentBw: '1000', velKp: '0.013', velKi: '0.004', posKp: '200', posKi: '10' },
-  3: { ctrlMode: '2', currentBw: '1000', velKp: '0.013', velKi: '0.004', posKp: '200', posKi: '10' },
-  4: { ctrlMode: '2', currentBw: '1000', velKp: '0.0008', velKi: '0.002', posKp: '50', posKi: '1' },
-  5: { ctrlMode: '2', currentBw: '1000', velKp: '0.0008', velKi: '0.002', posKp: '50', posKi: '1' },
-  6: { ctrlMode: '2', currentBw: '1000', velKp: '0.0008', velKi: '0.002', posKp: '50', posKi: '1' },
-};
-
-const REBOT_ARM_JOINT_LIMITS = {
-  1: { min: -2.61, max: 2.61 },
-  2: { min: -3.7, max: 0.0 },
-  3: { min: -3.7, max: 0.0 },
-  4: { min: -1.57, max: 1.57 },
-  5: { min: -1.57, max: 1.57 },
-  6: { min: -1.57, max: 1.57 },
-  7: { min: -5.7, max: 0.0 },
-};
-const ZERO_SAFE_EPS_RAD = 0.08;
+import { useMotorStudioContext } from '../hooks/useMotorStudioContext';
+import { JointList } from './robot-arm/JointList';
+import { JointControlPanel } from './robot-arm/JointControlPanel';
+import { ParamTable } from './robot-arm/ParamTable';
+import { SelfCheckReport } from './robot-arm/SelfCheckReport';
+import { ZeroConfirmDialog } from './robot-arm/ZeroConfirmDialog';
 
 function jointLimit(joint) {
   return REBOT_ARM_JOINT_LIMITS[Number(joint)] || { min: -3.14, max: 3.14 };
@@ -37,35 +24,36 @@ function clampByLimit(value, lim) {
   return Math.max(lim.min, Math.min(lim.max, value));
 }
 
-export function RobotArmPage({
-  connected,
-  canAction,
-  robotArmModel,
-  armScanBusy,
-  armScanProgress,
-  armBulkBusy,
-  armSelfCheckBusy,
-  armSelfCheckProgress,
-  armSelfCheckReport,
-  setRobotArmModel,
-  robotArmJointRows,
-  ensureRobotArmCards,
-  scanRobotArmJoint,
-  scanRobotArmAll,
-  runRobotArmSelfCheck,
-  enableAllRobotArm,
-  disableAllRobotArm,
-  zeroAllRobotArm,
-  resetPoseRobotArm,
-  readRobotArmControlParams,
-  writeRobotArmControlParams,
-  patchControl,
-  controlMotor,
-  refreshMotorState,
-  uiPrefs,
-  setUiPref,
-}) {
+export function RobotArmPage() {
   const { t } = useI18n();
+  const {
+    connected,
+    canAction,
+    robotArmModel,
+    armScanBusy,
+    armScanProgress,
+    armBulkBusy,
+    armSelfCheckBusy,
+    armSelfCheckProgress,
+    armSelfCheckReport,
+    setRobotArmModel,
+    robotArmJointRows,
+    ensureRobotArmCards,
+    scanRobotArmJoint,
+    scanRobotArmAll,
+    runRobotArmSelfCheck,
+    enableAllRobotArm,
+    disableAllRobotArm,
+    zeroAllRobotArm,
+    resetPoseRobotArm,
+    readRobotArmControlParams,
+    writeRobotArmControlParams,
+    patchControl,
+    controlMotor,
+    refreshMotorState,
+    uiPrefs,
+    setUiPref,
+  } = useMotorStudioContext();
   const [activeJointKey, setActiveJointKey] = React.useState('');
   const [paramPanelOpen, setParamPanelOpen] = React.useState(false);
   const [paramBusy, setParamBusy] = React.useState(false);
@@ -437,25 +425,14 @@ export function RobotArmPage({
           {limitToast.message}
         </div>
       )}
-      {zeroConfirm.open && (
-        <div className="armDialogMask" role="dialog" aria-modal="true" aria-live="assertive">
-          <div className="armDialogCard">
-            <h3>{zeroConfirm.title || t('arm_zero_all_confirm_title')}</h3>
-            <p>{zeroConfirm.message}</p>
-            <div className="row toolbar compactToolbar">
-              <button className="ghostBtn" onClick={() => closeZeroConfirm(false)}>
-                {t('cancel')}
-              </button>
-              <button
-                className={zeroConfirm.danger ? 'dangerBtn' : 'primary'}
-                onClick={() => closeZeroConfirm(true)}
-              >
-                {t('confirm')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ZeroConfirmDialog
+        open={zeroConfirm.open}
+        title={zeroConfirm.title}
+        message={zeroConfirm.message}
+        danger={zeroConfirm.danger}
+        onCancel={() => closeZeroConfirm(false)}
+        onConfirm={() => closeZeroConfirm(true)}
+      />
       {firstUseOpen && (
         <div className="armDialogMask" role="dialog" aria-modal="true">
           <div className="armDialogCard">
@@ -531,103 +508,20 @@ export function RobotArmPage({
         </button>
       </div>
 
-      {paramPanelOpen && (
-        <div className="armParamPanel">
-          <div className="sectionTitle armPaneTitle">
-            <h2>{t('arm_params_title')}</h2>
-            <span className="tip">{t('arm_params_hint')}</span>
-          </div>
-          <div className="row toolbar compactToolbar">
-            <button disabled={!canAction || armToolbarBusy} onClick={readParams}>
-              {t('arm_read_params')}
-            </button>
-            <button className="primary" disabled={!canAction || armToolbarBusy} onClick={writeParams}>
-              {t('arm_write_params')}
-            </button>
-            <button disabled={!canAction || armToolbarBusy} onClick={applyDefaultTemplate}>
-              {t('arm_apply_default_template')}
-            </button>
-            <button className="ghostBtn" disabled={armToolbarBusy} onClick={() => setParamPanelOpen(false)}>
-              {t('close')}
-            </button>
-          </div>
-          {paramInfo && <div className="tip">{paramInfo}</div>}
-          <ProgressBar active={paramBusy || paramProgress?.active} progress={paramProgress} />
-          <div className="armParamTableWrap">
-            <table className="armParamTable">
-              <thead>
-                <tr>
-                  <th>{t('joint')}</th>
-                  <th>{t('arm_ctrl_mode')}</th>
-                  <th>{t('arm_current_bw')}</th>
-                  <th>{t('arm_vel_kp')}</th>
-                  <th>{t('arm_vel_ki')}</th>
-                  <th>{t('arm_pos_kp')}</th>
-                  <th>{t('arm_pos_ki')}</th>
-                  <th>{t('status')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paramRows.map((row) => (
-                  <tr key={row.key}>
-                    <td>{row.joint}</td>
-                    <td>
-                      <select
-                        value={row.values.ctrlMode}
-                        onChange={(e) => patchParam(row.key, 'ctrlMode', e.target.value)}
-                        disabled={paramBusy}
-                      >
-                        <option value="1">1: MIT</option>
-                        <option value="2">2: PosVel</option>
-                        <option value="3">3: Vel</option>
-                        <option value="4">4: ForcePos</option>
-                      </select>
-                    </td>
-                    <td>
-                      <input
-                        value={row.values.currentBw}
-                        onChange={(e) => patchParam(row.key, 'currentBw', e.target.value)}
-                        disabled={paramBusy}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        value={row.values.velKp}
-                        onChange={(e) => patchParam(row.key, 'velKp', e.target.value)}
-                        disabled={paramBusy}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        value={row.values.velKi}
-                        onChange={(e) => patchParam(row.key, 'velKi', e.target.value)}
-                        disabled={paramBusy}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        value={row.values.posKp}
-                        onChange={(e) => patchParam(row.key, 'posKp', e.target.value)}
-                        disabled={paramBusy}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        value={row.values.posKi}
-                        onChange={(e) => patchParam(row.key, 'posKi', e.target.value)}
-                        disabled={paramBusy}
-                      />
-                    </td>
-                    <td className={row.error ? 'errText' : ''}>
-                      {row.error || (row.loaded ? t('ok') : '-')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      <ParamTable
+        open={paramPanelOpen}
+        canAction={canAction}
+        armToolbarBusy={armToolbarBusy}
+        paramBusy={paramBusy}
+        paramInfo={paramInfo}
+        paramProgress={paramProgress}
+        paramRows={paramRows}
+        patchParam={patchParam}
+        readParams={readParams}
+        writeParams={writeParams}
+        applyDefaultTemplate={applyDefaultTemplate}
+        onClose={() => setParamPanelOpen(false)}
+      />
 
       <ProgressBar active={armScanBusy || armScanProgress?.active} progress={armScanProgress} />
 
@@ -637,19 +531,7 @@ export function RobotArmPage({
         progress={armSelfCheckProgress}
         fallbackLabel={t('arm_self_check_running')}
       />
-      {armSelfCheckReport && (
-        <div className={`armSelfCheckCard ${armSelfCheckReport.ok ? 'ok' : 'err'}`}>
-          <div className="sectionTitle">
-            <h2>{t('arm_self_check_result')}</h2>
-            <span className="chip">{armSelfCheckReport.ok ? t('arm_self_check_pass') : t('arm_self_check_fail')}</span>
-          </div>
-          <div className="armMeta">
-            <span>{t('arm_self_check_online')}: {armSelfCheckReport.onlineCount}/{armSelfCheckReport.total}</span>
-            <span>{t('arm_self_check_param')}: ok={armSelfCheckReport.paramOkCount}, fail={armSelfCheckReport.paramFailCount}</span>
-          </div>
-          <div className="tip">{t('arm_self_check_reason')}: {armSelfCheckReport.reason}</div>
-        </div>
-      )}
+      <SelfCheckReport report={armSelfCheckReport} />
       {!zeroSafety.ok && (
         <div className="tip warnText">
           {t('arm_zero_all_guard_hint')} · {t('arm_zero_all_blocked', {
@@ -660,203 +542,32 @@ export function RobotArmPage({
       )}
 
       <div className="armStudio">
-        <div className="armLeftPane">
-          <div className="sectionTitle armPaneTitle">
-            <h2>{t('arm_left_joints')}</h2>
-            <span className="tip">{robotArmJointRows.length}/7</span>
-          </div>
-          <div className="armJointList">
-            {robotArmJointRows.map((row) => (
-              <div
-                key={row.key}
-                className={`armJointCard ${activeRow?.key === row.key ? 'active' : ''}`}
-                onClick={() => setActiveJointKey(row.key)}
-              >
-                <div className="armCardHead">
-                  <strong>
-                    {t('joint')} {row.joint}
-                  </strong>
-                  <span className={`chip ${row.hit.online === false ? '' : 'chipOk'}`}>
-                    {row.hit.online === false ? t('offline') : t('online_unknown')}
-                  </span>
-                </div>
-                <div className="armMeta">
-                  <span>ESC {toHex(row.hit.esc_id)}</span>
-                  <span>MST {toHex(row.hit.mst_id)}</span>
-                </div>
-                <div className="armMeta">
-                  <span>{t('pos')} {numText(row.hit.pos)}</span>
-                  <span>{t('vel')} {numText(row.hit.vel)}</span>
-                  <span>{t('torq')} {numText(row.hit.torq)}</span>
-                </div>
-                <div className="row compactToolbar">
-                  <button
-                    className="small ghostBtn"
-                    disabled={!connected}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      scanRobotArmJoint(row.joint);
-                    }}
-                  >
-                    {t('arm_scan_joint')}
-                  </button>
-                  <button
-                    className="small ghostBtn"
-                    disabled={!connected}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      refreshMotorState(row.hit);
-                    }}
-                  >
-                    {t('refresh_state')}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <JointList
+          robotArmJointRows={robotArmJointRows}
+          activeRowKey={activeRow?.key}
+          onSelect={setActiveJointKey}
+          connected={connected}
+          scanRobotArmJoint={scanRobotArmJoint}
+          refreshMotorState={refreshMotorState}
+        />
 
         <div className="armRightPane">
-          {activeRow && (
-            <div className="armControlPanel">
-              <div className="sectionTitle armPaneTitle">
-                <h2>
-                  {t('arm_right_control')} · {t('joint')} {activeRow.joint}
-                </h2>
-                <span className="tip">
-                  ESC {toHex(activeRow.hit.esc_id)} / MST {toHex(activeRow.hit.mst_id)}
-                </span>
-              </div>
-
-              <div className="grid3 tight armFields">
-                <div className="field">
-                  <label>{t('mode')}</label>
-                  <select
-                    value={activeRow.control.mode}
-                    onChange={(e) => patchControl(activeRow.key, { mode: e.target.value })}
-                  >
-                    <option value="pos_vel">pos_vel</option>
-                    <option value="mit">mit</option>
-                    <option value="vel">vel</option>
-                    <option value="force_pos">force_pos</option>
-                  </select>
-                </div>
-                <div className="field">
-                  <label>{t('vlim')}</label>
-                  <input
-                    value={activeRow.control.vlim}
-                    onChange={(e) => patchControl(activeRow.key, { vlim: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label>{t('tau')}</label>
-                  <input
-                    value={activeRow.control.tau}
-                    onChange={(e) => patchControl(activeRow.key, { tau: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label>{t('kp')}</label>
-                  <input
-                    value={activeRow.control.kp}
-                    onChange={(e) => patchControl(activeRow.key, { kp: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label>{t('kd')}</label>
-                  <input
-                    value={activeRow.control.kd}
-                    onChange={(e) => patchControl(activeRow.key, { kd: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label>{t('target')}</label>
-                  <input
-                    value={activeRow.control.target}
-                    onChange={(e) => onSliderTargetChange(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="field armSliderWrap">
-                <label>
-                  {t('arm_pos_slider')}: {sliderValue.toFixed(3)}
-                </label>
-                <input
-                  type="range"
-                  min={String(jointLimit(activeRow.joint).min)}
-                  max={String(jointLimit(activeRow.joint).max)}
-                  step="0.01"
-                  value={sliderValue}
-                  onChange={(e) => onSliderTargetChange(e.target.value)}
-                />
-                <div className="armSliderMeta">
-                  <label className="armLiveToggle">
-                    <input
-                      type="checkbox"
-                      checked={liveMove}
-                      disabled={perJointBusy}
-                      onChange={(e) => setUiPref('armSliderLiveMove', e.target.checked)}
-                    />
-                    <span>{t('arm_live_move')}</span>
-                  </label>
-                  <span>{liveMove ? t('arm_live_move_on') : t('arm_live_move_off')}</span>
-                </div>
-                <div className="armSliderMeta">
-                  <span>
-                    {t('arm_pos_range_hint')}: {jointLimit(activeRow.joint).min.toFixed(2)} ..{' '}
-                    {jointLimit(activeRow.joint).max.toFixed(2)}
-                  </span>
-                  <input
-                    className="armPosInput"
-                    value={activeRow.control.target}
-                    disabled={perJointBusy}
-                    onChange={(e) => onSliderTargetChange(e.target.value)}
-                  />
-                </div>
-                {limitWarn && <div className="tip warnText">{limitWarn}</div>}
-              </div>
-
-              <div className="row toolbar compactToolbar">
-                <button disabled={!connected || perJointBusy} onClick={() => controlMotor(activeRow.hit, 'enable')}>
-                  {t('enable')}
-                </button>
-                <button disabled={!connected || perJointBusy} onClick={() => controlMotor(activeRow.hit, 'disable')}>
-                  {t('disable')}
-                </button>
-                <button
-                  className="primary"
-                  disabled={!connected || perJointBusy}
-                  onClick={() => {
-                    const checked = clampTargetForRow(activeRow, activeRow.control.target);
-                    if (checked.clipped) {
-                      const msg = t('arm_limit_blocked', {
-                        joint: activeRow.joint,
-                        req: checked.raw.toFixed(3),
-                        min: checked.lim.min.toFixed(3),
-                        max: checked.lim.max.toFixed(3),
-                        use: checked.clamped.toFixed(3),
-                      });
-                      setLimitWarn(msg);
-                      showLimitToast(msg);
-                      patchControl(activeRow.key, { target: String(checked.clamped) });
-                    } else {
-                      setLimitWarn('');
-                    }
-                    controlMotor(activeRow.hit, 'move', { target: String(checked.clamped) });
-                  }}
-                >
-                  {t('move')}
-                </button>
-                <button disabled={!connected || perJointBusy} onClick={() => controlMotor(activeRow.hit, 'stop')}>
-                  {t('stop')}
-                </button>
-                <button disabled={!connected || perJointBusy} onClick={() => refreshMotorState(activeRow.hit)}>
-                  {t('refresh_state')}
-                </button>
-              </div>
-            </div>
-          )}
+          <JointControlPanel
+            activeRow={activeRow}
+            perJointBusy={perJointBusy}
+            liveMove={liveMove}
+            sliderValue={sliderValue}
+            limitWarn={limitWarn}
+            patchControl={patchControl}
+            onSliderTargetChange={onSliderTargetChange}
+            jointLimit={jointLimit}
+            setUiPref={setUiPref}
+            controlMotor={controlMotor}
+            refreshMotorState={refreshMotorState}
+            clampTargetForRow={clampTargetForRow}
+            setLimitWarn={setLimitWarn}
+            showLimitToast={showLimitToast}
+          />
 
           <div className="armSimPanel">
             <div className="sectionTitle armPaneTitle">

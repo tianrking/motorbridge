@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useI18n } from '../i18n';
+import { useMotorStudioContext } from '../hooks/useMotorStudioContext';
 
 function downloadText(filename, text) {
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
@@ -11,16 +12,11 @@ function downloadText(filename, text) {
   URL.revokeObjectURL(url);
 }
 
-export function StateLogsPanel({
-  stateSnapshot,
-  logs,
-  clearLogs,
-  stateCollapsed,
-  onToggleStateCollapsed,
-  logsCollapsed,
-  onToggleLogsCollapsed,
-}) {
+export function StateLogsPanel() {
   const { t } = useI18n();
+  const { stateSnapshot, logs, clearLogs, uiPrefs, toggleUiPref } = useMotorStudioContext();
+  const stateCollapsed = uiPrefs.sectionStateCollapsed;
+  const logsCollapsed = uiPrefs.sectionLogsCollapsed;
   const [levelFilter, setLevelFilter] = useState('all');
 
   const filteredLogs = useMemo(() => {
@@ -43,7 +39,7 @@ export function StateLogsPanel({
       <div>
         <div className="sectionTitle">
           <h2>{t('section_state')}</h2>
-          <button className="ghostBtn small" onClick={onToggleStateCollapsed}>
+          <button className="ghostBtn small" onClick={() => toggleUiPref('sectionStateCollapsed')}>
             {stateCollapsed ? t('expand') : t('collapse')}
           </button>
         </div>
@@ -53,7 +49,7 @@ export function StateLogsPanel({
       <div>
         <div className="sectionTitle">
           <h2>{t('section_logs')}</h2>
-          <button className="ghostBtn small" onClick={onToggleLogsCollapsed}>
+          <button className="ghostBtn small" onClick={() => toggleUiPref('sectionLogsCollapsed')}>
             {logsCollapsed ? t('expand') : t('collapse')}
           </button>
         </div>

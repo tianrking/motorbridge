@@ -7,6 +7,8 @@ import {
   toHex,
 } from './utils';
 import { SET_ID_VENDORS } from './constants';
+import { CMD_TIMEOUTS } from './appConfig';
+import { buildProbePayload, buildSetIdPayload } from './vendors';
 
 export async function verifyHitOp({ h, vendors, setTargetFor, sendCmd, setHits, closeBusQuietly, pushLog }) {
   try {
@@ -19,7 +21,7 @@ export async function verifyHitOp({ h, vendors, setTargetFor, sendCmd, setHits, 
         feedback_id: h.mst_id,
         timeout_ms: 1200,
       },
-      8000,
+      CMD_TIMEOUTS.verifyMs,
     );
 
     if (!ret.ok) {
@@ -56,26 +58,8 @@ export async function setIdForOp({ h, controls, vendors, setTargetFor, sendCmd, 
 
   try {
     await setTargetFor(h.vendor, h.model || vendors[h.vendor].model, h.esc_id, h.mst_id);
-    const payload =
-      h.vendor === 'damiao'
-        ? {
-            vendor: 'damiao',
-            old_motor_id: h.esc_id,
-            old_feedback_id: h.mst_id,
-            new_motor_id: newEsc,
-            new_feedback_id: newMst,
-            store: true,
-            verify: true,
-          }
-        : {
-            vendor: 'robstride',
-            old_motor_id: h.esc_id,
-            new_motor_id: newEsc,
-            feedback_id: h.mst_id,
-            verify: true,
-          };
-
-    const ret = await sendCmd('set_id', payload, 12000);
+    const payload = buildSetIdPayload(h.vendor, h, newEsc, newMst);
+    const ret = await sendCmd('set_id', payload, CMD_TIMEOUTS.setIdMs);
     if (!ret.ok) {
       pushLog(`set-id ${h.vendor} failed: ${ret.error || 'unknown'}`, 'err');
     } else {
@@ -112,7 +96,7 @@ export async function controlMotorOp({
     await setTargetFor(h.vendor, h.model || vendors[h.vendor].model, h.esc_id, h.mst_id);
 
     if (action === 'enable' || action === 'disable' || action === 'stop') {
-      const ret = await sendCmd(action, { vendor: h.vendor }, 6000);
+      const ret = await sendCmd(action, { vendor: h.vendor }, CMD_TIMEOUTS.controlMs);
       if (!ret.ok) throw new Error(ret.error || `${action} failed`);
       pushLog(`${action} ${h.vendor} ${toHex(h.esc_id)} ok`, 'ok');
       if (action === 'enable' || action === 'disable') {
@@ -137,7 +121,7 @@ export async function controlMotorOp({
       payload = { vendor: h.vendor, continuous: false, pos: target, vlim, ratio, ensure_timeout_ms: 2000 };
     }
 
-    const ret = await sendCmd(op, payload, 8000);
+    const ret = await sendCmd(op, payload, CMD_TIMEOUTS.verifyMs);
     if (!ret.ok) throw new Error(ret.error || `${op} failed`);
 
     pushLog(`move ${h.vendor} ${toHex(h.esc_id)} mode=${c.mode} target=${target.toFixed(3)} ok`, 'ok');
@@ -169,10 +153,10 @@ export async function zeroMotorOp({
   try {
     await setTargetFor(h.vendor, h.model || vendors[h.vendor].model, h.esc_id, h.mst_id);
 
-    const zeroRet = await sendCmd('set_zero_position', { vendor: h.vendor }, 6000);
+    const zeroRet = await sendCmd('set_zero_position', { vendor: h.vendor }, CMD_TIMEOUTS.controlMs);
     if (!zeroRet.ok) throw new Error(zeroRet.error || 'set_zero_position failed');
 
-    const storeRet = await sendCmd('store_parameters', { vendor: h.vendor }, 6000);
+    const storeRet = await sendCmd('store_parameters', { vendor: h.vendor }, CMD_TIMEOUTS.controlMs);
     if (!storeRet.ok) {
       pushLog(
         `zero ${h.vendor} ${toHex(h.esc_id)} ok, but store failed: ${storeRet.error || 'unknown'}`,
@@ -194,7 +178,7 @@ export async function zeroMotorOp({
 export async function refreshMotorStateOp({ h, vendors, setTargetFor, sendCmd, setHits, pushLog }) {
   try {
     await setTargetFor(h.vendor, h.model || vendors[h.vendor].model, h.esc_id, h.mst_id);
-    const ret = await sendCmd('state_once', {}, 1500);
+    const ret = await sendCmd('state_once', {}, CMD_TIMEOUTS.stateMs);
     if (!ret.ok) throw new Error(ret.error || 'state_once failed');
 
     const d = ret.data || {};
@@ -261,7 +245,7 @@ export async function checkOnlineOnceOp({
 
     if (!silent) pushLog(`online check ${h.vendor} ${toHex(h.esc_id)} online`, 'ok');
     return true;
-  } catch (e) {
+  } catch {
     setHits((prev) =>
       mergeHitsByVendor(prev, [
         {
@@ -290,22 +274,8 @@ export async function probeMotorOp({
     const model = h.model || vendors[h.vendor]?.model || h.vendor;
     await setTargetFor(h.vendor, model, h.esc_id, h.mst_id);
 
-    const payload = {
-      vendor: h.vendor,
-      start_id: Number(h.esc_id),
-      end_id: Number(h.esc_id),
-      timeout_ms: 300,
-    };
-
-    if (h.vendor === 'damiao') {
-      const feedbackBase = Math.max(0, Number(h.mst_id) - (Number(h.esc_id) & 0x0f));
-      payload.feedback_base = feedbackBase;
-    }
-    if (h.vendor === 'robstride') {
-      payload.feedback_ids = [Number(h.mst_id)];
-    }
-
-    const ret = await sendCmd('scan', payload, 8000);
+    const payload = buildProbePayload(h.vendor, h.esc_id, h.mst_id);
+    const ret = await sendCmd('scan', payload, CMD_TIMEOUTS.verifyMs);
     if (!ret.ok) throw new Error(ret.error || 'probe scan failed');
 
     const list = normalizeHits(h.vendor, ret.data, model);

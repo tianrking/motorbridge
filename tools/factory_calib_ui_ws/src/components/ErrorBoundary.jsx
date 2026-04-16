@@ -15,7 +15,6 @@ export class ErrorBoundary extends React.Component {
 
   componentDidCatch(error) {
     // Keep a console trace for frontend debugging.
-    // eslint-disable-next-line no-console
     console.error('Factory UI crashed:', error);
   }
 

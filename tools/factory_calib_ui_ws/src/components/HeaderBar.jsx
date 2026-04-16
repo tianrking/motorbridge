@@ -1,8 +1,10 @@
 import React from 'react';
 import { useI18n } from '../i18n';
+import { useMotorStudioContext } from '../hooks/useMotorStudioContext';
 
-export function HeaderBar({ connected, connText, menuOpen, setMenuOpen }) {
+export function HeaderBar() {
   const { t, locale, setLocale } = useI18n();
+  const { connected, connText, setMenuOpen } = useMotorStudioContext();
 
   return (
     <header className="hero">

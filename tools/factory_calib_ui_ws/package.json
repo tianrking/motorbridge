@@ -4,10 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev:ready": "npm install --no-audit --no-fund && vite --host 0.0.0.0 --port 18110",
-    "dev": "vite --host 0.0.0.0 --port 18110",
+    "dev:ready": "npm install --no-audit --no-fund && vite --host 0.0.0.0 --port ${VITE_FACTORY_UI_PORT:-18110}",
+    "dev": "vite --host 0.0.0.0 --port ${VITE_FACTORY_UI_PORT:-18110}",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 18110"
+    "preview": "vite preview --host 0.0.0.0 --port ${VITE_FACTORY_UI_PORT:-18110}",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --max-warnings=0",
+    "format:check": "prettier --check \"src/components/robot-arm/**/*.{js,jsx}\" \"src/hooks/use*.js\" \"src/lib/{appConfig,vendors}.js\" \"src/lib/*test.js\" \"*.{js,json}\"",
+    "format": "prettier --write \"src/components/robot-arm/**/*.{js,jsx}\" \"src/hooks/use*.js\" \"src/lib/{appConfig,vendors}.js\" \"src/lib/*test.js\" \"*.{js,json}\""
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -16,6 +21,15 @@
     "urdf-loader": "^0.12.6"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@testing-library/react": "^16.1.0",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8",
     "vite": "^5.4.10"
   }
 }

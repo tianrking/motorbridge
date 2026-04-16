@@ -35,6 +35,27 @@ export const ROBOT_ARM_JOINTS = [
   { joint: 7, esc_id: 0x07 },
 ];
 
+export const REBOT_ARM_DAMIAO_DEFAULT_TEMPLATE = {
+  1: { ctrlMode: '2', currentBw: '1000', velKp: '0.0125', velKi: '0.004', posKp: '150', posKi: '0.5' },
+  2: { ctrlMode: '2', currentBw: '1000', velKp: '0.013', velKi: '0.004', posKp: '200', posKi: '10' },
+  3: { ctrlMode: '2', currentBw: '1000', velKp: '0.013', velKi: '0.004', posKp: '200', posKi: '10' },
+  4: { ctrlMode: '2', currentBw: '1000', velKp: '0.0008', velKi: '0.002', posKp: '50', posKi: '1' },
+  5: { ctrlMode: '2', currentBw: '1000', velKp: '0.0008', velKi: '0.002', posKp: '50', posKi: '1' },
+  6: { ctrlMode: '2', currentBw: '1000', velKp: '0.0008', velKi: '0.002', posKp: '50', posKi: '1' },
+};
+
+export const REBOT_ARM_JOINT_LIMITS = {
+  1: { min: -2.61, max: 2.61 },
+  2: { min: -3.7, max: 0.0 },
+  3: { min: -3.7, max: 0.0 },
+  4: { min: -1.57, max: 1.57 },
+  5: { min: -1.57, max: 1.57 },
+  6: { min: -1.57, max: 1.57 },
+  7: { min: -5.7, max: 0.0 },
+};
+
+export const ZERO_SAFE_EPS_RAD = 0.08;
+
 export function normalizeRobotArmModel(raw) {
   const text = String(raw ?? '').trim();
   if (!text) return ROBOT_ARM_MODELS[0].key;

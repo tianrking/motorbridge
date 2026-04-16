@@ -1,22 +1,26 @@
 import React from 'react';
 import { useI18n } from '../i18n';
 import { CollapsibleSection } from './CollapsibleSection';
+import { useMotorStudioContext } from '../hooks/useMotorStudioContext';
 
-export function ConnectionPanel({
-  wsUrl,
-  setWsUrl,
-  channel,
-  setChannel,
-  targetTransport,
-  targetSerialPort,
-  scanTimeoutMs,
-  setScanTimeoutMs,
-  connectWs,
-  disconnectWs,
-  collapsed,
-  onToggleCollapsed,
-}) {
+export function ConnectionPanel() {
   const { t } = useI18n();
+  const {
+    wsUrl,
+    setWsUrl,
+    channel,
+    setChannel,
+    targetTransport,
+    targetSerialPort,
+    scanTimeoutMs,
+    setScanTimeoutMs,
+    connectWs,
+    disconnectWs,
+    uiPrefs,
+    toggleUiPref,
+  } = useMotorStudioContext();
+  const collapsed = uiPrefs.sectionConnectionCollapsed;
+  const onToggleCollapsed = () => toggleUiPref('sectionConnectionCollapsed');
   const isDmSerial = String(targetTransport || '').trim().toLowerCase() === 'dm-serial';
   const transportText = String(targetTransport || 'auto').trim() || 'auto';
   const serialText = String(targetSerialPort || '').trim() || t('serial_port_gateway_managed');

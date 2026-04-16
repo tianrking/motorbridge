@@ -1,62 +1,26 @@
 use crate::motor::RobstrideMotor;
-use motor_core::bus::CanBus;
-use motor_core::controller::CoreController;
-use motor_core::error::{MotorError, Result};
-#[cfg(any(target_os = "windows", target_os = "macos"))]
-use motor_core::pcan::PcanBus;
-#[cfg(target_os = "linux")]
-use motor_core::socketcan::SocketCanBus;
-#[cfg(target_os = "linux")]
-use motor_core::socketcanfd::SocketCanFdBus;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use motor_core::bus::{CanBus, open_socketcan, open_socketcanfd};
+use motor_core::error::Result;
+use motor_core::vendor_controller::VendorController;
+use std::sync::Arc;
 
 pub struct RobstrideController {
-    core: CoreController,
-    motors: Mutex<HashMap<u16, Arc<RobstrideMotor>>>,
+    controller: VendorController<RobstrideMotor>,
 }
 
 impl RobstrideController {
     pub fn new(bus: Arc<dyn CanBus>) -> Self {
         Self {
-            core: CoreController::new(bus),
-            motors: Mutex::new(HashMap::new()),
+            controller: VendorController::new(bus),
         }
     }
 
     pub fn new_socketcan(channel: &str) -> Result<Self> {
-        #[cfg(target_os = "linux")]
-        {
-            let bus: Arc<dyn CanBus> = Arc::new(SocketCanBus::open(channel)?);
-            return Ok(Self::new(bus));
-        }
-        #[cfg(any(target_os = "windows", target_os = "macos"))]
-        {
-            let bus: Arc<dyn CanBus> = Arc::new(PcanBus::open(channel)?);
-            return Ok(Self::new(bus));
-        }
-        #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
-        {
-            let _ = channel;
-            Err(MotorError::InvalidArgument(
-                "No CAN backend for current platform".to_string(),
-            ))
-        }
+        Ok(Self::new(open_socketcan(channel)?))
     }
 
     pub fn new_socketcanfd(channel: &str) -> Result<Self> {
-        #[cfg(target_os = "linux")]
-        {
-            let bus: Arc<dyn CanBus> = Arc::new(SocketCanFdBus::open(channel)?);
-            return Ok(Self::new(bus));
-        }
-        #[cfg(not(target_os = "linux"))]
-        {
-            let _ = channel;
-            Err(MotorError::InvalidArgument(
-                "socketcanfd transport is only available on Linux".to_string(),
-            ))
-        }
+        Ok(Self::new(open_socketcanfd(channel)?))
     }
 
     pub fn add_motor(
@@ -65,47 +29,32 @@ impl RobstrideController {
         feedback_id: u16,
         model: &str,
     ) -> Result<Arc<RobstrideMotor>> {
-        let motor = Arc::new(RobstrideMotor::new(
-            motor_id,
-            feedback_id,
-            model,
-            self.core.bus(),
-        )?);
-        let device: Arc<dyn motor_core::device::MotorDevice> = motor.clone();
-        self.core.add_device(device)?;
-        self.motors
-            .lock()
-            .map_err(|_| MotorError::Io("motors lock poisoned".to_string()))?
-            .insert(motor_id, Arc::clone(&motor));
-        Ok(motor)
+        self.controller.add_motor_with(motor_id, |bus| {
+            RobstrideMotor::new(motor_id, feedback_id, model, bus)
+        })
     }
 
     pub fn get_motor(&self, motor_id: u16) -> Result<Arc<RobstrideMotor>> {
-        self.motors
-            .lock()
-            .map_err(|_| MotorError::Io("motors lock poisoned".to_string()))?
-            .get(&motor_id)
-            .cloned()
-            .ok_or_else(|| MotorError::InvalidArgument(format!("motor {motor_id} not found")))
+        self.controller.get_motor(motor_id)
     }
 
     pub fn poll_feedback_once(&self) -> Result<()> {
-        self.core.poll_feedback_once()
+        self.controller.poll_feedback_once()
     }
 
     pub fn enable_all(&self) -> Result<()> {
-        self.core.enable_all()
+        self.controller.enable_all()
     }
 
     pub fn disable_all(&self) -> Result<()> {
-        self.core.disable_all()
+        self.controller.disable_all()
     }
 
     pub fn shutdown(&self) -> Result<()> {
-        self.core.shutdown()
+        self.controller.shutdown()
     }
 
     pub fn close_bus(&self) -> Result<()> {
-        self.core.close_bus()
+        self.controller.close_bus()
     }
 }

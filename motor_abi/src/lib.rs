@@ -100,6 +100,43 @@ pub struct MotorState {
     pub t_rotor: f32,
 }
 
+impl Default for MotorState {
+    fn default() -> Self {
+        Self {
+            has_value: 0,
+            can_id: 0,
+            arbitration_id: 0,
+            status_code: 0,
+            pos: 0.0,
+            vel: 0.0,
+            torq: 0.0,
+            t_mos: 0.0,
+            t_rotor: 0.0,
+        }
+    }
+}
+
+fn ffi_rc(result: Result<(), String>) -> i32 {
+    match result {
+        Ok(()) => 0,
+        Err(e) => {
+            set_last_error(e);
+            -1
+        }
+    }
+}
+
+macro_rules! ffi_wrap_motor {
+    ($motor_ptr:expr, $body:expr) => {{
+        if $motor_ptr.is_null() {
+            set_last_error("motor is null");
+            return -1;
+        }
+        let motor = unsafe { &mut *$motor_ptr };
+        ffi_rc($body(motor))
+    }};
+}
+
 fn parse_cstr(ptr: *const c_char, name: &str) -> Result<String, String> {
     if ptr.is_null() {
         return Err(format!("{name} is null"));
@@ -110,135 +147,66 @@ fn parse_cstr(ptr: *const c_char, name: &str) -> Result<String, String> {
         .map_err(|_| format!("{name} must be valid UTF-8"))
 }
 
-fn ensure_damiao_controller(
-    controller: &mut MotorController,
-) -> Result<&mut DamiaoController, String> {
-    if let ControllerInner::Unbound(channel) = &controller.inner {
-        controller.inner = ControllerInner::Damiao(
-            DamiaoController::new_socketcan(channel).map_err(|e| e.to_string())?,
-        );
-    }
-    match &mut controller.inner {
-        ControllerInner::Damiao(ctrl) => Ok(ctrl),
-        ControllerInner::Hexfellow(_) => {
-            Err("controller already bound to Hexfellow; use a separate controller".to_string())
-        }
-        ControllerInner::MyActuator(_) => {
-            Err("controller already bound to MyActuator; use a separate controller".to_string())
-        }
-        ControllerInner::Robstride(_) => {
-            Err("controller already bound to RobStride; use a separate controller".to_string())
-        }
-        ControllerInner::Hightorque(_) => {
-            Err("controller already bound to HighTorque; use a separate controller".to_string())
-        }
-        ControllerInner::Unbound(_) => Err("controller binding failed".to_string()),
+fn controller_vendor_name(inner: &ControllerInner) -> &'static str {
+    match inner {
+        ControllerInner::Damiao(_) => "Damiao",
+        ControllerInner::Hexfellow(_) => "Hexfellow",
+        ControllerInner::MyActuator(_) => "MyActuator",
+        ControllerInner::Robstride(_) => "RobStride",
+        ControllerInner::Hightorque(_) => "HighTorque",
+        ControllerInner::Unbound(_) => "Unbound",
     }
 }
 
-fn ensure_hexfellow_controller(
-    controller: &mut MotorController,
-) -> Result<&mut HexfellowController, String> {
-    if let ControllerInner::Unbound(channel) = &controller.inner {
-        controller.inner = ControllerInner::Hexfellow(
-            HexfellowController::new_socketcanfd(channel).map_err(|e| e.to_string())?,
-        );
-    }
-    match &mut controller.inner {
-        ControllerInner::Hexfellow(ctrl) => Ok(ctrl),
-        ControllerInner::Damiao(_) => {
-            Err("controller already bound to Damiao; use a separate controller".to_string())
+macro_rules! ensure_controller {
+    ($fn_name:ident, $variant:ident, $ty:ty, $bind_expr:expr) => {
+        fn $fn_name(controller: &mut MotorController) -> Result<&mut $ty, String> {
+            if let ControllerInner::Unbound(channel) = &controller.inner {
+                controller.inner =
+                    ControllerInner::$variant($bind_expr(channel).map_err(|e| e.to_string())?);
+            }
+            match &mut controller.inner {
+                ControllerInner::$variant(ctrl) => Ok(ctrl),
+                ControllerInner::Unbound(_) => Err("controller binding failed".to_string()),
+                current => Err(format!(
+                    "controller already bound to {}; use a separate controller",
+                    controller_vendor_name(current)
+                )),
+            }
         }
-        ControllerInner::MyActuator(_) => {
-            Err("controller already bound to MyActuator; use a separate controller".to_string())
-        }
-        ControllerInner::Robstride(_) => {
-            Err("controller already bound to RobStride; use a separate controller".to_string())
-        }
-        ControllerInner::Hightorque(_) => {
-            Err("controller already bound to HighTorque; use a separate controller".to_string())
-        }
-        ControllerInner::Unbound(_) => Err("controller binding failed".to_string()),
-    }
+    };
 }
 
-fn ensure_myactuator_controller(
-    controller: &mut MotorController,
-) -> Result<&mut MyActuatorController, String> {
-    if let ControllerInner::Unbound(channel) = &controller.inner {
-        controller.inner = ControllerInner::MyActuator(
-            MyActuatorController::new_socketcan(channel).map_err(|e| e.to_string())?,
-        );
-    }
-    match &mut controller.inner {
-        ControllerInner::MyActuator(ctrl) => Ok(ctrl),
-        ControllerInner::Damiao(_) => {
-            Err("controller already bound to Damiao; use a separate controller".to_string())
-        }
-        ControllerInner::Hexfellow(_) => {
-            Err("controller already bound to Hexfellow; use a separate controller".to_string())
-        }
-        ControllerInner::Robstride(_) => {
-            Err("controller already bound to RobStride; use a separate controller".to_string())
-        }
-        ControllerInner::Hightorque(_) => {
-            Err("controller already bound to HighTorque; use a separate controller".to_string())
-        }
-        ControllerInner::Unbound(_) => Err("controller binding failed".to_string()),
-    }
-}
-
-fn ensure_robstride_controller(
-    controller: &mut MotorController,
-) -> Result<&mut RobstrideController, String> {
-    if let ControllerInner::Unbound(channel) = &controller.inner {
-        controller.inner = ControllerInner::Robstride(
-            RobstrideController::new_socketcan(channel).map_err(|e| e.to_string())?,
-        );
-    }
-    match &mut controller.inner {
-        ControllerInner::Robstride(ctrl) => Ok(ctrl),
-        ControllerInner::Damiao(_) => {
-            Err("controller already bound to Damiao; use a separate controller".to_string())
-        }
-        ControllerInner::Hexfellow(_) => {
-            Err("controller already bound to Hexfellow; use a separate controller".to_string())
-        }
-        ControllerInner::MyActuator(_) => {
-            Err("controller already bound to MyActuator; use a separate controller".to_string())
-        }
-        ControllerInner::Hightorque(_) => {
-            Err("controller already bound to HighTorque; use a separate controller".to_string())
-        }
-        ControllerInner::Unbound(_) => Err("controller binding failed".to_string()),
-    }
-}
-
-fn ensure_hightorque_controller(
-    controller: &mut MotorController,
-) -> Result<&mut HightorqueController, String> {
-    if let ControllerInner::Unbound(channel) = &controller.inner {
-        controller.inner = ControllerInner::Hightorque(
-            HightorqueController::new_socketcan(channel).map_err(|e| e.to_string())?,
-        );
-    }
-    match &mut controller.inner {
-        ControllerInner::Hightorque(ctrl) => Ok(ctrl),
-        ControllerInner::Damiao(_) => {
-            Err("controller already bound to Damiao; use a separate controller".to_string())
-        }
-        ControllerInner::Hexfellow(_) => {
-            Err("controller already bound to Hexfellow; use a separate controller".to_string())
-        }
-        ControllerInner::MyActuator(_) => {
-            Err("controller already bound to MyActuator; use a separate controller".to_string())
-        }
-        ControllerInner::Robstride(_) => {
-            Err("controller already bound to RobStride; use a separate controller".to_string())
-        }
-        ControllerInner::Unbound(_) => Err("controller binding failed".to_string()),
-    }
-}
+ensure_controller!(
+    ensure_damiao_controller,
+    Damiao,
+    DamiaoController,
+    DamiaoController::new_socketcan
+);
+ensure_controller!(
+    ensure_hexfellow_controller,
+    Hexfellow,
+    HexfellowController,
+    HexfellowController::new_socketcanfd
+);
+ensure_controller!(
+    ensure_myactuator_controller,
+    MyActuator,
+    MyActuatorController,
+    MyActuatorController::new_socketcan
+);
+ensure_controller!(
+    ensure_robstride_controller,
+    Robstride,
+    RobstrideController,
+    RobstrideController::new_socketcan
+);
+ensure_controller!(
+    ensure_hightorque_controller,
+    Hightorque,
+    HightorqueController,
+    HightorqueController::new_socketcan
+);
 
 
 mod controller_add_motor_ffi;

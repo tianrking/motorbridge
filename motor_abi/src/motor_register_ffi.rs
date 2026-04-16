@@ -25,13 +25,7 @@ pub extern "C" fn motor_handle_set_can_timeout_ms(motor: *mut MotorHandle, timeo
             Err("set_can_timeout_ms is not supported for HighTorque".to_string())
         }
     };
-    match rc {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
-        }
-    }
+    ffi_rc(rc)
 }
 
 #[unsafe(no_mangle)]
@@ -47,26 +41,9 @@ pub extern "C" fn motor_handle_write_register_f32(
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
         MotorHandleInner::Damiao(m) => m.write_register_f32(rid, value).map_err(|e| e.to_string()),
-        MotorHandleInner::Hexfellow(_) => {
-            Err("register write is not available for Hexfellow".to_string())
-        }
-        MotorHandleInner::MyActuator(_) => {
-            Err("register write is not available for MyActuator".to_string())
-        }
-        MotorHandleInner::Robstride(_) => {
-            Err("Damiao register write is not available for RobStride".to_string())
-        }
-        MotorHandleInner::Hightorque(_) => {
-            Err("register write is not available for HighTorque".to_string())
-        }
+        _ => Err("Damiao register write is only available for Damiao motors".to_string()),
     };
-    match rc {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
-        }
-    }
+    ffi_rc(rc)
 }
 
 #[unsafe(no_mangle)]
@@ -82,26 +59,9 @@ pub extern "C" fn motor_handle_write_register_u32(
     let motor = unsafe { &mut *motor };
     let rc = match &motor.inner {
         MotorHandleInner::Damiao(m) => m.write_register_u32(rid, value).map_err(|e| e.to_string()),
-        MotorHandleInner::Hexfellow(_) => {
-            Err("register write is not available for Hexfellow".to_string())
-        }
-        MotorHandleInner::MyActuator(_) => {
-            Err("register write is not available for MyActuator".to_string())
-        }
-        MotorHandleInner::Robstride(_) => {
-            Err("Damiao register write is not available for RobStride".to_string())
-        }
-        MotorHandleInner::Hightorque(_) => {
-            Err("register write is not available for HighTorque".to_string())
-        }
+        _ => Err("Damiao register write is only available for Damiao motors".to_string()),
     };
-    match rc {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
-        }
-    }
+    ffi_rc(rc)
 }
 
 #[unsafe(no_mangle)]
@@ -122,26 +82,9 @@ pub extern "C" fn motor_handle_get_register_f32(
             .get_register_f32(rid, Duration::from_millis(timeout_ms as u64))
             .map_err(|e| e.to_string())
             .map(|v| *out = v),
-        MotorHandleInner::Hexfellow(_) => {
-            Err("register read is not available for Hexfellow".to_string())
-        }
-        MotorHandleInner::MyActuator(_) => {
-            Err("register read is not available for MyActuator".to_string())
-        }
-        MotorHandleInner::Robstride(_) => {
-            Err("Damiao register read is not available for RobStride".to_string())
-        }
-        MotorHandleInner::Hightorque(_) => {
-            Err("register read is not available for HighTorque".to_string())
-        }
+        _ => Err("Damiao register read is only available for Damiao motors".to_string()),
     };
-    match rc {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
-        }
-    }
+    ffi_rc(rc)
 }
 
 #[unsafe(no_mangle)]
@@ -162,26 +105,9 @@ pub extern "C" fn motor_handle_get_register_u32(
             .get_register_u32(rid, Duration::from_millis(timeout_ms as u64))
             .map_err(|e| e.to_string())
             .map(|v| *out = v),
-        MotorHandleInner::Hexfellow(_) => {
-            Err("register read is not available for Hexfellow".to_string())
-        }
-        MotorHandleInner::MyActuator(_) => {
-            Err("register read is not available for MyActuator".to_string())
-        }
-        MotorHandleInner::Robstride(_) => {
-            Err("Damiao register read is not available for RobStride".to_string())
-        }
-        MotorHandleInner::Hightorque(_) => {
-            Err("register read is not available for HighTorque".to_string())
-        }
+        _ => Err("Damiao register read is only available for Damiao motors".to_string()),
     };
-    match rc {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
-        }
-    }
+    ffi_rc(rc)
 }
 
 #[unsafe(no_mangle)]
@@ -240,11 +166,5 @@ pub extern "C" fn motor_handle_robstride_set_device_id(
             Err("robstride_set_device_id requires a RobStride motor".to_string())
         }
     };
-    match rc {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
-        }
-    }
+    ffi_rc(rc)
 }

@@ -1,5 +1,18 @@
 use super::*;
 
+macro_rules! dispatch_controller {
+    ($controller:expr, $method:ident) => {
+        match &mut $controller.inner {
+            ControllerInner::Damiao(ctrl) => ctrl.$method().map_err(|e| e.to_string()),
+            ControllerInner::Hexfellow(ctrl) => ctrl.$method().map_err(|e| e.to_string()),
+            ControllerInner::MyActuator(ctrl) => ctrl.$method().map_err(|e| e.to_string()),
+            ControllerInner::Robstride(ctrl) => ctrl.$method().map_err(|e| e.to_string()),
+            ControllerInner::Hightorque(ctrl) => ctrl.$method().map_err(|e| e.to_string()),
+            ControllerInner::Unbound(_) => Ok(()),
+        }
+    };
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn motor_last_error_message() -> *const c_char {
     ok_ptr()
@@ -70,21 +83,8 @@ pub extern "C" fn motor_controller_poll_feedback_once(controller: *mut MotorCont
         return -1;
     }
     let controller = unsafe { &mut *controller };
-    let rc = match &mut controller.inner {
-        ControllerInner::Damiao(ctrl) => ctrl.poll_feedback_once().map_err(|e| e.to_string()),
-        ControllerInner::Hexfellow(ctrl) => ctrl.poll_feedback_once().map_err(|e| e.to_string()),
-        ControllerInner::MyActuator(ctrl) => ctrl.poll_feedback_once().map_err(|e| e.to_string()),
-        ControllerInner::Robstride(ctrl) => ctrl.poll_feedback_once().map_err(|e| e.to_string()),
-        ControllerInner::Hightorque(ctrl) => ctrl.poll_feedback_once().map_err(|e| e.to_string()),
-        ControllerInner::Unbound(_) => Ok(()),
-    };
-    match rc {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
-        }
-    }
+    let rc = dispatch_controller!(controller, poll_feedback_once);
+    ffi_rc(rc)
 }
 
 #[unsafe(no_mangle)]
@@ -94,21 +94,8 @@ pub extern "C" fn motor_controller_enable_all(controller: *mut MotorController) 
         return -1;
     }
     let controller = unsafe { &mut *controller };
-    let rc = match &mut controller.inner {
-        ControllerInner::Damiao(ctrl) => ctrl.enable_all().map_err(|e| e.to_string()),
-        ControllerInner::Hexfellow(ctrl) => ctrl.enable_all().map_err(|e| e.to_string()),
-        ControllerInner::MyActuator(ctrl) => ctrl.enable_all().map_err(|e| e.to_string()),
-        ControllerInner::Robstride(ctrl) => ctrl.enable_all().map_err(|e| e.to_string()),
-        ControllerInner::Hightorque(ctrl) => ctrl.enable_all().map_err(|e| e.to_string()),
-        ControllerInner::Unbound(_) => Ok(()),
-    };
-    match rc {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
-        }
-    }
+    let rc = dispatch_controller!(controller, enable_all);
+    ffi_rc(rc)
 }
 
 #[unsafe(no_mangle)]
@@ -118,21 +105,8 @@ pub extern "C" fn motor_controller_disable_all(controller: *mut MotorController)
         return -1;
     }
     let controller = unsafe { &mut *controller };
-    let rc = match &mut controller.inner {
-        ControllerInner::Damiao(ctrl) => ctrl.disable_all().map_err(|e| e.to_string()),
-        ControllerInner::Hexfellow(ctrl) => ctrl.disable_all().map_err(|e| e.to_string()),
-        ControllerInner::MyActuator(ctrl) => ctrl.disable_all().map_err(|e| e.to_string()),
-        ControllerInner::Robstride(ctrl) => ctrl.disable_all().map_err(|e| e.to_string()),
-        ControllerInner::Hightorque(ctrl) => ctrl.disable_all().map_err(|e| e.to_string()),
-        ControllerInner::Unbound(_) => Ok(()),
-    };
-    match rc {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
-        }
-    }
+    let rc = dispatch_controller!(controller, disable_all);
+    ffi_rc(rc)
 }
 
 #[unsafe(no_mangle)]
@@ -142,21 +116,8 @@ pub extern "C" fn motor_controller_shutdown(controller: *mut MotorController) ->
         return -1;
     }
     let controller = unsafe { &mut *controller };
-    let rc = match &mut controller.inner {
-        ControllerInner::Damiao(ctrl) => ctrl.shutdown().map_err(|e| e.to_string()),
-        ControllerInner::Hexfellow(ctrl) => ctrl.shutdown().map_err(|e| e.to_string()),
-        ControllerInner::MyActuator(ctrl) => ctrl.shutdown().map_err(|e| e.to_string()),
-        ControllerInner::Robstride(ctrl) => ctrl.shutdown().map_err(|e| e.to_string()),
-        ControllerInner::Hightorque(ctrl) => ctrl.shutdown().map_err(|e| e.to_string()),
-        ControllerInner::Unbound(_) => Ok(()),
-    };
-    match rc {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
-        }
-    }
+    let rc = dispatch_controller!(controller, shutdown);
+    ffi_rc(rc)
 }
 
 #[unsafe(no_mangle)]
@@ -166,19 +127,6 @@ pub extern "C" fn motor_controller_close_bus(controller: *mut MotorController) -
         return -1;
     }
     let controller = unsafe { &mut *controller };
-    let rc = match &mut controller.inner {
-        ControllerInner::Damiao(ctrl) => ctrl.close_bus().map_err(|e| e.to_string()),
-        ControllerInner::Hexfellow(ctrl) => ctrl.close_bus().map_err(|e| e.to_string()),
-        ControllerInner::MyActuator(ctrl) => ctrl.close_bus().map_err(|e| e.to_string()),
-        ControllerInner::Robstride(ctrl) => ctrl.close_bus().map_err(|e| e.to_string()),
-        ControllerInner::Hightorque(ctrl) => ctrl.close_bus().map_err(|e| e.to_string()),
-        ControllerInner::Unbound(_) => Ok(()),
-    };
-    match rc {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
-        }
-    }
+    let rc = dispatch_controller!(controller, close_bus);
+    ffi_rc(rc)
 }

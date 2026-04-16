@@ -118,9 +118,14 @@ pub struct RobstrideMotor {
     kd_max: f32,
     state: Mutex<Option<MotorFeedbackState>>,
     status_seq: AtomicU64,
-    registers: Mutex<HashMap<u16, ParameterValue>>,
+    param_state: Mutex<ParameterState>,
     ping_reply: Mutex<Option<PingReply>>,
-    pending_param: Mutex<Option<u16>>,
+}
+
+#[derive(Default)]
+struct ParameterState {
+    values: HashMap<u16, ParameterValue>,
+    pending: Option<u16>,
 }
 
 impl RobstrideMotor {
@@ -143,9 +148,8 @@ impl RobstrideMotor {
             kd_max,
             state: Mutex::new(None),
             status_seq: AtomicU64::new(0),
-            registers: Mutex::new(HashMap::new()),
+            param_state: Mutex::new(ParameterState::default()),
             ping_reply: Mutex::new(None),
-            pending_param: Mutex::new(None),
         })
     }
 
@@ -270,10 +274,7 @@ impl RobstrideMotor {
 
     pub fn set_device_id(&self, new_id: u8) -> Result<()> {
         let extra = (u16::from(new_id) << 8) | u16::from(self.host_id_u8());
-        let payload = self
-            .ping(Duration::from_millis(140))
-            .map(|r| r.payload)
-            .unwrap_or([0u8; 8]);
+        let payload = self.ping(Duration::from_millis(140))?.payload;
         self.send_ext(CommunicationType::SET_DEVICE_ID, extra, payload, 8)
     }
 
@@ -337,14 +338,13 @@ impl RobstrideMotor {
     }
 
     pub fn request_parameter(&self, param_id: u16) -> Result<()> {
-        self.registers
+        let mut ps = self
+            .param_state
             .lock()
-            .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
-            .remove(&param_id);
-        self.pending_param
-            .lock()
-            .map_err(|_| MotorError::Io("pending param lock poisoned".to_string()))?
-            .replace(param_id);
+            .map_err(|_| MotorError::Io("param state lock poisoned".to_string()))?;
+        ps.values.remove(&param_id);
+        ps.pending.replace(param_id);
+        drop(ps);
         let data = encode_parameter_read(param_id);
         self.send_ext(
             CommunicationType::READ_PARAMETER,
@@ -359,23 +359,23 @@ impl RobstrideMotor {
         let per_try = Duration::from_millis((timeout.as_millis() as u64).max(150));
 
         for host in cands {
-            self.registers
+            let mut ps = self
+                .param_state
                 .lock()
-                .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
-                .remove(&param_id);
-            self.pending_param
-                .lock()
-                .map_err(|_| MotorError::Io("pending param lock poisoned".to_string()))?
-                .replace(param_id);
+                .map_err(|_| MotorError::Io("param state lock poisoned".to_string()))?;
+            ps.values.remove(&param_id);
+            ps.pending.replace(param_id);
+            drop(ps);
             let data = encode_parameter_read(param_id);
             self.send_ext(CommunicationType::READ_PARAMETER, host, data, 8)?;
 
             let deadline = Instant::now() + per_try;
             loop {
                 if let Some(value) = self
-                    .registers
+                    .param_state
                     .lock()
-                    .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
+                    .map_err(|_| MotorError::Io("param state lock poisoned".to_string()))?
+                    .values
                     .get(&param_id)
                     .copied()
                 {
@@ -427,10 +427,12 @@ impl RobstrideMotor {
                 Ok(())
             }
             CommunicationType::READ_PARAMETER => {
-                let param_id = self
-                    .pending_param
+                let mut ps = self
+                    .param_state
                     .lock()
-                    .map_err(|_| MotorError::Io("pending param lock poisoned".to_string()))?
+                    .map_err(|_| MotorError::Io("param state lock poisoned".to_string()))?;
+                let param_id = ps
+                    .pending
                     .take()
                     .unwrap_or_else(|| u16::from_le_bytes([frame.data[0], frame.data[1]]));
                 let raw = decode_read_parameter_value(param_id, frame.data)?;
@@ -446,10 +448,7 @@ impl RobstrideMotor {
                     ParameterDataType::UInt32 => ParameterValue::U32(u32::from_le_bytes(raw)),
                     ParameterDataType::Float32 => ParameterValue::F32(f32::from_le_bytes(raw)),
                 };
-                self.registers
-                    .lock()
-                    .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
-                    .insert(param_id, value);
+                ps.values.insert(param_id, value);
                 Ok(())
             }
             CommunicationType::OPERATION_STATUS | CommunicationType::FAULT_REPORT => {
@@ -539,41 +538,11 @@ impl MotorDevice for RobstrideMotor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
-
-    struct SilentBus {
-        sent: Mutex<Vec<CanFrame>>,
-    }
-
-    impl SilentBus {
-        fn new() -> Self {
-            Self {
-                sent: Mutex::new(Vec::new()),
-            }
-        }
-    }
-
-    impl CanBus for SilentBus {
-        fn send(&self, frame: CanFrame) -> Result<()> {
-            self.sent
-                .lock()
-                .map_err(|_| MotorError::Io("sent lock poisoned".to_string()))?
-                .push(frame);
-            Ok(())
-        }
-
-        fn recv(&self, _timeout: Duration) -> Result<Option<CanFrame>> {
-            Ok(None)
-        }
-
-        fn shutdown(&self) -> Result<()> {
-            Ok(())
-        }
-    }
+    use motor_core::test_support::MockBus;
 
     #[test]
     fn get_parameter_times_out_when_no_reply_arrives() {
-        let bus: Arc<dyn CanBus> = Arc::new(SilentBus::new());
+        let bus: Arc<dyn CanBus> = Arc::new(MockBus::new());
         let motor = RobstrideMotor::new(127, 0xFF, "rs-00", bus).expect("create motor");
         let err = motor
             .get_parameter(0x7019, Duration::from_millis(5))

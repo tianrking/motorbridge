@@ -3,7 +3,13 @@ use serde_json::{json, Value};
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time;
-use tokio_tungstenite::{accept_async, tungstenite::protocol::Message};
+use tokio_tungstenite::{
+    accept_hdr_async,
+    tungstenite::{
+        handshake::server::{ErrorResponse, Request, Response},
+        protocol::Message,
+    },
+};
 
 use crate::model::ServerConfig;
 use crate::session::SessionCtx;
@@ -25,7 +31,32 @@ pub(crate) async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Resul
         .peer_addr()
         .map(|a| a.to_string())
         .unwrap_or_else(|_| "unknown".to_string());
-    let ws = accept_async(stream).await.map_err(|e| e.to_string())?;
+    let expected_token = std::env::var("MOTORBRIDGE_WS_TOKEN").ok();
+    let ws = accept_hdr_async(stream, move |req: &Request, response: Response| {
+        if let Some(token) = expected_token.as_deref() {
+            let provided = req
+                .headers()
+                .get("x-motorbridge-token")
+                .and_then(|v| v.to_str().ok())
+                .or_else(|| {
+                    req.headers()
+                        .get("authorization")
+                        .and_then(|v| v.to_str().ok())
+                        .and_then(|v| v.strip_prefix("Bearer "))
+                });
+            if provided != Some(token) {
+                let err_resp: ErrorResponse = tokio_tungstenite::tungstenite::http::Response::builder()
+                    .status(tokio_tungstenite::tungstenite::http::StatusCode::UNAUTHORIZED)
+                    .header("content-type", "text/plain; charset=utf-8")
+                    .body(Some("unauthorized websocket client".to_string()))
+                    .expect("build unauthorized response");
+                return Err(err_resp);
+            }
+        }
+        Ok(response)
+    })
+    .await
+    .map_err(|e| e.to_string())?;
     let (mut tx, mut rx) = ws.split();
 
     let mut ctx = SessionCtx::new(cfg.target.clone());
@@ -105,7 +136,8 @@ pub(crate) async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Resul
             }
             _ = ticker.tick() => {
                 if ctx.active.is_some() {
-                    if let Err(e) = ctx.apply_active() {
+                    let apply_rc = tokio::task::block_in_place(|| ctx.apply_active());
+                    if let Err(e) = apply_rc {
                         ctx.active = None;
                         send_json(&mut tx, json!({"ok": false, "op": "active_tick", "error": e})).await?;
                     }
@@ -113,7 +145,8 @@ pub(crate) async fn handle_socket(stream: TcpStream, cfg: ServerConfig) -> Resul
                 if state_stream_enabled && ctx.motor.is_some() {
                     state_tick_counter = state_tick_counter.wrapping_add(1);
                     if state_tick_counter % state_tick_div == 0 {
-                        match ctx.build_state_snapshot() {
+                        let snapshot = tokio::task::block_in_place(|| ctx.build_state_snapshot());
+                        match snapshot {
                             Ok(st) => send_json(&mut tx, json!({"type":"state", "data": st})).await?,
                             Err(err) => send_json(&mut tx, json!({"ok": false, "op":"state_tick","error": err})).await?,
                         }

@@ -26,20 +26,10 @@ pub extern "C" fn motor_handle_get_state(
                     t_rotor: state.t_rotor,
                 };
             } else {
-                *out = MotorState {
-                    has_value: 0,
-                    can_id: 0,
-                    arbitration_id: 0,
-                    status_code: 0,
-                    pos: 0.0,
-                    vel: 0.0,
-                    torq: 0.0,
-                    t_mos: 0.0,
-                    t_rotor: 0.0,
-                };
+                *out = MotorState::default();
             }
         }
-        MotorHandleInner::Hexfellow(m) => match m.query_status(Duration::from_millis(200)) {
+        MotorHandleInner::Hexfellow(m) => match m.query_status(Duration::from_millis(20)) {
             Ok(state) => {
                 *out = MotorState {
                     has_value: 1,
@@ -53,18 +43,9 @@ pub extern "C" fn motor_handle_get_state(
                     t_rotor: 0.0,
                 };
             }
-            Err(_) => {
-                *out = MotorState {
-                    has_value: 0,
-                    can_id: 0,
-                    arbitration_id: 0,
-                    status_code: 0,
-                    pos: 0.0,
-                    vel: 0.0,
-                    torq: 0.0,
-                    t_mos: 0.0,
-                    t_rotor: 0.0,
-                };
+            Err(e) => {
+                set_last_error(e.to_string());
+                return -1;
             }
         },
         MotorHandleInner::MyActuator(m) => {
@@ -81,17 +62,7 @@ pub extern "C" fn motor_handle_get_state(
                     t_rotor: 0.0,
                 };
             } else {
-                *out = MotorState {
-                    has_value: 0,
-                    can_id: 0,
-                    arbitration_id: 0,
-                    status_code: 0,
-                    pos: 0.0,
-                    vel: 0.0,
-                    torq: 0.0,
-                    t_mos: 0.0,
-                    t_rotor: 0.0,
-                };
+                *out = MotorState::default();
             }
         }
         MotorHandleInner::Robstride(m) => {
@@ -127,17 +98,7 @@ pub extern "C" fn motor_handle_get_state(
                     t_rotor: 0.0,
                 };
             } else {
-                *out = MotorState {
-                    has_value: 0,
-                    can_id: 0,
-                    arbitration_id: 0,
-                    status_code: 0,
-                    pos: 0.0,
-                    vel: 0.0,
-                    torq: 0.0,
-                    t_mos: 0.0,
-                    t_rotor: 0.0,
-                };
+                *out = MotorState::default();
             }
         }
         MotorHandleInner::Hightorque(m) => {
@@ -154,17 +115,7 @@ pub extern "C" fn motor_handle_get_state(
                     t_rotor: state.t_rotor,
                 };
             } else {
-                *out = MotorState {
-                    has_value: 0,
-                    can_id: 0,
-                    arbitration_id: 0,
-                    status_code: 0,
-                    pos: 0.0,
-                    vel: 0.0,
-                    torq: 0.0,
-                    t_mos: 0.0,
-                    t_rotor: 0.0,
-                };
+                *out = MotorState::default();
             }
         }
     }

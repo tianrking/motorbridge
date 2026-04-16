@@ -22,6 +22,7 @@ pub struct CoreController {
     tx_gap_env_override: bool,
     polling_active: Arc<AtomicBool>,
     polling_thread: Mutex<Option<JoinHandle<()>>>,
+    polling_start_lock: Mutex<()>,
 }
 
 impl CoreController {
@@ -48,6 +49,7 @@ impl CoreController {
             tx_gap_env_override,
             polling_active: Arc::new(AtomicBool::new(false)),
             polling_thread: Mutex::new(None),
+            polling_start_lock: Mutex::new(()),
         }
     }
 
@@ -176,10 +178,13 @@ impl CoreController {
         if self.polling_mode == PollingMode::Manual {
             return Ok(());
         }
+        let _start_guard = self
+            .polling_start_lock
+            .lock()
+            .map_err(|_| MotorError::Io("polling start lock poisoned".to_string()))?;
         if self.polling_active.load(Ordering::Acquire) {
             return Ok(());
         }
-
         self.polling_active.store(true, Ordering::Release);
         let active = Arc::clone(&self.polling_active);
         let bus = Arc::clone(&self.bus);
@@ -201,16 +206,25 @@ impl CoreController {
                 match recv_result {
                     Ok(Some(frame)) => {
                         if frame.is_rx {
-                            let snapshot = devices
-                                .lock()
-                                .ok()
-                                .map(|m| m.values().cloned().collect::<Vec<_>>())
-                                .unwrap_or_default();
+                            let snapshot = match devices.lock() {
+                                Ok(m) => m.values().cloned().collect::<Vec<_>>(),
+                                Err(_) => {
+                                    eprintln!(
+                                        "[motor_core] polling worker: devices lock poisoned, stopping"
+                                    );
+                                    active.store(false, Ordering::Release);
+                                    return;
+                                }
+                            };
                             for device in snapshot {
                                 if !device.accepts_frame(&frame) {
                                     continue;
                                 }
-                                let _ = device.process_feedback_frame(frame);
+                                if let Err(err) = device.process_feedback_frame(frame) {
+                                    eprintln!(
+                                        "[motor_core] polling worker: process_feedback_frame failed: {err}"
+                                    );
+                                }
                                 break;
                             }
                         }
@@ -310,55 +324,10 @@ impl CanBus for TxPacedBus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bus::{CanBus, CanFrame};
+    use crate::bus::CanFrame;
     use crate::device::MotorDevice;
-    use std::collections::VecDeque;
+    use crate::test_support::MockBus;
     use std::sync::atomic::{AtomicUsize, Ordering};
-
-    struct FakeBus {
-        rx: Mutex<VecDeque<CanFrame>>,
-        sent: Mutex<Vec<CanFrame>>,
-        shutdown_count: AtomicUsize,
-        fail_recv: AtomicBool,
-    }
-
-    impl FakeBus {
-        fn new() -> Self {
-            Self {
-                rx: Mutex::new(VecDeque::new()),
-                sent: Mutex::new(Vec::new()),
-                shutdown_count: AtomicUsize::new(0),
-                fail_recv: AtomicBool::new(false),
-            }
-        }
-
-        fn push_rx(&self, frame: CanFrame) {
-            self.rx.lock().expect("rx lock").push_back(frame);
-        }
-
-        fn set_fail_recv(&self, fail: bool) {
-            self.fail_recv.store(fail, Ordering::SeqCst);
-        }
-    }
-
-    impl CanBus for FakeBus {
-        fn send(&self, frame: CanFrame) -> Result<()> {
-            self.sent.lock().expect("sent lock").push(frame);
-            Ok(())
-        }
-
-        fn recv(&self, _timeout: Duration) -> Result<Option<CanFrame>> {
-            if self.fail_recv.load(Ordering::SeqCst) {
-                return Err(MotorError::Io("injected recv error".to_string()));
-            }
-            Ok(self.rx.lock().expect("rx lock").pop_front())
-        }
-
-        fn shutdown(&self) -> Result<()> {
-            self.shutdown_count.fetch_add(1, Ordering::SeqCst);
-            Ok(())
-        }
-    }
 
     struct FakeDevice {
         id: u16,
@@ -429,7 +398,7 @@ mod tests {
 
     #[test]
     fn add_device_rejects_duplicate_motor_id() {
-        let bus = Arc::new(FakeBus::new());
+        let bus = Arc::new(MockBus::new());
         let ctrl = CoreController::new(bus);
         let d1: Arc<dyn MotorDevice> = Arc::new(FakeDevice::new(1, 0x11));
         let d2: Arc<dyn MotorDevice> = Arc::new(FakeDevice::new(1, 0x12));
@@ -440,7 +409,7 @@ mod tests {
 
     #[test]
     fn poll_feedback_routes_to_accepting_device() {
-        let bus = Arc::new(FakeBus::new());
+        let bus = Arc::new(MockBus::new());
         bus.push_rx(rx_frame(0x12));
         bus.push_rx(rx_frame(0x11));
 
@@ -459,7 +428,7 @@ mod tests {
 
     #[test]
     fn enable_and_disable_all_touch_each_device_once() {
-        let bus = Arc::new(FakeBus::new());
+        let bus = Arc::new(MockBus::new());
         let ctrl = CoreController::new(bus);
         let d1 = Arc::new(FakeDevice::new(1, 0x11));
         let d2 = Arc::new(FakeDevice::new(2, 0x12));
@@ -478,7 +447,7 @@ mod tests {
 
     #[test]
     fn shutdown_disables_devices_and_closes_bus() {
-        let bus = Arc::new(FakeBus::new());
+        let bus = Arc::new(MockBus::new());
         let ctrl = CoreController::new(bus.clone());
         let d1 = Arc::new(FakeDevice::new(1, 0x11));
         ctrl.add_device(d1.clone()).expect("add d1");
@@ -491,7 +460,7 @@ mod tests {
 
     #[test]
     fn poll_feedback_once_returns_bus_recv_error() {
-        let bus = Arc::new(FakeBus::new());
+        let bus = Arc::new(MockBus::new());
         let ctrl = CoreController::new_internal(bus.clone(), PollingMode::Manual);
         let d1: Arc<dyn MotorDevice> = Arc::new(FakeDevice::new(1, 0x11));
         ctrl.add_device(d1).expect("add d1");
@@ -504,7 +473,7 @@ mod tests {
 
     #[test]
     fn poll_feedback_once_works_in_background_mode_without_errors() {
-        let bus = Arc::new(FakeBus::new());
+        let bus = Arc::new(MockBus::new());
         bus.push_rx(rx_frame(0x11));
 
         let ctrl = CoreController::new(bus.clone());

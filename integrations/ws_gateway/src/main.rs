@@ -20,6 +20,12 @@ fn is_benign_ws_disconnect(err: &str) -> bool {
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cfg = parse_args().map_err(|e| format!("arg parse error: {e}"))?;
+    let bind_is_local = cfg.bind.starts_with("127.0.0.1:")
+        || cfg.bind.starts_with("[::1]:")
+        || cfg.bind.starts_with("localhost:");
+    if !bind_is_local && std::env::var("MOTORBRIDGE_WS_TOKEN").is_err() {
+        return Err("MOTORBRIDGE_WS_TOKEN is required when binding ws_gateway to non-loopback addresses".into());
+    }
     let listener = TcpListener::bind(&cfg.bind).await?;
 
     println!(

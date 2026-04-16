@@ -1,36 +1,22 @@
 use crate::motor::HightorqueMotor;
-use motor_core::bus::CanBus;
+use motor_core::bus::{CanBus, open_socketcan};
 use motor_core::error::{MotorError, Result};
-#[cfg(any(target_os = "windows", target_os = "macos"))]
-use motor_core::pcan::PcanBus;
-#[cfg(target_os = "linux")]
-use motor_core::socketcan::SocketCanBus;
+use motor_core::vendor_controller::VendorController;
 use std::sync::Arc;
-use std::time::Duration;
 
 pub struct HightorqueController {
-    bus: Arc<dyn CanBus>,
+    controller: VendorController<HightorqueMotor>,
 }
 
 impl HightorqueController {
+    pub fn new(bus: Arc<dyn CanBus>) -> Self {
+        Self {
+            controller: VendorController::new(bus),
+        }
+    }
+
     pub fn new_socketcan(channel: &str) -> Result<Self> {
-        #[cfg(target_os = "linux")]
-        {
-            let bus: Arc<dyn CanBus> = Arc::new(SocketCanBus::open(channel)?);
-            return Ok(Self { bus });
-        }
-        #[cfg(any(target_os = "windows", target_os = "macos"))]
-        {
-            let bus: Arc<dyn CanBus> = Arc::new(PcanBus::open(channel)?);
-            return Ok(Self { bus });
-        }
-        #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
-        {
-            let _ = channel;
-            Err(MotorError::InvalidArgument(
-                "No CAN backend for current platform".to_string(),
-            ))
-        }
+        Ok(Self::new(open_socketcan(channel)?))
     }
 
     pub fn add_motor(
@@ -45,32 +31,28 @@ impl HightorqueController {
                 "unsupported HighTorque model hint: {model}"
             )));
         }
-        Ok(Arc::new(HightorqueMotor::new(
-            motor_id,
-            feedback_id,
-            model,
-            self.bus.clone(),
-        )))
+        self.controller.add_motor_with(motor_id, |bus| {
+            Ok(HightorqueMotor::new(motor_id, feedback_id, model, bus))
+        })
     }
 
     pub fn poll_feedback_once(&self) -> Result<()> {
-        let _ = self.bus.recv(Duration::from_millis(0))?;
-        Ok(())
+        self.controller.poll_feedback_once()
     }
 
     pub fn enable_all(&self) -> Result<()> {
-        Ok(())
+        self.controller.enable_all()
     }
 
     pub fn disable_all(&self) -> Result<()> {
-        Ok(())
+        self.controller.disable_all()
     }
 
     pub fn shutdown(&self) -> Result<()> {
-        self.bus.shutdown()
+        self.controller.shutdown()
     }
 
     pub fn close_bus(&self) -> Result<()> {
-        self.bus.shutdown()
+        self.controller.close_bus()
     }
 }

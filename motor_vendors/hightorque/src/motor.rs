@@ -2,12 +2,15 @@ use crate::protocol::{
     decode_read_reply, rad_to_pos_raw, radps_to_vel_raw, torque_nm_to_raw, HightorqueFeedbackState,
 };
 use motor_core::bus::{CanBus, CanFrame};
+use motor_core::device::MotorDevice;
 use motor_core::error::{MotorError, Result};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 pub struct HightorqueMotor {
     pub motor_id: u16,
+    feedback_id: u16,
+    model: String,
     bus: Arc<dyn CanBus>,
     state: Mutex<Option<HightorqueFeedbackState>>,
 }
@@ -15,12 +18,14 @@ pub struct HightorqueMotor {
 impl HightorqueMotor {
     pub(crate) fn new(
         motor_id: u16,
-        _feedback_id: u16,
-        _model: &str,
+        feedback_id: u16,
+        model: &str,
         bus: Arc<dyn CanBus>,
     ) -> Self {
         Self {
             motor_id,
+            feedback_id,
+            model: model.to_string(),
             bus,
             state: Mutex::new(None),
         }
@@ -31,7 +36,9 @@ impl HightorqueMotor {
     }
 
     pub fn enable(&self) -> Result<()> {
-        Ok(())
+        Err(MotorError::Unsupported(
+            "enable is not supported for HighTorque protocol".to_string(),
+        ))
     }
 
     pub fn disable(&self) -> Result<()> {
@@ -152,5 +159,56 @@ impl HightorqueMotor {
             "HighTorque read timeout on motor id {}",
             self.motor_id
         )))
+    }
+}
+
+impl MotorDevice for HightorqueMotor {
+    fn vendor(&self) -> &'static str {
+        "hightorque"
+    }
+
+    fn model(&self) -> &str {
+        &self.model
+    }
+
+    fn motor_id(&self) -> u16 {
+        self.motor_id
+    }
+
+    fn feedback_id(&self) -> u16 {
+        self.feedback_id
+    }
+
+    fn enable(&self) -> Result<()> {
+        HightorqueMotor::enable(self)
+    }
+
+    fn disable(&self) -> Result<()> {
+        HightorqueMotor::disable(self)
+    }
+
+    fn accepts_frame(&self, frame: &CanFrame) -> bool {
+        if !frame.is_rx || frame.dlc < 8 || frame.data[0] != 0x27 || frame.data[1] != 0x01 {
+            return false;
+        }
+        let can_id = if !frame.is_extended && (frame.arbitration_id & 0x00FF) == 0 {
+            ((frame.arbitration_id >> 8) & 0x7F) as u16
+        } else {
+            (frame.arbitration_id & 0x7F) as u16
+        };
+        can_id == self.motor_id
+    }
+
+    fn process_feedback_frame(&self, frame: CanFrame) -> Result<()> {
+        if let Some(state) = decode_read_reply(frame) {
+            if state.can_id as u16 != self.motor_id {
+                return Ok(());
+            }
+            self.state
+                .lock()
+                .map_err(|_| MotorError::Io("state lock poisoned".to_string()))?
+                .replace(state);
+        }
+        Ok(())
     }
 }

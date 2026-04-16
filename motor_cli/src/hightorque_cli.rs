@@ -119,13 +119,17 @@ fn pos_raw_from_args(args: &HashMap<String, String>) -> Result<i16, String> {
     }
     if args.contains_key("pos-deg") {
         let deg = get_f32(args, "pos-deg", 0.0)?;
-        return Ok((deg / 360.0 * 10_000.0).round() as i16);
+        return Ok(round_to_i16_saturated(deg / 360.0 * 10_000.0));
     }
     if args.contains_key("pos") {
         let rad = get_f32(args, "pos", 0.0)?;
-        return Ok((rad / TWO_PI * 10_000.0).round() as i16);
+        return Ok(round_to_i16_saturated(rad / TWO_PI * 10_000.0));
     }
     Ok(0)
+}
+
+fn round_to_i16_saturated(v: f32) -> i16 {
+    (v.round() as i32).clamp(i16::MIN as i32, i16::MAX as i32) as i16
 }
 
 fn vel_raw_from_args(args: &HashMap<String, String>) -> Result<i16, String> {
@@ -134,11 +138,11 @@ fn vel_raw_from_args(args: &HashMap<String, String>) -> Result<i16, String> {
     }
     if args.contains_key("vel-deg-s") {
         let deg_s = get_f32(args, "vel-deg-s", 0.0)?;
-        return Ok((deg_s / 360.0 / 0.00025).round() as i16);
+        return Ok(round_to_i16_saturated(deg_s / 360.0 / 0.00025));
     }
     if args.contains_key("vel") {
         let rad_s = get_f32(args, "vel", 0.0)?;
-        return Ok((rad_s / TWO_PI / 0.00025).round() as i16);
+        return Ok(round_to_i16_saturated(rad_s / TWO_PI / 0.00025));
     }
     Ok(0)
 }
@@ -149,7 +153,7 @@ fn tqe_raw_from_args(args: &HashMap<String, String>) -> Result<i16, String> {
     }
     if args.contains_key("tau") {
         let tau = get_f32(args, "tau", 0.0)?;
-        return Ok((tau * 100.0).round() as i16);
+        return Ok(round_to_i16_saturated(tau * 100.0));
     }
     Ok(0)
 }

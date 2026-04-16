@@ -93,15 +93,19 @@ pub(crate) fn wait_hightorque_status_for_motor(
 }
 
 pub(crate) fn pos_raw_from_rad(rad: f32) -> i16 {
-    (rad / TWO_PI * 10_000.0).round() as i16
+    round_to_i16_saturated(rad / TWO_PI * 10_000.0)
 }
 
 pub(crate) fn vel_raw_from_rad_s(rad_s: f32) -> i16 {
-    (rad_s / TWO_PI / 0.00025).round() as i16
+    round_to_i16_saturated(rad_s / TWO_PI / 0.00025)
 }
 
 pub(crate) fn tqe_raw_from_tau(tau: f32) -> i16 {
-    (tau * 100.0).round() as i16
+    round_to_i16_saturated(tau * 100.0)
+}
+
+fn round_to_i16_saturated(v: f32) -> i16 {
+    (v.round() as i32).clamp(i16::MIN as i32, i16::MAX as i32) as i16
 }
 
 pub(crate) fn open_hightorque_bus(target: &Target) -> Result<Box<dyn CanBus>, String> {

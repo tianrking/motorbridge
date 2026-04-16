@@ -310,8 +310,14 @@ impl CanBus for SocketCanFdBus {
                 ));
             }
 
+            if raw_fd.len > 8 {
+                return Err(MotorError::Unsupported(format!(
+                    "received CAN-FD payload length {} > 8 is not supported by current CanFrame",
+                    raw_fd.len
+                )));
+            }
             let mut data = [0u8; 8];
-            let dlc = raw_fd.len.min(8);
+            let dlc = raw_fd.len;
             if dlc > 0 {
                 data[..dlc as usize].copy_from_slice(&raw_fd.data[..dlc as usize]);
             }

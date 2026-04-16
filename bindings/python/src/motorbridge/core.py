@@ -48,20 +48,28 @@ class Controller:
             self._abi.lib.motor_controller_free(self._ptr)
             self._ptr = None
 
+    def _require_open(self) -> int:
+        if not self._ptr:
+            raise CallError("controller is closed")
+        return self._ptr
+
     def shutdown(self) -> None:
-        _ok(self._abi.lib.motor_controller_shutdown(self._ptr), "controller_shutdown")
+        _ok(self._abi.lib.motor_controller_shutdown(self._require_open()), "controller_shutdown")
 
     def close_bus(self) -> None:
-        _ok(self._abi.lib.motor_controller_close_bus(self._ptr), "controller_close_bus")
+        _ok(self._abi.lib.motor_controller_close_bus(self._require_open()), "controller_close_bus")
 
     def enable_all(self) -> None:
-        _ok(self._abi.lib.motor_controller_enable_all(self._ptr), "enable_all")
+        _ok(self._abi.lib.motor_controller_enable_all(self._require_open()), "enable_all")
 
     def disable_all(self) -> None:
-        _ok(self._abi.lib.motor_controller_disable_all(self._ptr), "disable_all")
+        _ok(self._abi.lib.motor_controller_disable_all(self._require_open()), "disable_all")
 
     def poll_feedback_once(self) -> None:
-        _ok(self._abi.lib.motor_controller_poll_feedback_once(self._ptr), "poll_feedback_once")
+        _ok(
+            self._abi.lib.motor_controller_poll_feedback_once(self._require_open()),
+            "poll_feedback_once",
+        )
 
     def add_damiao_motor(self, motor_id: int, feedback_id: int, model: str) -> "Motor":
         m = self._abi.lib.motor_controller_add_damiao_motor(
@@ -123,11 +131,16 @@ class Motor:
             self._abi.lib.motor_handle_free(self._ptr)
             self._ptr = None
 
+    def _require_open(self) -> int:
+        if not self._ptr:
+            raise CallError("motor handle is closed")
+        return self._ptr
+
     def enable(self) -> None:
-        _ok(self._abi.lib.motor_handle_enable(self._ptr), "enable")
+        _ok(self._abi.lib.motor_handle_enable(self._require_open()), "enable")
 
     def disable(self) -> None:
-        _ok(self._abi.lib.motor_handle_disable(self._ptr), "disable")
+        _ok(self._abi.lib.motor_handle_disable(self._require_open()), "disable")
 
     def clear_error(self) -> None:
         _ok(self._abi.lib.motor_handle_clear_error(self._ptr), "clear_error")

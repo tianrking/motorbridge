@@ -208,8 +208,13 @@ pub struct DamiaoMotor {
     // Software-side guard for set-zero sequencing:
     // set_zero_position() is allowed only after disable() was issued.
     disabled_hint: AtomicBool,
-    registers: Mutex<HashMap<u8, RegisterValue>>,
-    register_reply_time: Mutex<HashMap<u8, Instant>>,
+    register_cache: Mutex<RegisterCache>,
+}
+
+#[derive(Default)]
+struct RegisterCache {
+    values: HashMap<u8, RegisterValue>,
+    reply_time: HashMap<u8, Instant>,
 }
 
 impl DamiaoMotor {
@@ -226,8 +231,7 @@ impl DamiaoMotor {
             limits: PvTLimits::from_spec(spec),
             state: Mutex::new(None),
             disabled_hint: AtomicBool::new(true),
-            registers: Mutex::new(HashMap::new()),
-            register_reply_time: Mutex::new(HashMap::new()),
+            register_cache: Mutex::new(RegisterCache::default()),
         })
     }
 
@@ -397,18 +401,20 @@ impl DamiaoMotor {
         let deadline = Instant::now() + timeout;
         loop {
             let has_fresh_reply = self
-                .register_reply_time
+                .register_cache
                 .lock()
-                .map_err(|_| MotorError::Io("reply time lock poisoned".to_string()))?
+                .map_err(|_| MotorError::Io("register cache lock poisoned".to_string()))?
+                .reply_time
                 .get(&rid)
                 .copied()
                 .map(|ts| ts >= request_at)
                 .unwrap_or(false);
             if has_fresh_reply {
                 if let Some(value) = self
-                    .registers
+                    .register_cache
                     .lock()
-                    .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
+                    .map_err(|_| MotorError::Io("register cache lock poisoned".to_string()))?
+                    .values
                     .get(&rid)
                     .copied()
                 {
@@ -436,18 +442,20 @@ impl DamiaoMotor {
         let deadline = Instant::now() + timeout;
         loop {
             let has_fresh_reply = self
-                .register_reply_time
+                .register_cache
                 .lock()
-                .map_err(|_| MotorError::Io("reply time lock poisoned".to_string()))?
+                .map_err(|_| MotorError::Io("register cache lock poisoned".to_string()))?
+                .reply_time
                 .get(&rid)
                 .copied()
                 .map(|ts| ts >= request_at)
                 .unwrap_or(false);
             if has_fresh_reply {
                 if let Some(value) = self
-                    .registers
+                    .register_cache
                     .lock()
-                    .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
+                    .map_err(|_| MotorError::Io("register cache lock poisoned".to_string()))?
+                    .values
                     .get(&rid)
                     .copied()
                 {
@@ -482,14 +490,12 @@ impl DamiaoMotor {
                 RegisterDataType::Float => RegisterValue::Float(f32::from_le_bytes(raw)),
                 RegisterDataType::UInt32 => RegisterValue::UInt32(u32::from_le_bytes(raw)),
             };
-            self.registers
+            let mut cache = self
+                .register_cache
                 .lock()
-                .map_err(|_| MotorError::Io("register lock poisoned".to_string()))?
-                .insert(rid, value);
-            self.register_reply_time
-                .lock()
-                .map_err(|_| MotorError::Io("reply time lock poisoned".to_string()))?
-                .insert(rid, Instant::now());
+                .map_err(|_| MotorError::Io("register cache lock poisoned".to_string()))?;
+            cache.values.insert(rid, value);
+            cache.reply_time.insert(rid, Instant::now());
             return Ok(());
         }
 
@@ -564,39 +570,8 @@ impl MotorDevice for DamiaoMotor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use motor_core::bus::CanFrame;
-    use std::sync::Mutex;
+    use motor_core::test_support::MockBus;
     use std::time::{Duration, Instant};
-
-    struct SilentBus {
-        sent: Mutex<Vec<CanFrame>>,
-    }
-
-    impl SilentBus {
-        fn new() -> Self {
-            Self {
-                sent: Mutex::new(Vec::new()),
-            }
-        }
-    }
-
-    impl CanBus for SilentBus {
-        fn send(&self, frame: CanFrame) -> Result<()> {
-            self.sent
-                .lock()
-                .map_err(|_| MotorError::Io("sent lock poisoned".to_string()))?
-                .push(frame);
-            Ok(())
-        }
-
-        fn recv(&self, _timeout: Duration) -> Result<Option<CanFrame>> {
-            Ok(None)
-        }
-
-        fn shutdown(&self) -> Result<()> {
-            Ok(())
-        }
-    }
 
     #[test]
     fn model_limits_and_matching_work() {
@@ -619,7 +594,7 @@ mod tests {
 
     #[test]
     fn get_register_u32_times_out_when_no_feedback_arrives() {
-        let bus: Arc<dyn CanBus> = Arc::new(SilentBus::new());
+        let bus: Arc<dyn CanBus> = Arc::new(MockBus::new());
         let motor = DamiaoMotor::new(0x01, 0x11, "4340P", bus).expect("create motor");
         let err = motor
             .get_register_u32(10, Duration::from_millis(1))
@@ -629,19 +604,13 @@ mod tests {
 
     #[test]
     fn get_register_u32_ignores_stale_cached_reply() {
-        let bus: Arc<dyn CanBus> = Arc::new(SilentBus::new());
+        let bus: Arc<dyn CanBus> = Arc::new(MockBus::new());
         let motor = DamiaoMotor::new(0x01, 0x11, "4340P", bus).expect("create motor");
 
-        motor
-            .registers
-            .lock()
-            .expect("register lock")
-            .insert(10, RegisterValue::UInt32(2));
-        motor
-            .register_reply_time
-            .lock()
-            .expect("reply lock")
-            .insert(10, Instant::now());
+        let mut cache = motor.register_cache.lock().expect("register cache lock");
+        cache.values.insert(10, RegisterValue::UInt32(2));
+        cache.reply_time.insert(10, Instant::now());
+        drop(cache);
 
         let err = motor
             .get_register_u32(10, Duration::from_millis(1))
@@ -651,7 +620,7 @@ mod tests {
 
     #[test]
     fn set_zero_requires_disable_first() {
-        let bus: Arc<dyn CanBus> = Arc::new(SilentBus::new());
+        let bus: Arc<dyn CanBus> = Arc::new(MockBus::new());
         let motor = DamiaoMotor::new(0x01, 0x11, "4340P", bus).expect("create motor");
 
         motor.enable().expect("enable");
@@ -663,7 +632,7 @@ mod tests {
 
     #[test]
     fn set_zero_sends_command_after_disable() {
-        let bus_impl = Arc::new(SilentBus::new());
+        let bus_impl = Arc::new(MockBus::new());
         let bus: Arc<dyn CanBus> = bus_impl.clone();
         let motor = DamiaoMotor::new(0x04, 0x14, "4310", bus).expect("create motor");
 

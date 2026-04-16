@@ -3,7 +3,7 @@ use crate::model::{ServerConfig, Target, Transport, Vendor};
 use super::common::parse_hex_or_dec;
 
 pub(crate) fn parse_args() -> Result<ServerConfig, String> {
-    let mut bind = "0.0.0.0:9002".to_string();
+    let mut bind = "127.0.0.1:9002".to_string();
     let mut vendor = Vendor::Damiao;
     let mut transport = Transport::Auto;
     let mut channel = "can0".to_string();
@@ -22,7 +22,7 @@ pub(crate) fn parse_args() -> Result<ServerConfig, String> {
             println!(
                 "ws_gateway\n\
 Usage (router mode, recommended):\n\
-  cargo run -p ws_gateway --release -- --bind 0.0.0.0:9002\n\
+  cargo run -p ws_gateway --release -- --bind 127.0.0.1:9002\n\
 \n\
 Optional defaults (only used when WS message omits target fields):\n\
   --vendor damiao|robstride|hexfellow|myactuator|hightorque\n\

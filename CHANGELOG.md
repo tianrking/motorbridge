@@ -7,6 +7,17 @@ Versioning.
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-04-16
+
+### Changed
+
+- Refactored ABI FFI layers to reduce duplicated controller/motor dispatch boilerplate via shared
+  macros and helpers.
+- Consolidated vendor parameter FFI entrypoints (Hexfellow/HighTorque/MyActuator/RobStride) with
+  shared macro-generated get/write wrappers.
+- Aligned runtime/control-path robustness fixes across motor core, vendor controllers, Python
+  bindings, and websocket gateway integration.
+
 ## [0.1.3] - 2026-03-24
 
 ### Added

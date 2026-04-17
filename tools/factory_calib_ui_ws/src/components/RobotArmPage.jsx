@@ -36,6 +36,10 @@ const SAFE_DEMO_TARGETS = {
   7: -2.0,
 };
 
+function armPreferredMode() {
+  return 'pos_vel';
+}
+
 export function RobotArmPage() {
   const { t } = useI18n();
   const {
@@ -132,7 +136,7 @@ export function RobotArmPage() {
       const rawPos = Number(row?.hit?.pos);
       const synced = row?.hit?.online && Number.isFinite(rawPos) ? clampByLimit(rawPos, lim) : 0;
       patchControl(row.key, {
-        mode: 'pos_vel',
+        mode: armPreferredMode(),
         vlim: '1.0',
         tau: '0.0',
         kp: '30.0',
@@ -549,7 +553,8 @@ export function RobotArmPage() {
       for (const step of namedSeq) {
         const lim = jointLimit(step.row.joint);
         const target = clampByLimit(Number(step.target), lim);
-        patchControl(step.row.key, { mode: 'pos_vel', target: String(target) });
+        const mode = armPreferredMode();
+        patchControl(step.row.key, { mode, target: String(target) });
         showDemoToast(
           'info',
           t('arm_demo_running', { name: demoName }),
@@ -562,7 +567,7 @@ export function RobotArmPage() {
           }),
         );
         const ok = await controlMotor(step.row.hit, 'move', {
-          mode: 'pos_vel',
+          mode,
           target: String(target),
         });
         if (ok) okCount += 1;

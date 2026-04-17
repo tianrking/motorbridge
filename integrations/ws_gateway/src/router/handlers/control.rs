@@ -8,7 +8,7 @@ use motor_vendor_damiao::ControlMode as DamiaoControlMode;
 use motor_vendor_hexfellow::{
     MitTarget as HexfellowMitTarget, PosVelTarget as HexfellowPosVelTarget,
 };
-use motor_vendor_robstride::ControlMode as RobstrideControlMode;
+use motor_vendor_robstride::{ControlMode as RobstrideControlMode, ParameterValue as RobstrideParameterValue};
 use serde_json::{json, Value};
 use std::time::Duration;
 
@@ -44,8 +44,7 @@ fn handle_mit(v: &Value, ctx: &mut SessionCtx) -> Result<Value, String> {
             }
         }
         Some(MotorHandle::Robstride(m)) => {
-            m.set_mode(RobstrideControlMode::Mit)
-                .map_err(|e| e.to_string())?;
+            ensure_robstride_mode(ctx, m, RobstrideControlMode::Mit, 0, "mit")?;
             if let ActiveCommand::Mit { pos, vel, kp, kd, tau } = cmd {
                 m.send_cmd_mit(pos, vel, kp, kd, tau)
                     .map_err(|e| e.to_string())?;
@@ -135,11 +134,83 @@ fn handle_pos_vel(v: &Value, ctx: &mut SessionCtx) -> Result<Value, String> {
             };
             Ok(json!({"op":"pos_vel","continuous": as_bool(v, "continuous", false)}))
         }
-        Some(MotorHandle::Robstride(_)) => Err("pos_vel is not supported for robstride".to_string()),
+        Some(MotorHandle::Robstride(m)) => {
+            ensure_robstride_mode(ctx, m, RobstrideControlMode::Position, 1, "pos_vel")?;
+            if let ActiveCommand::PosVel { pos, vlim } = cmd {
+                let speed = vlim.abs();
+                if speed.is_finite() && speed > 0.0 {
+                    m.write_parameter(0x7017, RobstrideParameterValue::F32(speed))
+                        .map_err(|e| e.to_string())?;
+                }
+                let loc_kp = v
+                    .get("loc_kp")
+                    .or_else(|| v.get("kp"))
+                    .and_then(|x| x.as_f64())
+                    .map(|x| x as f32);
+                if let Some(kp) = loc_kp {
+                    if kp.is_finite() && kp >= 0.0 {
+                        m.write_parameter(0x701E, RobstrideParameterValue::F32(kp))
+                            .map_err(|e| e.to_string())?;
+                    }
+                }
+                m.write_parameter(0x7016, RobstrideParameterValue::F32(pos))
+                    .map_err(|e| e.to_string())?;
+            }
+            ctx.active = if as_bool(v, "continuous", false) {
+                Some(cmd)
+            } else {
+                None
+            };
+            Ok(json!({"op":"pos_vel","continuous": as_bool(v, "continuous", false)}))
+        }
         Some(MotorHandle::Hightorque(_)) => Err("pos_vel is not supported for hightorque".to_string()),
         Some(MotorHandle::Myactuator(_)) => Err("pos_vel is not supported for myactuator".to_string()),
         None => Err("motor not connected".to_string()),
     }
+}
+
+fn ensure_robstride_mode(
+    ctx: &SessionCtx,
+    motor: &std::sync::Arc<motor_vendor_robstride::RobstrideMotor>,
+    mode: RobstrideControlMode,
+    expect: i8,
+    mode_name: &str,
+) -> Result<(), String> {
+    if let Ok(RobstrideParameterValue::I8(v)) = motor.get_parameter(0x7005, Duration::from_millis(120)) {
+        if v == expect {
+            return Ok(());
+        }
+    }
+
+    if let Some(ControllerHandle::Robstride(ctrl)) = ctx.controller.as_ref() {
+        let _ = ctrl.disable_all();
+        std::thread::sleep(Duration::from_millis(60));
+    }
+
+    let mut actual = None;
+    for _ in 0..3 {
+        motor.set_mode(mode).map_err(|e| e.to_string())?;
+        std::thread::sleep(Duration::from_millis(30));
+        if let Ok(RobstrideParameterValue::I8(v)) =
+            motor.get_parameter(0x7005, Duration::from_millis(120))
+        {
+            actual = Some(v);
+            if v == expect {
+                break;
+            }
+        }
+    }
+    if actual != Some(expect) {
+        return Err(format!(
+            "robstride {mode_name} mode switch failed: expect={expect} actual={actual:?}"
+        ));
+    }
+
+    if let Some(ControllerHandle::Robstride(ctrl)) = ctx.controller.as_ref() {
+        ctrl.enable_all().map_err(|e| e.to_string())?;
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    Ok(())
 }
 
 fn handle_vel(v: &Value, ctx: &mut SessionCtx) -> Result<Value, String> {
@@ -159,8 +230,7 @@ fn handle_vel(v: &Value, ctx: &mut SessionCtx) -> Result<Value, String> {
             }
         }
         Some(MotorHandle::Robstride(m)) => {
-            m.set_mode(RobstrideControlMode::Velocity)
-                .map_err(|e| e.to_string())?;
+            ensure_robstride_mode(ctx, m, RobstrideControlMode::Velocity, 2, "vel")?;
             if let ActiveCommand::Vel { vel } = cmd {
                 m.set_velocity_target(vel).map_err(|e| e.to_string())?;
             }

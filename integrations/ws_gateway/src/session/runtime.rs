@@ -4,6 +4,7 @@ use crate::vendors::hightorque_ws::{
 };
 use crate::model::{ActiveCommand, ControllerHandle, MotorHandle};
 use motor_vendor_hexfellow::{MitTarget as HexfellowMitTarget, PosVelTarget as HexfellowPosVelTarget};
+use motor_vendor_robstride::ParameterValue as RobstrideParameterValue;
 use serde_json::{json, Value};
 use std::time::Duration;
 
@@ -107,8 +108,19 @@ impl SessionCtx {
                 Some(ActiveCommand::Vel { vel }) => {
                     motor.set_velocity_target(*vel).map_err(|e| e.to_string())
                 }
-                Some(ActiveCommand::PosVel { .. }) | Some(ActiveCommand::ForcePos { .. }) => {
-                    Err("pos_vel/force_pos are not supported for robstride".to_string())
+                Some(ActiveCommand::PosVel { pos, vlim }) => {
+                    let speed = vlim.abs();
+                    if speed.is_finite() && speed > 0.0 {
+                        motor
+                            .write_parameter(0x7017, RobstrideParameterValue::F32(speed))
+                            .map_err(|e| e.to_string())?;
+                    }
+                    motor
+                        .write_parameter(0x7016, RobstrideParameterValue::F32(*pos))
+                        .map_err(|e| e.to_string())
+                }
+                Some(ActiveCommand::ForcePos { .. }) => {
+                    Err("force_pos is not supported for robstride".to_string())
                 }
                 None => Ok(()),
             },

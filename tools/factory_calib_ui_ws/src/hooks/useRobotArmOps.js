@@ -309,18 +309,19 @@ export function useRobotArmOps({
       let okCount = 0;
       for (const row of robotArmJointRows) {
         const key = motorKey(row.hit);
+        const mode = 'pos_vel';
         setControls((prev) => ({
           ...prev,
           [key]: {
             ...(prev[key] || defaultControlsForHit(row.hit)),
-            mode: 'pos_vel',
+            mode,
             target: '0.0',
           },
         }));
         const ok = await controlMotor(
           row.hit,
           'move',
-          { mode: 'pos_vel', target: '0.0' },
+          { mode, target: '0.0' },
           { allowDuringBulk: true }
         );
         if (ok) okCount += 1;

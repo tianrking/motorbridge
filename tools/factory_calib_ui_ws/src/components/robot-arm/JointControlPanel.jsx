@@ -20,6 +20,8 @@ export function JointControlPanel({
 }) {
   const { t } = useI18n();
   if (!activeRow) return null;
+  const vendor = String(activeRow?.hit?.vendor || '').toLowerCase();
+  const modeOptions = vendor === 'robstride' ? ['pos_vel', 'mit', 'vel'] : ['pos_vel', 'mit', 'vel', 'force_pos'];
   return (
     <div className="armControlPanel">
       <div className="sectionTitle armPaneTitle">
@@ -38,10 +40,11 @@ export function JointControlPanel({
             value={activeRow.control.mode}
             onChange={(e) => patchControl(activeRow.key, { mode: e.target.value })}
           >
-            <option value="pos_vel">pos_vel</option>
-            <option value="mit">mit</option>
-            <option value="vel">vel</option>
-            <option value="force_pos">force_pos</option>
+            {modeOptions.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
           </select>
         </div>
         <div className="field">

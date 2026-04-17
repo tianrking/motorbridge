@@ -15,6 +15,7 @@ fn is_benign_ws_disconnect(err: &str) -> bool {
         || s.contains("connection reset")
         || s.contains("ws recv error")
         || s.contains("connection closed")
+        || s.contains("handshake not finished")
 }
 
 #[tokio::main(flavor = "multi_thread")]

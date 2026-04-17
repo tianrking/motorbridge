@@ -11,6 +11,7 @@ import { parseNum } from '../lib/utils';
 import { ArmUrdfViewer } from './ArmUrdfViewer';
 import { ProgressBar } from './ProgressBar';
 import { useMotorStudioContext } from '../hooks/useMotorStudioContext';
+import { usePersistedState } from '../hooks/usePersistedState';
 import { JointList } from './robot-arm/JointList';
 import { JointControlPanel } from './robot-arm/JointControlPanel';
 import { ParamTable } from './robot-arm/ParamTable';
@@ -86,6 +87,26 @@ export function RobotArmPage() {
     detail: '',
   });
   const [urdfResetSeq, setUrdfResetSeq] = React.useState(0);
+  const [urdfClearTrailSeq, setUrdfClearTrailSeq] = React.useState(0);
+  const [urdfExportTrailSeq, setUrdfExportTrailSeq] = React.useState(0);
+  const [urdfReplaySeq, setUrdfReplaySeq] = React.useState(0);
+  const [urdfReplayStopSeq, setUrdfReplayStopSeq] = React.useState(0);
+  const [urdfReplayFinishSeq, setUrdfReplayFinishSeq] = React.useState(0);
+  const [urdfReplayBusy, setUrdfReplayBusy] = React.useState(false);
+  const [urdfReplaySpeed, setUrdfReplaySpeed] = React.useState(1);
+  const urdfSimMode = 'trajectory';
+  const [urdfTrailStyle, setUrdfTrailStyle] = React.useState('multi');
+  const [urdfTrailColor, setUrdfTrailColor] = React.useState('#ff2d55');
+  const [urdfTrailVisible, setUrdfTrailVisible] = React.useState(true);
+  const [urdfImportedTrail, setUrdfImportedTrail] = React.useState(null);
+  const [urdfImportInfo, setUrdfImportInfo] = React.useState('');
+  const [urdfSeqLibrary, setUrdfSeqLibrary] = usePersistedState(
+    'factory_calib_ui_ws_arm_seq_library_v1',
+    [],
+    (cached) => (Array.isArray(cached) ? cached.filter((x) => x && Array.isArray(x.points) && x.points.length >= 2) : []),
+  );
+  const [urdfSeqPick, setUrdfSeqPick] = React.useState('');
+  const importTrailInputRef = React.useRef(null);
   const [firstUseOpen, setFirstUseOpen] = React.useState(false);
   const [demoAction, setDemoAction] = React.useState('safe_seq');
   const [demoBusy, setDemoBusy] = React.useState(false);
@@ -97,10 +118,30 @@ export function RobotArmPage() {
   });
   const zeroConfirmResolverRef = React.useRef(null);
   const rowsRef = React.useRef(robotArmJointRows);
+  const initControlSyncDoneRef = React.useRef(false);
 
   React.useEffect(() => {
     rowsRef.current = robotArmJointRows;
   }, [robotArmJointRows]);
+
+  React.useEffect(() => {
+    if (initControlSyncDoneRef.current) return;
+    if (!robotArmJointRows.length) return;
+    robotArmJointRows.forEach((row) => {
+      const lim = jointLimit(row.joint);
+      const rawPos = Number(row?.hit?.pos);
+      const synced = row?.hit?.online && Number.isFinite(rawPos) ? clampByLimit(rawPos, lim) : 0;
+      patchControl(row.key, {
+        mode: 'pos_vel',
+        vlim: '1.0',
+        tau: '0.0',
+        kp: '30.0',
+        kd: '1.0',
+        target: String(synced),
+      });
+    });
+    initControlSyncDoneRef.current = true;
+  }, [robotArmJointRows, patchControl]);
 
   React.useEffect(() => {
     if (robotArmJointRows.length === 0) return;
@@ -549,8 +590,120 @@ export function RobotArmPage() {
     enableAllRobotArm,
   ]);
 
-  const armToolbarBusy = armBulkBusy || armScanBusy || armSelfCheckBusy || paramBusy || demoBusy;
-  const perJointBusy = armBulkBusy || paramBusy;
+  const armToolbarBusy = armBulkBusy || armScanBusy || armSelfCheckBusy || paramBusy || demoBusy || urdfReplayBusy;
+  const perJointBusy = armBulkBusy || paramBusy || urdfReplayBusy;
+
+  const openImportTrailDialog = React.useCallback(() => {
+    importTrailInputRef.current?.click();
+  }, []);
+
+  const onImportTrailFile = React.useCallback(
+    async (e) => {
+      const file = e.target?.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        const rawPoints = Array.isArray(json?.points)
+          ? json.points
+          : Array.isArray(json?.sequence)
+            ? json.sequence
+            : Array.isArray(json?.waypoints)
+              ? json.waypoints
+              : [];
+        const points = rawPoints
+          .map((p) => {
+            if (Array.isArray(p) && p.length >= 3) {
+              return { x: Number(p[0]), y: Number(p[1]), z: Number(p[2]) };
+            }
+            if (p && typeof p === 'object') {
+              const joints = p.joints && typeof p.joints === 'object' ? p.joints : undefined;
+              if (p.pos && typeof p.pos === 'object') {
+                return { x: Number(p.pos.x), y: Number(p.pos.y), z: Number(p.pos.z), ...(joints ? { joints } : {}) };
+              }
+              return { x: Number(p.x), y: Number(p.y), z: Number(p.z), ...(joints ? { joints } : {}) };
+            }
+            return null;
+          })
+          .filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z));
+        if (points.length < 2) throw new Error('invalid trajectory points');
+        setUrdfImportedTrail({
+          name: file.name,
+          points,
+          at: Date.now(),
+        });
+        setUrdfImportInfo(t('arm_traj_import_ok', { count: points.length }));
+        setUrdfTrailVisible(true);
+      } catch (err) {
+        setUrdfImportInfo(`${t('arm_traj_import_fail')}: ${err?.message || String(err)}`);
+      } finally {
+        if (e.target) e.target.value = '';
+      }
+    },
+    [t],
+  );
+
+  const replayImportedTrail = React.useCallback(() => {
+    if (!urdfImportedTrail?.points?.length) {
+      setUrdfImportInfo(t('arm_traj_replay_need_import'));
+      return;
+    }
+    setUrdfReplaySeq((v) => v + 1);
+  }, [urdfImportedTrail, t]);
+
+  React.useEffect(() => {
+    if (!urdfSeqLibrary.length) {
+      if (urdfSeqPick) setUrdfSeqPick('');
+      return;
+    }
+    const exists = urdfSeqLibrary.some((x) => x.id === urdfSeqPick);
+    if (!exists) setUrdfSeqPick(urdfSeqLibrary[0].id);
+  }, [urdfSeqLibrary, urdfSeqPick]);
+
+  const saveCurrentSequenceToLibrary = React.useCallback(() => {
+    if (!urdfImportedTrail?.points?.length) {
+      setUrdfImportInfo(t('arm_seq_save_need_import'));
+      return;
+    }
+    const now = Date.now();
+    const base = String(urdfImportedTrail.name || '').replace(/\.json$/i, '').trim();
+    const name = base || `seq_${new Date(now).toLocaleTimeString()}`;
+    const item = {
+      id: `seq_${now}_${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      at: now,
+      points: urdfImportedTrail.points,
+    };
+    setUrdfSeqLibrary((prev) => [item, ...prev].slice(0, 64));
+    setUrdfSeqPick(item.id);
+    setUrdfImportInfo(t('arm_seq_saved', { name: item.name }));
+  }, [setUrdfSeqLibrary, t, urdfImportedTrail]);
+
+  const loadSelectedSequence = React.useCallback(
+    (opts = { replay: false }) => {
+      const item = urdfSeqLibrary.find((x) => x.id === urdfSeqPick);
+      if (!item) {
+        setUrdfImportInfo(t('arm_seq_load_need_select'));
+        return;
+      }
+      setUrdfImportedTrail({
+        name: `${item.name}.json`,
+        points: item.points,
+        at: Date.now(),
+      });
+      setUrdfTrailVisible(true);
+      setUrdfImportInfo(t('arm_seq_loaded', { name: item.name, count: item.points.length }));
+      if (opts?.replay) setUrdfReplaySeq((v) => v + 1);
+    },
+    [t, urdfSeqLibrary, urdfSeqPick],
+  );
+
+  const deleteSelectedSequence = React.useCallback(() => {
+    const item = urdfSeqLibrary.find((x) => x.id === urdfSeqPick);
+    if (!item) return;
+    setUrdfSeqLibrary((prev) => prev.filter((x) => x.id !== item.id));
+    setUrdfImportInfo(t('arm_seq_deleted', { name: item.name }));
+  }, [setUrdfSeqLibrary, t, urdfSeqLibrary, urdfSeqPick]);
 
   return (
     <section className="card glass">
@@ -736,15 +889,150 @@ export function RobotArmPage() {
           <div className="armSimPanel">
             <div className="sectionTitle armPaneTitle">
               <h2>{t('arm_sim_title')}</h2>
-              <div className="row compactToolbar">
-                <span className="tip">{t('arm_ws_bridge_hint')}</span>
-                <button className="ghostBtn small" onClick={() => setUrdfResetSeq((v) => v + 1)}>
-                  {t('arm_reset_view')}
-                </button>
+            </div>
+            <div className="armSimControls">
+              <div className="armSimStatusRow">
+                <span className="armModeChip">
+                  {t('arm_sim_mode_current', {
+                    mode: t('arm_sim_mode_trajectory'),
+                  })}
+                </span>
+                <div className="row compactToolbar">
+                  <button className="ghostBtn small" disabled={urdfReplayBusy} onClick={() => setUrdfClearTrailSeq((v) => v + 1)}>
+                    {t('arm_clear_traj')}
+                  </button>
+                  <button className="ghostBtn small" disabled={urdfReplayBusy} onClick={() => setUrdfExportTrailSeq((v) => v + 1)}>
+                    {t('arm_export_traj')}
+                  </button>
+                  <button className="ghostBtn small" disabled={urdfReplayBusy} onClick={openImportTrailDialog}>
+                    {t('arm_import_traj')}
+                  </button>
+                  <button
+                    className="ghostBtn small"
+                    disabled={!urdfImportedTrail?.points?.length || urdfReplayBusy}
+                    onClick={replayImportedTrail}
+                  >
+                    {t('arm_replay_traj')}
+                  </button>
+                  <button className="ghostBtn small" disabled={urdfReplayBusy} onClick={saveCurrentSequenceToLibrary}>
+                    {t('arm_seq_save_current')}
+                  </button>
+                  <button className="ghostBtn small" disabled={urdfReplayBusy || !urdfSeqLibrary.length} onClick={() => loadSelectedSequence({ replay: false })}>
+                    {t('arm_seq_load')}
+                  </button>
+                  <button className="ghostBtn small" disabled={urdfReplayBusy || !urdfSeqLibrary.length} onClick={() => loadSelectedSequence({ replay: true })}>
+                    {t('arm_seq_replay_selected')}
+                  </button>
+                  <button className="ghostBtn small" disabled={urdfReplayBusy || !urdfSeqLibrary.length} onClick={deleteSelectedSequence}>
+                    {t('arm_seq_delete')}
+                  </button>
+                  <button
+                    className="ghostBtn small"
+                    disabled={!urdfReplayBusy}
+                    onClick={() => setUrdfReplayStopSeq((v) => v + 1)}
+                  >
+                    {t('arm_replay_stop')}
+                  </button>
+                  <button
+                    className="ghostBtn small"
+                    disabled={!urdfReplayBusy}
+                    onClick={() => setUrdfReplayFinishSeq((v) => v + 1)}
+                  >
+                    {t('arm_replay_finish')}
+                  </button>
+                  <button className="ghostBtn small" disabled={urdfReplayBusy} onClick={() => setUrdfResetSeq((v) => v + 1)}>
+                    {t('arm_reset_view')}
+                  </button>
+                </div>
+              </div>
+              <div className="armSimFieldRow">
+                <label className="armSimField">
+                  <span>{t('arm_traj_visible')}</span>
+                  <select
+                    disabled={urdfReplayBusy}
+                    value={urdfTrailVisible ? 'show' : 'hide'}
+                    onChange={(e) => setUrdfTrailVisible(e.target.value === 'show')}
+                  >
+                    <option value="show">{t('arm_traj_show')}</option>
+                    <option value="hide">{t('arm_traj_hide')}</option>
+                  </select>
+                </label>
+                <label className="armSimField">
+                  <span>{t('arm_seq_library')}</span>
+                  <select
+                    disabled={urdfReplayBusy || !urdfSeqLibrary.length}
+                    value={urdfSeqPick}
+                    onChange={(e) => setUrdfSeqPick(e.target.value)}
+                  >
+                    {!urdfSeqLibrary.length && <option value="">{t('arm_seq_none')}</option>}
+                    {urdfSeqLibrary.map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="armSimField">
+                  <span>{t('arm_traj_style')}</span>
+                  <select disabled={urdfReplayBusy} value={urdfTrailStyle} onChange={(e) => setUrdfTrailStyle(e.target.value)}>
+                    <option value="multi">{t('arm_traj_style_multi')}</option>
+                    <option value="mono">{t('arm_traj_style_mono')}</option>
+                  </select>
+                </label>
+                <label className="armSimField">
+                  <span>{t('arm_traj_color')}</span>
+                  <div className="armColorField">
+                    <input
+                      type="color"
+                      disabled={urdfReplayBusy}
+                      value={urdfTrailColor}
+                      title={t('arm_traj_color')}
+                      onChange={(e) => setUrdfTrailColor(e.target.value)}
+                    />
+                    <code>{String(urdfTrailColor || '').toUpperCase()}</code>
+                  </div>
+                </label>
+                <label className="armSimField">
+                  <span>{t('arm_replay_speed')}</span>
+                  <div className="armColorField">
+                    <input
+                      type="range"
+                      min="0.2"
+                      max="3"
+                      step="0.1"
+                      value={urdfReplaySpeed}
+                      onChange={(e) => setUrdfReplaySpeed(Number(e.target.value) || 1)}
+                    />
+                    <code>{urdfReplaySpeed.toFixed(1)}x</code>
+                  </div>
+                </label>
               </div>
             </div>
-            <p className="tip">{t('arm_sim_desc')}</p>
-            <ArmUrdfViewer jointTargets={jointTargets} resetViewSeq={urdfResetSeq} />
+            <p className="tip armSimDesc">{t('arm_sim_desc')}</p>
+            {urdfImportInfo && <p className="tip">{urdfImportInfo}</p>}
+            <input
+              ref={importTrailInputRef}
+              type="file"
+              accept="application/json,.json"
+              style={{ display: 'none' }}
+              onChange={onImportTrailFile}
+            />
+            <ArmUrdfViewer
+              jointTargets={jointTargets}
+              resetViewSeq={urdfResetSeq}
+              clearTrailSeq={urdfClearTrailSeq}
+              exportTrailSeq={urdfExportTrailSeq}
+              replaySeq={urdfReplaySeq}
+              replayStopSeq={urdfReplayStopSeq}
+              replayFinishSeq={urdfReplayFinishSeq}
+              replaySpeed={urdfReplaySpeed}
+              importedTrail={urdfImportedTrail}
+              simMode={urdfSimMode}
+              trailStyle={urdfTrailStyle}
+              trailColor={urdfTrailColor}
+              trailVisible={urdfTrailVisible}
+              onReplayStateChange={setUrdfReplayBusy}
+            />
           </div>
         </div>
       </div>

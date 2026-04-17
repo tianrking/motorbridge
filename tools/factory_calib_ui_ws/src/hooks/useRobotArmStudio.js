@@ -13,6 +13,20 @@ import { usePersistedState } from './usePersistedState';
 
 const LS_ROBOT_ARM_MODEL_KEY = 'factory_calib_ui_ws_robot_arm_model_v1';
 
+function normalizeControlForHit(hit, rawControl) {
+  const defaults = defaultControlsForHit(hit);
+  const merged = {
+    ...defaults,
+    ...(rawControl && typeof rawControl === 'object' ? rawControl : {}),
+  };
+  const required = ['mode', 'target', 'vlim', 'kp', 'kd', 'tau', 'ratio', 'newEsc', 'newMst'];
+  required.forEach((k) => {
+    const v = merged[k];
+    if (v == null || String(v).trim() === '') merged[k] = defaults[k];
+  });
+  return merged;
+}
+
 export function useRobotArmStudio({
   hits,
   setHits,
@@ -87,7 +101,7 @@ export function useRobotArmStudio({
       const next = { ...prev };
       for (const h of armHits) {
         const key = motorKey(h);
-        if (!next[key]) next[key] = defaultControlsForHit(h);
+        next[key] = normalizeControlForHit(h, next[key]);
       }
       return next;
     });
@@ -101,7 +115,7 @@ export function useRobotArmStudio({
         const found = hits.find((h) => isProfileJointHit(h, robotArmModel, j));
         const hit = found || buildRobotArmHit(j, robotArmModel);
         const key = motorKey(hit);
-        const control = controls[key] || defaultControlsForHit(hit);
+        const control = normalizeControlForHit(hit, controls[key]);
         return { joint: j.joint, hit, control, key };
       }),
     [hits, controls, robotArmModel]

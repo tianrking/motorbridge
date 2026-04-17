@@ -369,6 +369,98 @@
   min-height: 0;
 }
 
+.armSimControls {
+  margin-top: 4px;
+  margin-bottom: 8px;
+  padding: 10px;
+  border: 1px solid #d8e1fb;
+  border-radius: 12px;
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(86, 133, 255, 0.16) 0%, rgba(86, 133, 255, 0) 62%),
+    linear-gradient(180deg, #ffffff, #f7faff);
+  display: grid;
+  gap: 8px;
+}
+
+.armSimStatusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.armModeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid #bfd1ff;
+  background: linear-gradient(180deg, #edf3ff, #f7faff);
+  color: #2b4b8f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.armSimFieldRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.armSimField {
+  min-width: 220px;
+  max-width: 280px;
+  display: grid;
+  gap: 4px;
+}
+
+.armSimField > span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #35528d;
+}
+
+.armSimField select {
+  border: 1px solid #cdd9fc;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fff;
+}
+
+.armColorField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.armColorField input[type='color'] {
+  width: 46px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #cdd9fc;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.armColorField code {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #2f4b86;
+  background: #edf3ff;
+  border: 1px solid #cedcff;
+  border-radius: 7px;
+  padding: 4px 8px;
+}
+
+.armSimDesc {
+  margin-top: 2px;
+  margin-bottom: 6px;
+}
+
 .armUrdfViewer {
   width: 100%;
   height: 560px;
@@ -400,6 +492,15 @@
   .armGrid {
     grid-template-columns: 1fr;
     max-height: none;
+  }
+
+  .armSimStatusRow {
+    align-items: stretch;
+  }
+
+  .armSimField {
+    min-width: 100%;
+    max-width: 100%;
   }
 }
 

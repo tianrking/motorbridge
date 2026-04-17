@@ -6,6 +6,7 @@ import {
   ROBOT_ARM_MODELS,
   ZERO_SAFE_EPS_RAD,
 } from '../lib/robotArm';
+import { sleep } from '../lib/async';
 import { parseNum } from '../lib/utils';
 import { ArmUrdfViewer } from './ArmUrdfViewer';
 import { ProgressBar } from './ProgressBar';
@@ -24,6 +25,16 @@ function clampByLimit(value, lim) {
   return Math.max(lim.min, Math.min(lim.max, value));
 }
 
+const SAFE_DEMO_TARGETS = {
+  1: 0.4,
+  2: -0.3,
+  3: -0.4,
+  4: -0.2,
+  5: -0.5,
+  6: 0.5,
+  7: -2.0,
+};
+
 export function RobotArmPage() {
   const { t } = useI18n();
   const {
@@ -38,7 +49,6 @@ export function RobotArmPage() {
     armSelfCheckReport,
     setRobotArmModel,
     robotArmJointRows,
-    ensureRobotArmCards,
     scanRobotArmJoint,
     scanRobotArmAll,
     runRobotArmSelfCheck,
@@ -68,8 +78,17 @@ export function RobotArmPage() {
   });
   const [limitWarn, setLimitWarn] = React.useState('');
   const [limitToast, setLimitToast] = React.useState({ visible: false, message: '', seq: 0 });
+  const [demoToast, setDemoToast] = React.useState({
+    visible: false,
+    seq: 0,
+    tone: 'info',
+    title: '',
+    detail: '',
+  });
   const [urdfResetSeq, setUrdfResetSeq] = React.useState(0);
   const [firstUseOpen, setFirstUseOpen] = React.useState(false);
+  const [demoAction, setDemoAction] = React.useState('safe_seq');
+  const [demoBusy, setDemoBusy] = React.useState(false);
   const [zeroConfirm, setZeroConfirm] = React.useState({
     open: false,
     title: '',
@@ -77,6 +96,11 @@ export function RobotArmPage() {
     danger: false,
   });
   const zeroConfirmResolverRef = React.useRef(null);
+  const rowsRef = React.useRef(robotArmJointRows);
+
+  React.useEffect(() => {
+    rowsRef.current = robotArmJointRows;
+  }, [robotArmJointRows]);
 
   React.useEffect(() => {
     if (robotArmJointRows.length === 0) return;
@@ -100,8 +124,26 @@ export function RobotArmPage() {
     return () => clearTimeout(timer);
   }, [limitToast]);
 
+  React.useEffect(() => {
+    if (!demoToast.visible || demoBusy) return undefined;
+    const timer = setTimeout(() => {
+      setDemoToast((prev) => ({ ...prev, visible: false }));
+    }, 2600);
+    return () => clearTimeout(timer);
+  }, [demoToast, demoBusy]);
+
   const showLimitToast = React.useCallback((message) => {
     setLimitToast((prev) => ({ visible: true, message, seq: prev.seq + 1 }));
+  }, []);
+
+  const showDemoToast = React.useCallback((tone, title, detail = '') => {
+    setDemoToast((prev) => ({
+      visible: true,
+      seq: prev.seq + 1,
+      tone,
+      title,
+      detail,
+    }));
   }, []);
 
   const askZeroConfirm = React.useCallback((cfg) => {
@@ -162,6 +204,11 @@ export function RobotArmPage() {
       notReady,
     };
   }, [robotArmJointRows]);
+
+  const onlineCount = React.useMemo(
+    () => robotArmJointRows.filter((row) => Boolean(row?.hit?.online)).length,
+    [robotArmJointRows],
+  );
 
   const liveMove = Boolean(uiPrefs?.armSliderLiveMove);
   const liveMoveTimerRef = React.useRef(null);
@@ -415,7 +462,94 @@ export function RobotArmPage() {
     await zeroAllRobotArm();
   }, [askZeroConfirm, showLimitToast, t, zeroAllRobotArm, zeroSafety]);
 
-  const armToolbarBusy = armBulkBusy || armScanBusy || armSelfCheckBusy || paramBusy;
+  const runDemo = React.useCallback(async () => {
+    if (demoBusy) return;
+
+    const getOnlineRows = () => {
+      const rows = rowsRef.current || [];
+      const onlineRows = rows.filter((row) => Boolean(row?.hit?.online));
+      return onlineRows.length > 0 ? onlineRows : [];
+    };
+
+    setDemoBusy(true);
+    try {
+      if (demoAction === 'safe_seq_scan') {
+        showDemoToast('info', t('arm_demo_running', { name: t('arm_demo_safe_seq_scan') }), t('arm_demo_scan'));
+        await scanRobotArmAll();
+        await sleep(120);
+        await enableAllRobotArm();
+      }
+
+      const onlineRows = getOnlineRows();
+      if (onlineRows.length === 0) {
+        showDemoToast('warn', t('arm_demo_failed'), t('arm_demo_no_online'));
+        return;
+      }
+      const targets = [...onlineRows].sort((a, b) => Number(a.joint) - Number(b.joint)).slice(0, 7);
+      const seq = [];
+      targets.forEach((row) => {
+        seq.push({
+          row,
+          target: Number(SAFE_DEMO_TARGETS[row.joint] ?? 0.25),
+          phase: 'forward',
+        });
+      });
+      [...targets].reverse().forEach((row) => {
+        seq.push({ row, target: 0, phase: 'reset' });
+      });
+
+      const namedSeq = seq.map((step, idx) => ({
+        ...step,
+        note: t(`arm_demo_phase_${step.phase}`),
+        index: idx + 1,
+      }));
+      let okCount = 0;
+      const demoName = demoAction === 'safe_seq_scan' ? t('arm_demo_safe_seq_scan') : t('arm_demo_safe_seq');
+      for (const step of namedSeq) {
+        const lim = jointLimit(step.row.joint);
+        const target = clampByLimit(Number(step.target), lim);
+        patchControl(step.row.key, { mode: 'pos_vel', target: String(target) });
+        showDemoToast(
+          'info',
+          t('arm_demo_running', { name: demoName }),
+          t('arm_demo_step_phase', {
+            step: step.index,
+            total: namedSeq.length,
+            joint: `J${step.row.joint}`,
+            phase: step.note,
+            target: target.toFixed(3),
+          }),
+        );
+        const ok = await controlMotor(step.row.hit, 'move', {
+          mode: 'pos_vel',
+          target: String(target),
+        });
+        if (ok) okCount += 1;
+        await sleep(300);
+      }
+
+      showDemoToast(
+        okCount === namedSeq.length ? 'ok' : 'warn',
+        okCount === namedSeq.length ? t('arm_demo_done') : t('arm_demo_failed'),
+        t('arm_demo_result', { ok: okCount, total: namedSeq.length }),
+      );
+    } catch (e) {
+      showDemoToast('warn', t('arm_demo_failed'), e?.message || String(e));
+    } finally {
+      setDemoBusy(false);
+    }
+  }, [
+    demoBusy,
+    demoAction,
+    patchControl,
+    showDemoToast,
+    t,
+    controlMotor,
+    scanRobotArmAll,
+    enableAllRobotArm,
+  ]);
+
+  const armToolbarBusy = armBulkBusy || armScanBusy || armSelfCheckBusy || paramBusy || demoBusy;
   const perJointBusy = armBulkBusy || paramBusy;
 
   return (
@@ -423,6 +557,17 @@ export function RobotArmPage() {
       {limitToast.visible && (
         <div key={limitToast.seq} className="armLimitToast" role="status" aria-live="polite">
           {limitToast.message}
+        </div>
+      )}
+      {demoToast.visible && (
+        <div
+          key={demoToast.seq}
+          className={`armDemoToast ${demoToast.tone}`}
+          role="status"
+          aria-live="polite"
+        >
+          <div className="armDemoToastTitle">{demoToast.title}</div>
+          {demoToast.detail && <div className="armDemoToastDetail">{demoToast.detail}</div>}
         </div>
       )}
       <ZeroConfirmDialog
@@ -474,7 +619,6 @@ export function RobotArmPage() {
         <button className="firstUseBtn" onClick={() => setFirstUseOpen(true)}>
           {t('arm_first_use_btn')}
         </button>
-        <button onClick={ensureRobotArmCards}>{t('arm_prepare_cards')}</button>
         <button className="primary" disabled={!canAction || armToolbarBusy} onClick={scanRobotArmAll}>
           {t('arm_scan_all')}
         </button>
@@ -506,7 +650,22 @@ export function RobotArmPage() {
         <button disabled={!canAction || armToolbarBusy} onClick={applyDefaultTemplate}>
           {t('arm_apply_default_template')}
         </button>
+        <button disabled={!canAction || armToolbarBusy} onClick={runDemo}>
+          {t('arm_demo_btn')}
+        </button>
+        <div className="field miniField">
+          <label>{t('arm_demo_list')}</label>
+          <select
+            value={demoAction}
+            disabled={!canAction || armToolbarBusy}
+            onChange={(e) => setDemoAction(e.target.value)}
+          >
+            <option value="safe_seq">{t('arm_demo_safe_seq')}</option>
+            <option value="safe_seq_scan">{t('arm_demo_safe_seq_scan')}</option>
+          </select>
+        </div>
       </div>
+      <div className="tip warnText">{t('arm_demo_beta_warn')}</div>
 
       <ParamTable
         open={paramPanelOpen}
@@ -532,6 +691,11 @@ export function RobotArmPage() {
         fallbackLabel={t('arm_self_check_running')}
       />
       <SelfCheckReport report={armSelfCheckReport} />
+      {onlineCount > 0 && onlineCount < robotArmJointRows.length && (
+        <div className="tip">
+          {t('arm_demo_online_hint', { online: onlineCount, total: robotArmJointRows.length })}
+        </div>
+      )}
       {!zeroSafety.ok && (
         <div className="tip warnText">
           {t('arm_zero_all_guard_hint')} · {t('arm_zero_all_blocked', {

@@ -546,18 +546,59 @@
 
 .armLimitToast {
   position: fixed;
-  top: 16px;
+  bottom: 16px;
   right: 16px;
   z-index: 1200;
   max-width: min(520px, calc(100vw - 32px));
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid #f5c389;
-  background: #fff6eb;
+  background: rgba(255, 246, 235, 0.88);
   color: #8a3f00;
   font-size: 12px;
   font-weight: 600;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
   box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+}
+
+.armDemoToast {
+  position: fixed;
+  bottom: 78px;
+  right: 16px;
+  z-index: 1198;
+  width: min(460px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #c6d6ff;
+  background: rgba(237, 243, 255, 0.84);
+  color: #1d3c7a;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.armDemoToast.ok {
+  border-color: #9ad7b0;
+  background: rgba(237, 253, 241, 0.84);
+  color: #136333;
+}
+
+.armDemoToast.warn {
+  border-color: #f5c389;
+  background: rgba(255, 246, 235, 0.84);
+  color: #8a3f00;
+}
+
+.armDemoToastTitle {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.armDemoToastDetail {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .armDialogMask {
